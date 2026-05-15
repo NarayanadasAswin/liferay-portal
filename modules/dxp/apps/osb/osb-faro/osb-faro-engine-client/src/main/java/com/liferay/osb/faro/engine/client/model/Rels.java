@@ -14,6 +14,8 @@ public interface Rels {
 
 	public static final String ACCOUNT_DETAILS = "account-details";
 
+	public static final String ACCOUNT_INDIVIDUALS = "account-individuals";
+
 	public static final String ACCOUNT_LIFECYCLE = "account-lifecycle";
 
 	public static final String ACCOUNT_LIFECYCLE_OVERVIEW =
@@ -24,6 +26,9 @@ public interface Rels {
 
 	public static final String ACCOUNT_LIFECYCLE_STAGES =
 		"account-lifecycle-stages";
+
+	public static final String ACCOUNT_LIFECYCLE_STATUS =
+		"account-lifecycle-status";
 
 	public static final String ACCOUNT_LIFECYCLES = "account-lifecycles";
 
