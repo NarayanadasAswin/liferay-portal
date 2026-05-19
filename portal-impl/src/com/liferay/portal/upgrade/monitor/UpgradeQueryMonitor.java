@@ -77,6 +77,16 @@ public final class UpgradeQueryMonitor {
 		_scheduledExecutorService = null;
 	}
 
+	private static String _getSchemaClause(
+		String defaultSchema, String schema) {
+
+		if ((schema == null) || schema.equals(defaultSchema)) {
+			return "";
+		}
+
+		return StringBundler.concat(" in schema \"", schema, "\"");
+	}
+
 	private static void _poll() {
 		DataSource dataSource = InfrastructureUtil.getDataSource();
 
@@ -87,6 +97,12 @@ public final class UpgradeQueryMonitor {
 		try (Connection connection = dataSource.getConnection()) {
 			DB db = DBManagerUtil.getDB();
 
+			String defaultSchema = connection.getCatalog();
+
+			if (defaultSchema == null) {
+				defaultSchema = connection.getSchema();
+			}
+
 			List<DB.QueryInfo> lockedQueryInfos = db.getLockedQueryInfos(
 				connection);
 
@@ -96,11 +112,34 @@ public final class UpgradeQueryMonitor {
 						StringBundler.concat(
 							"Locked query \"", lockedQueryInfo.getQuery(),
 							"\" with ID ", lockedQueryInfo.getId(),
+							_getSchemaClause(
+								defaultSchema, lockedQueryInfo.getSchema()),
 							" has been running for ",
 							TimeUnit.MILLISECONDS.toSeconds(
 								lockedQueryInfo.getDuration()),
 							" seconds"));
 				}
+			}
+
+			if (!_log.isInfoEnabled()) {
+				return;
+			}
+
+			List<DB.QueryInfo> longRunningQueryInfos =
+				db.getLongRunningQueryInfos(connection);
+
+			for (DB.QueryInfo longRunningQueryInfo : longRunningQueryInfos) {
+				_log.info(
+					StringBundler.concat(
+						"Long running query \"",
+						longRunningQueryInfo.getQuery(), "\" with ID ",
+						longRunningQueryInfo.getId(),
+						_getSchemaClause(
+							defaultSchema, longRunningQueryInfo.getSchema()),
+						" has been running for ",
+						TimeUnit.MILLISECONDS.toSeconds(
+							longRunningQueryInfo.getDuration()),
+						" seconds"));
 			}
 		}
 		catch (Exception exception) {
