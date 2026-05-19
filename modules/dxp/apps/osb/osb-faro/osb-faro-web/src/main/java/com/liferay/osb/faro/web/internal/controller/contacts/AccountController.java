@@ -6,16 +6,17 @@
 package com.liferay.osb.faro.web.internal.controller.contacts;
 
 import com.liferay.osb.faro.engine.client.model.Account;
+import com.liferay.osb.faro.engine.client.model.AccountDetails;
 import com.liferay.osb.faro.engine.client.model.AccountLifecycleStatus;
 import com.liferay.osb.faro.engine.client.model.AccountMetric;
 import com.liferay.osb.faro.engine.client.model.Individual;
+import com.liferay.osb.faro.engine.client.model.Results;
 import com.liferay.osb.faro.engine.client.util.OrderByField;
 import com.liferay.osb.faro.web.internal.constants.FaroConstants;
 import com.liferay.osb.faro.web.internal.controller.BaseFaroController;
 import com.liferay.osb.faro.web.internal.controller.FaroController;
 import com.liferay.osb.faro.web.internal.model.display.FaroFDSResultsDisplay;
 import com.liferay.osb.faro.web.internal.model.display.FaroResultsDisplay;
-import com.liferay.osb.faro.web.internal.model.display.contacts.AccountDetailsDisplay;
 import com.liferay.osb.faro.web.internal.model.display.contacts.AccountDisplay;
 import com.liferay.osb.faro.web.internal.model.display.contacts.IndividualDisplay;
 import com.liferay.osb.faro.web.internal.param.FaroParam;
@@ -48,13 +49,18 @@ public class AccountController extends BaseFaroController {
 	@GET
 	@Path("/{id}/details")
 	@RolesAllowed(RoleConstants.SITE_MEMBER)
-	public AccountDetailsDisplay getAccountDetailsDisplay(
-			@PathParam("groupId") long groupId, @PathParam("id") String id)
+	public FaroFDSResultsDisplay getAccountDetailsFaroFDSResultsDisplay(
+			@PathParam("groupId") long groupId, @PathParam("id") String id,
+			@QueryParam("page") int page, @QueryParam("pageSize") int pageSize)
 		throws Exception {
 
-		return new AccountDetailsDisplay(
+		List<AccountDetails.Field> fields =
 			contactsEngineClient.getAccountDetails(
-				faroProjectLocalService.getFaroProjectByGroupId(groupId), id));
+				faroProjectLocalService.getFaroProjectByGroupId(groupId), id
+			).getFields();
+
+		return new FaroFDSResultsDisplay(
+			new Results<>(fields, fields.size()), page, pageSize);
 	}
 
 	@GET
@@ -70,20 +76,26 @@ public class AccountController extends BaseFaroController {
 	}
 
 	@GET
-	@Path("/{id}/individuals")
+	@Path("/distribution")
 	@RolesAllowed(RoleConstants.SITE_MEMBER)
-	public FaroFDSResultsDisplay<Individual> getAccountIndividuals(
-			@PathParam("groupId") long groupId, @PathParam("id") String id,
-			@QueryParam("page") int page, @QueryParam("pageSize") int pageSize,
-			@DefaultValue(StringPool.BLANK) @QueryParam("sort") String
-				sortString)
+	public FaroResultsDisplay getAccountDistributionFaroResultsDisplay(
+			@PathParam("groupId") long groupId,
+			@QueryParam("channelId") String channelId,
+			@QueryParam("fieldMappingFieldName") String fieldMappingFieldName,
+			@QueryParam("filter") String filterString,
+			@QueryParam("individualSegmentId") String individualSegmentId,
+			@QueryParam("count") int count,
+			@QueryParam("numberOfBins") int numberOfBins,
+			@DefaultValue(StringPool.BLANK) @QueryParam("orderByFields")
+				FaroParam<List<OrderByField>> orderByFieldsFaroParam)
 		throws Exception {
 
-		return new FaroFDSResultsDisplay<>(
-			contactsEngineClient.getAccountIndividuals(
-				faroProjectLocalService.getFaroProjectByGroupId(groupId), id,
-				page, pageSize, sortString),
-			IndividualDisplay::new, page, pageSize);
+		return new FaroResultsDisplay(
+			contactsEngineClient.getAccountsDistribution(
+				faroProjectLocalService.getFaroProjectByGroupId(groupId),
+				channelId, fieldMappingFieldName, filterString,
+				individualSegmentId, count, numberOfBins,
+				orderByFieldsFaroParam.getValue()));
 	}
 
 	@GET
@@ -112,32 +124,28 @@ public class AccountController extends BaseFaroController {
 			channelId);
 	}
 
-	@GET
-	@Path("/distribution")
-	@RolesAllowed(RoleConstants.SITE_MEMBER)
-	public FaroResultsDisplay getDistribution(
-			@PathParam("groupId") long groupId,
-			@QueryParam("channelId") String channelId,
-			@QueryParam("fieldMappingFieldName") String fieldMappingFieldName,
-			@QueryParam("filter") String filterString,
-			@QueryParam("individualSegmentId") String individualSegmentId,
-			@QueryParam("count") int count,
-			@QueryParam("numberOfBins") int numberOfBins,
-			@DefaultValue(StringPool.BLANK) @QueryParam("orderByFields")
-				FaroParam<List<OrderByField>> orderByFieldsFaroParam)
-		throws Exception {
-
-		return new FaroResultsDisplay(
-			contactsEngineClient.getAccountsDistribution(
-				faroProjectLocalService.getFaroProjectByGroupId(groupId),
-				channelId, fieldMappingFieldName, filterString,
-				individualSegmentId, count, numberOfBins,
-				orderByFieldsFaroParam.getValue()));
-	}
-
 	@Override
 	public int[] getEntityTypes() {
 		return _ENTITY_TYPES.clone();
+	}
+
+	@GET
+	@Path("/{id}/individuals")
+	@RolesAllowed(RoleConstants.SITE_MEMBER)
+	public FaroFDSResultsDisplay<Individual>
+			getIndividualsFaroFDSResultsDisplay(
+				@PathParam("groupId") long groupId, @PathParam("id") String id,
+				@QueryParam("page") int page,
+				@QueryParam("pageSize") int pageSize,
+				@DefaultValue(StringPool.BLANK) @QueryParam("sort") String
+					sortString)
+		throws Exception {
+
+		return new FaroFDSResultsDisplay<>(
+			contactsEngineClient.getAccountIndividuals(
+				faroProjectLocalService.getFaroProjectByGroupId(groupId), id,
+				page, pageSize, sortString),
+			IndividualDisplay::new, page, pageSize);
 	}
 
 	@GET

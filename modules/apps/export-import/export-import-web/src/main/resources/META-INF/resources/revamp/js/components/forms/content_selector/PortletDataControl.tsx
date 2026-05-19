@@ -15,12 +15,14 @@ import {
 	updateSelection,
 } from '../../../utils/contentSelection';
 import PortletDataControlChoice from './PortletDataControlChoice';
+import SectionTags from './SectionTags';
 
 interface PortletDataControlProps {
 	className?: string;
 	control: PortletDataHandlerControl;
 	level?: number;
 	onChange: (value: HandlerSelection | undefined) => void;
+	showDeletions?: boolean;
 	value: HandlerSelection | undefined;
 }
 
@@ -29,6 +31,7 @@ export default function PortletDataControl({
 	control,
 	level = 0,
 	onChange,
+	showDeletions,
 	value,
 }: PortletDataControlProps) {
 	if (control.type === 'Choice') {
@@ -60,12 +63,23 @@ export default function PortletDataControl({
 			</ClayLayout.ContentCol>
 
 			<ClayLayout.ContentCol expand>
-				<div className="align-items-center d-flex justify-content-between">
+				<div className="align-items-center d-flex">
 					<span
 						className={`small ${level === 0 ? 'font-weight-semi-bold' : ''}`}
 					>
 						{control.label}
 					</span>
+
+					{control.type === 'Boolean' && (
+						<SectionTags
+							additionCount={control.additionCount}
+							deletionCount={
+								showDeletions
+									? control.deletionCount
+									: undefined
+							}
+						/>
+					)}
 				</div>
 
 				{control.portletDataHandlerControls?.map((nestedControl) =>

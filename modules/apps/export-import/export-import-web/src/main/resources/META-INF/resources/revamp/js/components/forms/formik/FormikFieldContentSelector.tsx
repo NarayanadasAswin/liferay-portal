@@ -23,6 +23,7 @@ export function FormikFieldContentSelector({
 	sections,
 }: FormikFieldContentSelectorProps) {
 	const [field, meta, helpers] = useField<ContentSelection | undefined>(name);
+	const [{value: deletions}] = useField<boolean | undefined>('deletions');
 	const {setFieldTouched} = useFormikContext();
 
 	return (
@@ -35,6 +36,7 @@ export function FormikFieldContentSelector({
 				setFieldTouched(name, true, false);
 			}}
 			sections={sections}
+			showDeletions={!!deletions}
 			value={field.value}
 		/>
 	);

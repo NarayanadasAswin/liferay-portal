@@ -4,6 +4,7 @@ import AccountsDataSet from 'shared/components/AccountsDataSet';
 import BasePage from 'shared/components/base-page';
 import GlobalFilters from '../components/GlobalFilters';
 import LifecycleChart from 'lifecycle/components/LifecycleChart';
+import Loading from 'shared/components/Loading';
 import OverviewSection from '../components/OverviewSection';
 import React, {useContext} from 'react';
 import {ChannelContext} from 'shared/context/channel';
@@ -16,7 +17,7 @@ import {useParams} from 'react-router-dom';
 import {useRequest} from 'shared/hooks/useRequest';
 
 const LifecycleOverview = () => {
-	const {filters} = useLifecycle();
+	const {filters, lifecycleId} = useLifecycle();
 
 	const {groupId} = useParams();
 
@@ -26,7 +27,7 @@ const LifecycleOverview = () => {
 			country: filters.countryFilter,
 			groupId: groupId!,
 			industry: filters.industryFilter,
-			lifecycleId: API.lifecycle.DEFAULT_LIFECYCLE_ID
+			lifecycleId
 		}
 	});
 
@@ -34,7 +35,7 @@ const LifecycleOverview = () => {
 };
 
 const LifecycleStagesSection = () => {
-	const {filters} = useLifecycle();
+	const {filters, lifecycleId} = useLifecycle();
 
 	const {groupId} = useParams();
 
@@ -43,14 +44,12 @@ const LifecycleStagesSection = () => {
 		error: stagesError,
 		loading: stagesLoading
 	} = useRequest({
-		dataSourceFn: API.lifecycle.fetchLifecycleStages as (params: {
-			[key: string]: any;
-		}) => Promise<any>,
+		dataSourceFn: API.lifecycle.fetchLifecycleStages,
 		variables: {
 			country: filters.countryFilter,
 			groupId,
 			industry: filters.industryFilter,
-			lifecycleId: API.lifecycle.DEFAULT_LIFECYCLE_ID
+			lifecycleId
 		}
 	});
 
@@ -64,25 +63,26 @@ const LifecycleStagesSection = () => {
 };
 
 const LifecycleAccounts = () => {
-	const {filters} = useLifecycle();
+	const {filters, lifecycleId} = useLifecycle();
 
 	const {channelId, groupId} = useParams();
 
 	return (
-		<>
+		<section>
 			<SectionHeader
 				icon='box-container'
 				title={Liferay.Language.get('accounts')}
 			/>
 
 			<AccountsDataSet
+				apiURL={`/o/faro/contacts/${groupId!}/account-lifecycle/${lifecycleId}/accounts`}
 				channelId={channelId!}
 				countryFilter={filters.countryFilter}
 				groupId={groupId!}
 				industryFilter={filters.industryFilter}
 				lifecycleStageFilter={filters.lifecycleStageFilter}
 			/>
-		</>
+		</section>
 	);
 };
 
@@ -91,8 +91,15 @@ const BaseLifecycle = () => {
 
 	const {channelId, groupId} = useParams();
 
+	const {data: lifecycles, loading: lifecyclesLoading} = useRequest({
+		dataSourceFn: API.lifecycle.fetchLifecycles,
+		variables: {groupId: groupId!}
+	});
+
+	const lifecycleId = lifecycles?.[0]?.id ?? '';
+
 	return (
-		<LifecycleContextProvider>
+		<LifecycleContextProvider lifecycleId={lifecycleId}>
 			<BasePage documentTitle={Liferay.Language.get('lifecycles')}>
 				<BasePage.Header
 					breadcrumbs={[
@@ -117,11 +124,17 @@ const BaseLifecycle = () => {
 					</div>
 				</BasePage.SubHeader>
 				<BasePage.Body>
-					<LifecycleOverview />
+					{lifecyclesLoading || !lifecycleId ? (
+						<Loading />
+					) : (
+						<>
+							<LifecycleOverview />
 
-					<LifecycleStagesSection />
+							<LifecycleStagesSection />
 
-					<LifecycleAccounts />
+							<LifecycleAccounts />
+						</>
+					)}
 				</BasePage.Body>
 			</BasePage>
 		</LifecycleContextProvider>

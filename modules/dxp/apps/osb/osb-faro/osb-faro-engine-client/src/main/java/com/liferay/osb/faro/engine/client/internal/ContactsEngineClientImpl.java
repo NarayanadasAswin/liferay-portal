@@ -595,7 +595,7 @@ public class ContactsEngineClientImpl
 	public AccountDetails getAccountDetails(FaroProject faroProject, String id)
 		throws FaroEngineClientException {
 
-		return get(faroProject, Rels.ACCOUNT_DETAILS, id, AccountDetails.class);
+		return get(faroProject, Rels.ACCOUNT, id, AccountDetails.class);
 	}
 
 	@Override
@@ -725,6 +725,51 @@ public class ContactsEngineClientImpl
 
 		return get(
 			faroProject, Rels.ACCOUNT_LIFECYCLE, id, AccountLifecycle.class);
+	}
+
+	@Override
+	public Results<Account> getAccountLifecycleAccounts(
+			FaroProject faroProject, String country, String id, String industry,
+			String query, String stageType, int cur, int delta,
+			String sortString)
+		throws FaroEngineClientException {
+
+		Map<String, Object> uriVariables = getUriVariables(
+			faroProject, cur, delta, null);
+
+		if (Validator.isNotNull(country)) {
+			uriVariables.put("country", country);
+		}
+
+		uriVariables.put("id", id);
+
+		if (Validator.isNotNull(industry)) {
+			uriVariables.put("industry", industry);
+		}
+
+		if (Validator.isNotNull(query)) {
+			uriVariables.put("query", query);
+		}
+
+		if (Validator.isNotNull(sortString)) {
+			uriVariables.put(
+				"sort",
+				Arrays.asList(
+					StringUtil.replace(
+						sortString, CharPool.COLON, CharPool.COMMA)));
+		}
+
+		if (Validator.isNotNull(stageType)) {
+			uriVariables.put("stageType", stageType);
+		}
+
+		PagedModel<?, Account> pagedModel = get(
+			faroProject, Rels.ACCOUNT_LIFECYCLE_ACCOUNTS,
+			new ParameterizedTypeReference<EntityModelPagedModel<Account>>() {
+			},
+			uriVariables);
+
+		return pagedModel.getResults();
 	}
 
 	@Override

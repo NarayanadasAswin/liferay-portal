@@ -18,6 +18,7 @@ interface ContentSelectorProps {
 	'name': string;
 	'onChange': (value: ContentSelection | undefined) => void;
 	'sections': PortletDataHandlerSection[];
+	'showDeletions'?: boolean;
 	'value': ContentSelection | undefined;
 }
 
@@ -27,20 +28,26 @@ export default function ContentSelector({
 	name,
 	onChange,
 	sections,
+	showDeletions,
 	value,
 }: ContentSelectorProps) {
 	const currentValue = value || {};
 	const errorId = errorMessage ? `${name}-error-message` : undefined;
+
+	const visibleSections = sections.filter(
+		(section) =>
+			showDeletions || !!section.additionCount || !section.deletionCount
+	);
 
 	return (
 		<div
 			aria-describedby={errorId}
 			aria-invalid={errorMessage ? true : undefined}
 			aria-labelledby={ariaLabelledby}
-			className="mt-4"
+			className="c-gap-4 d-flex flex-column mt-4"
 			role="group"
 		>
-			{sections.map((section: PortletDataHandlerSection) => (
+			{visibleSections.map((section: PortletDataHandlerSection) => (
 				<ContentSection
 					key={section.name}
 					onChange={(sectionValue) =>
@@ -53,6 +60,7 @@ export default function ContentSelector({
 						)
 					}
 					section={section}
+					showDeletions={showDeletions}
 					value={currentValue[section.name]}
 				/>
 			))}

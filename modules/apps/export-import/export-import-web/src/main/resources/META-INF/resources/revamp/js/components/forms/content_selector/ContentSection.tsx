@@ -19,18 +19,21 @@ import {
 	updateSelection,
 } from '../../../utils/contentSelection';
 import PortletDataControl from './PortletDataControl';
+import SectionTags from './SectionTags';
 
 export type SectionSelection = Record<string, HandlerSelection>;
 
 interface ContentSectionProps {
 	onChange: (value: SectionSelection | undefined) => void;
 	section: PortletDataHandlerSectionType;
+	showDeletions?: boolean;
 	value: SectionSelection | undefined;
 }
 
 export default function ContentSection({
 	onChange,
 	section,
+	showDeletions,
 	value,
 }: ContentSectionProps) {
 	const portletContextsValue = value || {};
@@ -59,7 +62,7 @@ export default function ContentSection({
 	};
 
 	return (
-		<div className="mb-5 sheet">
+		<div className="mt-0 sheet">
 			<ClayLayout.ContentRow padded>
 				<ClayLayout.ContentCol expand={false}>
 					<ClayCheckbox
@@ -73,8 +76,17 @@ export default function ContentSection({
 				</ClayLayout.ContentCol>
 
 				<ClayLayout.ContentCol expand>
-					<div className="font-weight-bold h3 mb-0">
+					<div className="align-items-center d-flex font-weight-bold h3 mb-0">
 						{section.label}
+
+						<SectionTags
+							additionCount={section.additionCount}
+							deletionCount={
+								showDeletions
+									? section.deletionCount
+									: undefined
+							}
+						/>
 					</div>
 				</ClayLayout.ContentCol>
 			</ClayLayout.ContentRow>
@@ -93,6 +105,7 @@ export default function ContentSection({
 								)
 							)
 						}
+						showDeletions={showDeletions}
 						value={portletContextsValue[context.name]}
 					/>
 				))}

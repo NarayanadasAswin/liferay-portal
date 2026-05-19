@@ -12,38 +12,18 @@ import React, {useCallback, useEffect, useRef, useState} from 'react';
 import Footer from '../../components/Footer';
 import {
 	DateFilterValues,
-	FilterType,
-	HOURS_BY_MODIFIED_LAST,
+	Range,
+	normalizeDateFilter,
 } from '../../components/date_filter';
 import {FormikDebug} from '../../components/forms/formik';
 import {
 	ExportPreviewParams,
-	ExportPreviewQuery,
 	getExportPreview,
 } from '../../services/getExportPreview';
 import {ExportPreview} from '../../types/exportImportPreview';
 import {flattenContentSelection} from '../../utils/flattenContentSelection';
 import DataSelection from './components/DataSelection';
 import Setup from './components/Setup';
-
-function dateFilterToQuery(values: DateFilterValues): ExportPreviewQuery {
-	if (values.filterType === FilterType.Last) {
-		return {
-			last: HOURS_BY_MODIFIED_LAST[values.modifiedLast],
-			range: 'last',
-		};
-	}
-
-	if (values.filterType === FilterType.Range) {
-		return {
-			endDate: new Date(values.toDate).toISOString(),
-			range: 'dateRange',
-			startDate: new Date(values.fromDate).toISOString(),
-		};
-	}
-
-	return {range: 'all'};
-}
 
 export function NewExport({
 	backURL,
@@ -99,17 +79,14 @@ export function NewExport({
 	const sections = preview?.portletDataHandlerSections ?? [];
 
 	const handleApplyFilter = (filterValues: DateFilterValues) => {
-		if (
-			filterValues.filterType === FilterType.All &&
-			initialPreviewRef.current
-		) {
+		if (filterValues.range === Range.All && initialPreviewRef.current) {
 			setPreview(initialPreviewRef.current);
 
 			return;
 		}
 
 		getPreview({
-			query: dateFilterToQuery(filterValues),
+			query: normalizeDateFilter(filterValues),
 			url: exportPreviewAPIURL,
 		});
 	};
@@ -118,7 +95,9 @@ export function NewExport({
 		<Formik
 			initialValues={{
 				contentSelection: undefined,
-				filename: '',
+				dateFilter: {range: Range.All} as DateFilterValues,
+				deletions: false,
+				fileName: '',
 			}}
 			onSubmit={async (values) => {
 				const flatValues = flattenContentSelection({
@@ -128,16 +107,18 @@ export function NewExport({
 
 				// eslint-disable-next-line no-console
 				console.log({
+					...normalizeDateFilter(values.dateFilter),
 					contentSelection: values.contentSelection,
-					filename: values.filename,
+					deletions: values.deletions,
+					fileName: values.fileName,
 					flatValues,
 				});
 			}}
 			validate={(values: FormikValues) => {
 				const errors: {[key: string]: string} = {};
 
-				if (!values?.filename) {
-					errors.filename = Liferay.Language.get(
+				if (!values?.fileName) {
+					errors.fileName = Liferay.Language.get(
 						'this-field-is-required'
 					);
 				}
@@ -157,6 +138,7 @@ export function NewExport({
 					<Setup />
 
 					<DataSelection
+						deletionCount={preview?.deletionCount}
 						itemsCount={preview?.additionCount}
 						loading={loading}
 						onApplyFilter={handleApplyFilter}
