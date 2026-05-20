@@ -8,9 +8,10 @@ import ClayLayout from '@clayui/layout';
 import React from 'react';
 
 import '../../../../css/utilities.scss';
+import {PageTreeModalConfiguration} from '../../../pages/export/components/PageTreeModal';
 import {
-	PortletDataHandlerBoolean,
-	PortletDataHandlerSection as PortletDataHandlerSectionType,
+	PreviewPortletDataHandlerBoolean,
+	PreviewPortletDataHandlerSection as PortletDataHandlerSectionType,
 } from '../../../types/portletDataHandler';
 import {
 	HandlerSelection,
@@ -25,6 +26,7 @@ export type SectionSelection = Record<string, HandlerSelection>;
 
 interface ContentSectionProps {
 	onChange: (value: SectionSelection | undefined) => void;
+	pageTreeModalConfiguration?: PageTreeModalConfiguration;
 	section: PortletDataHandlerSectionType;
 	showDeletions?: boolean;
 	value: SectionSelection | undefined;
@@ -32,15 +34,17 @@ interface ContentSectionProps {
 
 export default function ContentSection({
 	onChange,
+	pageTreeModalConfiguration,
 	section,
 	showDeletions,
 	value,
 }: ContentSectionProps) {
 	const portletContextsValue = value || {};
 
-	const controls = section.portletDataHandlers.map<PortletDataHandlerBoolean>(
-		(handler) => ({...handler, type: 'Boolean'})
-	);
+	const controls =
+		section.previewPortletDataHandlers.map<PreviewPortletDataHandlerBoolean>(
+			(handler) => ({...handler, type: 'Boolean'})
+		);
 
 	const selected = controls.every((context) =>
 		isSelected(portletContextsValue[context.name], context)
@@ -105,6 +109,7 @@ export default function ContentSection({
 								)
 							)
 						}
+						pageTreeModalConfiguration={pageTreeModalConfiguration}
 						showDeletions={showDeletions}
 						value={portletContextsValue[context.name]}
 					/>

@@ -6,7 +6,8 @@
 import ClayAlert from '@clayui/alert';
 import React from 'react';
 
-import {PortletDataHandlerSection} from '../../../types/portletDataHandler';
+import {PageTreeModalConfiguration} from '../../../pages/export/components/PageTreeModal';
+import {PreviewPortletDataHandlerSection} from '../../../types/portletDataHandler';
 import {updateSelection} from '../../../utils/contentSelection';
 import ContentSection, {SectionSelection} from './ContentSection';
 
@@ -17,7 +18,8 @@ interface ContentSelectorProps {
 	'errorMessage'?: string;
 	'name': string;
 	'onChange': (value: ContentSelection | undefined) => void;
-	'sections': PortletDataHandlerSection[];
+	'pageTreeModalConfiguration'?: PageTreeModalConfiguration;
+	'sections': PreviewPortletDataHandlerSection[];
 	'showDeletions'?: boolean;
 	'value': ContentSelection | undefined;
 }
@@ -27,6 +29,7 @@ export default function ContentSelector({
 	errorMessage,
 	name,
 	onChange,
+	pageTreeModalConfiguration,
 	sections,
 	showDeletions,
 	value,
@@ -47,23 +50,26 @@ export default function ContentSelector({
 			className="c-gap-4 d-flex flex-column mt-4"
 			role="group"
 		>
-			{visibleSections.map((section: PortletDataHandlerSection) => (
-				<ContentSection
-					key={section.name}
-					onChange={(sectionValue) =>
-						onChange(
-							updateSelection(
-								currentValue,
-								section.name,
-								sectionValue
+			{visibleSections.map(
+				(section: PreviewPortletDataHandlerSection) => (
+					<ContentSection
+						key={section.name}
+						onChange={(sectionValue) =>
+							onChange(
+								updateSelection(
+									currentValue,
+									section.name,
+									sectionValue
+								)
 							)
-						)
-					}
-					section={section}
-					showDeletions={showDeletions}
-					value={currentValue[section.name]}
-				/>
-			))}
+						}
+						pageTreeModalConfiguration={pageTreeModalConfiguration}
+						section={section}
+						showDeletions={showDeletions}
+						value={currentValue[section.name]}
+					/>
+				)
+			)}
 
 			{errorMessage && (
 				<ClayAlert

@@ -20,19 +20,25 @@ import {
 	ExportPreviewParams,
 	getExportPreview,
 } from '../../services/getExportPreview';
+import {postExportProcess} from '../../services/postExportProcess';
 import {ExportPreview} from '../../types/exportImportPreview';
-import {flattenContentSelection} from '../../utils/flattenContentSelection';
+import {toRequestPortletDataHandlers} from '../../utils/toRequestPortletDataHandlers';
 import DataSelection from './components/DataSelection';
+import {PageTreeModalConfiguration} from './components/PageTreeModal';
 import Setup from './components/Setup';
 
 export function NewExport({
 	backURL,
 	exportPreview,
 	exportPreviewAPIURL,
+	exportProcessAPIURL,
+	pageTreeModalConfiguration,
 }: {
 	backURL: string;
 	exportPreview?: ExportPreview;
 	exportPreviewAPIURL: string;
+	exportProcessAPIURL: string;
+	pageTreeModalConfiguration: PageTreeModalConfiguration;
 }) {
 	const [preview, setPreview] = useState<ExportPreview | undefined>(
 		exportPreview
@@ -76,7 +82,7 @@ export function NewExport({
 		return <ClayAlert displayType="danger">{error}</ClayAlert>;
 	}
 
-	const sections = preview?.portletDataHandlerSections ?? [];
+	const sections = preview?.previewPortletDataHandlerSections ?? [];
 
 	const handleApplyFilter = (filterValues: DateFilterValues) => {
 		if (filterValues.range === Range.All && initialPreviewRef.current) {
@@ -100,19 +106,29 @@ export function NewExport({
 				fileName: '',
 			}}
 			onSubmit={async (values) => {
-				const flatValues = flattenContentSelection({
-					contentSelection: values.contentSelection,
-					sections,
+				const result = await postExportProcess({
+					exportRequest: {
+						...normalizeDateFilter(values.dateFilter),
+						fileName: values.fileName,
+						requestPortletDataHandlers:
+							toRequestPortletDataHandlers(
+								sections,
+								values.contentSelection
+							),
+					},
+					url: exportProcessAPIURL,
 				});
 
-				// eslint-disable-next-line no-console
-				console.log({
-					...normalizeDateFilter(values.dateFilter),
-					contentSelection: values.contentSelection,
-					deletions: values.deletions,
-					fileName: values.fileName,
-					flatValues,
-				});
+				if (result.error) {
+					Liferay.Util.openToast({
+						message: result.error,
+						type: 'danger',
+					});
+
+					return;
+				}
+
+				window.location.href = backURL;
 			}}
 			validate={(values: FormikValues) => {
 				const errors: {[key: string]: string} = {};
@@ -142,6 +158,7 @@ export function NewExport({
 						itemsCount={preview?.additionCount}
 						loading={loading}
 						onApplyFilter={handleApplyFilter}
+						pageTreeModalConfiguration={pageTreeModalConfiguration}
 						sections={sections}
 					/>
 
