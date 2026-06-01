@@ -6,19 +6,42 @@
 import {Range} from '../components/date_filter';
 import {RequestPortletDataHandler} from './portletDataHandler';
 
-export interface ExportRequest {
-	endDate?: string;
-	fileName: string;
-	last?: number;
-	range?: Range;
-	requestPortletDataHandlers?: RequestPortletDataHandler[];
-	startDate?: string;
-}
-
 export interface ExportProcess {
 	dateCreated?: string;
 	dateModified?: string;
 	id?: number;
 	name?: string;
 	status?: {code: number; label: string};
+}
+
+export interface ExportProcessRequest {
+	deletions?: boolean;
+	endDate?: string;
+	last?: number;
+	name: string;
+	permissions?: boolean;
+	range?: Range;
+	requestPortletDataHandlers?: RequestPortletDataHandler[];
+	startDate?: string;
+}
+
+export type DataStrategy = 'MIRROR' | 'MIRROR_OVERWRITE' | 'COPY_AS_NEW';
+
+export type UserIdStrategy = 'CURRENT_USER_ID' | 'ALWAYS_CURRENT_USER_ID';
+
+export interface ImportProcess {
+	dateCreated?: string;
+	dateModified?: string;
+	id?: number;
+	name?: string;
+	status?: {code: number; label: string};
+}
+
+export interface ImportProcessRequest {
+	dataStrategy?: DataStrategy;
+	deletions?: boolean;
+	name?: string;
+	permissions?: boolean;
+	requestPortletDataHandlers?: RequestPortletDataHandler[];
+	userIdStrategy?: UserIdStrategy;
 }

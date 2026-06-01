@@ -7,6 +7,7 @@ import ClayLayout from '@clayui/layout';
 import ClayLoadingIndicator from '@clayui/loading-indicator';
 import React from 'react';
 
+import SectionHeader from '../../../components/SectionHeader';
 import {DateFilterValues} from '../../../components/date_filter';
 import CheckboxSheet from '../../../components/forms/CheckboxSheet';
 import {
@@ -35,17 +36,14 @@ export default function DataSelection({
 }) {
 	return (
 		<>
-			<header className="mb-1 mt-5 sheet-header">
-				<div className="mb-1 sheet-title" id={LABEL_ID}>
-					{Liferay.Language.get('data-selection')}
-				</div>
-
-				<p className="sheet-text text-secondary">
-					{Liferay.Language.get(
-						'select-and-filter-the-data-you-want-to-include-in-your-export'
-					)}
-				</p>
-			</header>
+			<SectionHeader
+				className="mt-4"
+				id={LABEL_ID}
+				subtitle={Liferay.Language.get(
+					'select-and-filter-the-data-you-want-to-include-in-your-export'
+				)}
+				title={Liferay.Language.get('data-selection')}
+			/>
 
 			<ClayLayout.Sheet>
 				<FormikFieldDateFilter
@@ -63,6 +61,15 @@ export default function DataSelection({
 					title={Liferay.Language.get('deletions')}
 				/>
 			)}
+
+			<CheckboxSheet
+				description={Liferay.Language.get(
+					'export-import-permissions-help'
+				)}
+				label={Liferay.Language.get('export-permissions')}
+				name="permissions"
+				title={Liferay.Language.get('permissions')}
+			/>
 
 			<div className="sr-only" role="status">
 				{loading

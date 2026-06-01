@@ -7,6 +7,8 @@ import {expect, mergeTests} from '@playwright/test';
 
 import {apiHelpersTest} from '../../../fixtures/apiHelpersTest';
 import {dataApiHelpersTest} from '../../../fixtures/dataApiHelpersTest';
+import {featureFlagsTest} from '../../../fixtures/featureFlagsTest';
+import {isolatedChannelTest} from '../../../fixtures/isolatedChannelTest';
 import {isolatedSiteTest} from '../../../fixtures/isolatedSiteTest';
 import {loginAnalyticsCloudTest} from '../../../fixtures/loginAnalyticsCloudTest';
 import {loginTest} from '../../../fixtures/loginTest';
@@ -14,10 +16,15 @@ import getRandomString from '../../../utils/getRandomString';
 import {syncAnalyticsCloud} from '../../analytics-settings-web/main/utils/analytics-settings';
 import getFragmentDefinition from '../../layout-content-page-editor-web/main/utils/getFragmentDefinition';
 import getPageDefinition from '../../layout-content-page-editor-web/main/utils/getPageDefinition';
+import {captureAnalyticsEvents} from './utils/captureAnalyticsEvents';
 
 const test = mergeTests(
 	apiHelpersTest,
 	dataApiHelpersTest,
+	featureFlagsTest({
+		'LPS-178052': {enabled: true},
+	}),
+	isolatedChannelTest,
 	isolatedSiteTest,
 	loginAnalyticsCloudTest(),
 	loginTest()
@@ -26,13 +33,14 @@ const test = mergeTests(
 test(
 	'Verify events after navigating by SPA',
 	{
-		tag: '@LPD-56895',
+		tag: ['@LPD-56895', '@LRAC-8800'],
 	},
-	async ({apiHelpers, page, site}) => {
+	async ({analyticsChannel: channel, apiHelpers, page, project, site}) => {
 		await syncAnalyticsCloud({
 			apiHelpers,
-			channelName: 'My Property - ' + getRandomString(),
+			channel,
 			page,
+			project,
 			siteName: site.name,
 		});
 
@@ -58,45 +66,22 @@ test(
 			title: 'MyPage 2',
 		});
 
-		const pageViewedTitles: string[] = [];
+		const capturedEvents = captureAnalyticsEvents(page);
 
-		page.on('request', (request) => {
-			if (request.method() !== 'POST') {
-				return;
-			}
-
-			const postData = request.postData();
-
-			if (!postData || !postData.includes('"eventId":"pageViewed"')) {
-				return;
-			}
-
-			try {
-				const eventBucket = JSON.parse(postData);
-
-				const title = eventBucket.context?.title;
-
-				if (typeof title === 'string') {
-					pageViewedTitles.push(title);
-				}
-			}
-			catch {
-
-				// Ignore non-JSON bodies; only analytics POSTs are valid here.
-
-			}
-		});
+		const pageViewedWithTitle = (titleFragment: string) =>
+			capturedEvents.some(
+				(event) =>
+					event.eventId === 'pageViewed' &&
+					typeof event.context.title === 'string' &&
+					event.context.title.includes(titleFragment)
+			);
 
 		await test.step('Go to My Page 1', async () => {
 			await page.goto(
 				`/web${site.friendlyUrlPath}${layout1.friendlyUrlPath}`
 			);
 
-			await expect
-				.poll(() =>
-					pageViewedTitles.some((t) => t.includes('MyPage 1'))
-				)
-				.toBe(true);
+			await expect.poll(() => pageViewedWithTitle('MyPage 1')).toBe(true);
 		});
 
 		await test.step('Go to My Page 2', async () => {
@@ -104,11 +89,20 @@ test(
 				`/web${site.friendlyUrlPath}${layout2.friendlyUrlPath}`
 			);
 
-			await expect
-				.poll(() =>
-					pageViewedTitles.some((t) => t.includes('MyPage 2'))
-				)
-				.toBe(true);
+			await expect.poll(() => pageViewedWithTitle('MyPage 2')).toBe(true);
+		});
+
+		await test.step('Verify channelId and dataSourceId in pageViewed events', async () => {
+			const pageViewedEvents = capturedEvents.filter(
+				(event) => event.eventId === 'pageViewed'
+			);
+
+			expect(pageViewedEvents.length).toBeGreaterThan(0);
+
+			for (const event of pageViewedEvents) {
+				expect(event.channelId).toBe(channel.id);
+				expect(event.dataSourceId).toBeTruthy();
+			}
 		});
 	}
 );

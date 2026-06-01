@@ -295,6 +295,36 @@ export const IndividualsListCDPColumns = {
 		label: Liferay.Language.get('account-name'),
 		sortable: true
 	},
+	activityStatus: {
+		accessor: 'activityStatus',
+		cellRenderer: ({
+			className,
+			data: {activityStatus}
+		}: {
+			className?: string;
+			data: {activityStatus: string};
+		}) => (
+			<td className={getCN('name-cell-root', className)}>
+				{activityStatus && (
+					<Label
+						display={
+							activityStatus === 'ACTIVE'
+								? 'success'
+								: 'secondary'
+						}
+						size='lg'
+						uppercase
+					>
+						{activityStatus === 'ACTIVE'
+							? Liferay.Language.get('active')
+							: Liferay.Language.get('inactive')}
+					</Label>
+				)}
+			</td>
+		),
+		label: Liferay.Language.get('activity-status'),
+		sortable: true
+	},
 	country: {
 		accessor: 'countries',
 		cellRenderer: ({
@@ -339,7 +369,7 @@ export const IndividualsListCDPColumns = {
 				toRoute(Routes.CONTACTS_INDIVIDUAL, {channelId, groupId, id})
 		},
 		className: 'table-cell-expand',
-		label: `${Liferay.Language.get('member-name')} | ${Liferay.Language.get(
+		label: `${Liferay.Language.get('individual')} | ${Liferay.Language.get(
 			'email'
 		)}`,
 		sortable: true

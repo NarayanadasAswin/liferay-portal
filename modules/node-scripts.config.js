@@ -10,7 +10,7 @@
  */
 
 module.exports = {
-	hash: '05097b20f14f210f442152c224b132906879fa39404d1f8afc696bf8fe3e3276',
+	hash: '99ddff2ace9fb6572850e46ab379ac51d075437f5b388881eae9ffc3533155e8',
 	imports: {
 		'@liferay/accessibility-menu-web': [],
 		'@liferay/accessibility-settings-state-web': [],
@@ -93,6 +93,7 @@ module.exports = {
 		'@liferay/frontend-data-set-web': [],
 		'@liferay/frontend-editor-ckeditor-sample-web': [],
 		'@liferay/frontend-icons-web': [],
+		'@liferay/frontend-js-audiences-web': [],
 		'@liferay/frontend-js-bootstrap-support-web': [],
 		'@liferay/frontend-js-clay-web': [
 			'@clayui/alert',
@@ -182,6 +183,7 @@ module.exports = {
 			'react-text-mask',
 			'text-mask-addons',
 			'text-mask-core',
+			'ua-parser-js',
 		],
 		'@liferay/frontend-js-importmaps-extender': [],
 		'@liferay/frontend-js-item-selector-sample-web': [],
@@ -522,6 +524,7 @@ module.exports = {
 			'Heading',
 			'Icon',
 			'IconSelector',
+			'KeyboardArrowsIndicator',
 			'LanguagePicker',
 			'Modal',
 			'ModalContext',

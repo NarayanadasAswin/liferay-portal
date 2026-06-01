@@ -11,22 +11,44 @@ const AGENT_DEFINITION_BASE_URI = '/o/ai-hub/agent-definitions';
 
 const AGENT_DEFINITION_BY_ERC_URI = `${AGENT_DEFINITION_BASE_URI}/by-external-reference-code/`;
 
-async function getAgentDefinitions() {
-	const response = await fetch(AGENT_DEFINITION_BASE_URI, {
-		method: 'GET',
-	});
+async function deleteAgentDefinitionToContentRetrievers(
+	agentDefinitionERC: string,
+	contentRetrieverERC: string
+) {
+	return fetch(
+		`${AGENT_DEFINITION_BY_ERC_URI}${agentDefinitionERC}` +
+			`/agentDefinitionsToContentRetrievers/${contentRetrieverERC}`,
+		{method: 'DELETE'}
+	);
+}
 
-	return response.json();
+async function deleteAgentDefinitionToModelArmorTemplates(
+	agentDefinitionERC: string,
+	modelArmorTemplateERC: string
+) {
+	return fetch(
+		`${AGENT_DEFINITION_BY_ERC_URI}${agentDefinitionERC}` +
+			`/aiHubAgentDefinitionsToAIHubMATemplates/${modelArmorTemplateERC}`,
+		{method: 'DELETE'}
+	);
 }
 
 async function getAgentDefinition(externalReferenceCode: string) {
 	const response = await fetch(
 		`${AGENT_DEFINITION_BY_ERC_URI}${externalReferenceCode}` +
-			'?nestedFields=agentDefinitionsToContentRetrievers',
+			'?nestedFields=agentDefinitionsToContentRetrievers,aiHubAgentDefinitionsToAIHubMATemplates',
 		{
 			method: 'GET',
 		}
 	);
+
+	return response.json();
+}
+
+async function getAgentDefinitions() {
+	const response = await fetch(AGENT_DEFINITION_BASE_URI, {
+		method: 'GET',
+	});
 
 	return response.json();
 }
@@ -57,21 +79,23 @@ async function putAgentDefinitionToContentRetrievers(
 	);
 }
 
-async function deleteAgentDefinitionToContentRetrievers(
+async function putAgentDefinitionToModelArmorTemplates(
 	agentDefinitionERC: string,
-	contentRetrieverERC: string
+	modelArmorTemplateERC: string
 ) {
 	return fetch(
 		`${AGENT_DEFINITION_BY_ERC_URI}${agentDefinitionERC}` +
-			`/agentDefinitionsToContentRetrievers/${contentRetrieverERC}`,
-		{method: 'DELETE'}
+			`/aiHubAgentDefinitionsToAIHubMATemplates/${modelArmorTemplateERC}`,
+		{method: 'PUT'}
 	);
 }
 
 export {
+	deleteAgentDefinitionToContentRetrievers,
+	deleteAgentDefinitionToModelArmorTemplates,
 	getAgentDefinition,
 	getAgentDefinitions,
 	putAgentDefinition,
 	putAgentDefinitionToContentRetrievers,
-	deleteAgentDefinitionToContentRetrievers,
+	putAgentDefinitionToModelArmorTemplates,
 };

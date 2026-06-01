@@ -5,8 +5,9 @@
 
 import {openToast} from '@liferay/object-js-components-web';
 import {useFormik} from 'formik';
-import {useCallback, useEffect} from 'react';
+import {useCallback, useEffect, useMemo} from 'react';
 
+import {generateExternalReferenceCode} from '../../utils/externalReferenceCode';
 import {DEFAULT_MODEL_ARMOR_TEMPLATE} from '../constants';
 import {
 	getModelArmorTemplate,
@@ -15,14 +16,17 @@ import {
 import {ModelArmorTemplate} from '../types/ModelArmorTemplate';
 
 interface UseModelArmorTemplateFormProps {
-	accountEntryExternalReferenceCode: string;
 	externalReferenceCode: string;
 }
 
 export function useModelArmorTemplateForm({
-	accountEntryExternalReferenceCode,
 	externalReferenceCode,
 }: UseModelArmorTemplateFormProps) {
+	const generatedExternalReferenceCode = useMemo(
+		() => generateExternalReferenceCode(),
+		[]
+	);
+
 	const {
 		errors,
 		handleBlur,
@@ -36,8 +40,7 @@ export function useModelArmorTemplateForm({
 	} = useFormik<ModelArmorTemplate>({
 		initialValues: {
 			...DEFAULT_MODEL_ARMOR_TEMPLATE,
-			r_accountToAIHubModelArmorTemplates_accountEntryERC:
-				accountEntryExternalReferenceCode,
+			externalReferenceCode: generatedExternalReferenceCode,
 		},
 		onSubmit: async (formValues) => {
 			try {
@@ -106,7 +109,29 @@ export function useModelArmorTemplateForm({
 					externalReferenceCode
 				);
 
-				setValues(modelArmorTemplate);
+				setValues({
+					active: modelArmorTemplate.active,
+					description: modelArmorTemplate.description,
+					externalReferenceCode:
+						modelArmorTemplate.externalReferenceCode,
+					guardrailType: modelArmorTemplate.guardrailType,
+					location: modelArmorTemplate.location,
+					maliciousUriFilterEnabled:
+						modelArmorTemplate.maliciousUriFilterEnabled,
+					multilanguageDetectionEnabled:
+						modelArmorTemplate.multilanguageDetectionEnabled,
+					piAndJailbreakConfidenceLevel:
+						modelArmorTemplate.piAndJailbreakConfidenceLevel,
+					piAndJailbreakFilterEnabled:
+						modelArmorTemplate.piAndJailbreakFilterEnabled,
+					raiDangerousLevel: modelArmorTemplate.raiDangerousLevel,
+					raiHarassmentLevel: modelArmorTemplate.raiHarassmentLevel,
+					raiHateSpeechLevel: modelArmorTemplate.raiHateSpeechLevel,
+					raiSexuallyExplicitLevel:
+						modelArmorTemplate.raiSexuallyExplicitLevel,
+					sdpFilterEnabled: modelArmorTemplate.sdpFilterEnabled,
+					title_i18n: modelArmorTemplate.title_i18n,
+				});
 			}
 			catch (error) {
 				openToast({

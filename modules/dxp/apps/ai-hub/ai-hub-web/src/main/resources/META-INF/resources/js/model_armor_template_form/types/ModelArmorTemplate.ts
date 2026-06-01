@@ -14,10 +14,9 @@ export type ModelArmorTemplate = {
 	guardrailType: string;
 	location: string;
 	maliciousUriFilterEnabled: boolean;
-	multiLanguageDetectionEnabled: boolean;
+	multilanguageDetectionEnabled: boolean;
 	piAndJailbreakConfidenceLevel: FilterLevel;
 	piAndJailbreakFilterEnabled: boolean;
-	r_accountToAIHubModelArmorTemplates_accountEntryERC: string;
 	raiDangerousLevel: RAILevel;
 	raiHarassmentLevel: RAILevel;
 	raiHateSpeechLevel: RAILevel;

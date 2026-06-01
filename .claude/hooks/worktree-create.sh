@@ -47,7 +47,7 @@ function _collect_claimed_offsets {
 
 		worktree_path="${line#worktree }"
 
-		[[ ${worktree_path} != "${WORKTREE_DIR}" ]] || continue
+		[[ ${worktree_path} != ${WORKTREE_DIR} ]] || continue
 
 		bundles="$(_find_app_server_parent_dir "${worktree_path}" 2>/dev/null)" || continue
 
@@ -64,12 +64,14 @@ function _create_worktree {
 
 	input="$(cat)"
 
-	cwd="$(jq --exit-status --raw-output ".cwd" <<< "${input}")" || _die "The cwd field is missing from the hook input ${input}."
-	name="$(jq --exit-status --raw-output ".name" <<< "${input}")" || _die "The name field is missing from the hook input ${input}."
+	cwd="$(jq --exit-status --raw-output .cwd <<< "${input}")" || _die "The cwd field is missing from the hook input ${input}."
+	name="$(jq --exit-status --raw-output .name <<< "${input}")" || _die "The name field is missing from the hook input ${input}."
 
-	local target_path
+	local main_worktree target_path
 
-	target_path="$(dirname "$(git -C "${cwd}" rev-parse --show-toplevel)")/liferay-portal-${name}"
+	main_worktree="$(git -C "${cwd}" worktree list --porcelain | grep --extended-regexp "^worktree " | head --lines=1 | sed "s/^worktree //")"
+
+	target_path="$(dirname "${main_worktree}")/$(basename "${main_worktree}")-${name}"
 
 	if ! git -C "${cwd}" worktree list --porcelain | grep --fixed-strings --line-regexp --quiet "worktree ${target_path}"
 	then
@@ -95,7 +97,7 @@ function _resolve_main_worktree_dir {
 function _reuse_worktree {
 	MAIN_WORKTREE_DIR="$(_resolve_main_worktree_dir)"
 
-	if [[ -n ${MAIN_WORKTREE_DIR} && ${MAIN_WORKTREE_DIR} != "${WORKTREE_DIR}" ]]
+	if [[ -n ${MAIN_WORKTREE_DIR} && ${MAIN_WORKTREE_DIR} != ${WORKTREE_DIR} ]]
 	then
 		rsync \
 			--archive \
@@ -118,7 +120,7 @@ function _reuse_worktree {
 
 	if ! _bundle_exists "${BUNDLES_DIR}"
 	then
-		[[ -n ${MAIN_WORKTREE_DIR} && ${MAIN_WORKTREE_DIR} != "${WORKTREE_DIR}" ]] || _die "Unable to locate the main worktree to copy the bundle from."
+		[[ -n ${MAIN_WORKTREE_DIR} && ${MAIN_WORKTREE_DIR} != ${WORKTREE_DIR} ]] || _die "Unable to locate the main worktree to copy the bundle from."
 
 		local main_bundles
 
@@ -128,7 +130,7 @@ function _reuse_worktree {
 
 		mkdir --parents "${BUNDLES_DIR}"
 
-		cp --archive "${main_bundles}/." "${BUNDLES_DIR}/"
+		cp --archive "${main_bundles}/." "${BUNDLES_DIR}"
 
 		_bundle_exists "${BUNDLES_DIR}" || _die "Bundle copy finished but no tomcat-* directory exists under ${BUNDLES_DIR}."
 	fi
@@ -185,11 +187,12 @@ function _set_database {
 	db_name="$(_derive_db_name "$(basename "${WORKTREE_DIR}")")"
 
 	local file="${BUNDLES_DIR}/portal-ext.properties"
+	local wizard_file="${BUNDLES_DIR}/portal-setup-wizard.properties"
 
 	local existing_user existing_password
 
-	existing_user="$(_get_property "${file}" "jdbc\.default\.username" root)"
-	existing_password="$(_get_property "${file}" "jdbc\.default\.password")"
+	existing_user="$(_get_property_from_files "jdbc\.default\.username" root "${file}" "${wizard_file}")"
+	existing_password="$(_get_property_from_files "jdbc\.default\.password" "" "${file}" "${wizard_file}")"
 
 	_set_property "${file}" jdbc.default.driverClassName com.mysql.cj.jdbc.Driver
 	_set_property "${file}" jdbc.default.url "jdbc:mysql://localhost/${db_name}?characterEncoding=UTF-8&dontTrackOpenResources=true&holdResultsOpenOverStatementClose=true&serverTimezone=GMT&useFastDateParsing=false&useUnicode=true"
@@ -262,9 +265,9 @@ function _set_glowroot_port {
 
 	local current
 
-	current="$(jq ".web.port" "${file}" 2>/dev/null || echo null)"
+	current="$(jq .web.port "${file}" 2>/dev/null || echo null)"
 
-	if [[ ${current} == "${target}" ]]
+	if [[ ${current} == ${target} ]]
 	then
 		return
 	fi
@@ -296,7 +299,7 @@ function _set_gradle_paths {
 
 	main_worktree="$(_resolve_main_worktree_dir)"
 
-	[[ -n ${main_worktree} && ${main_worktree} != "${WORKTREE_DIR}" ]] || return 0
+	[[ -n ${main_worktree} && ${main_worktree} != ${WORKTREE_DIR} ]] || return 0
 
 	local main_bundles_literal
 
@@ -315,7 +318,7 @@ function _set_playwright_port {
 	local file="${WORKTREE_DIR}/modules/test/playwright/.env.local"
 	local http_port=$((8080 + OFFSET))
 
-	mkdir -p "$(dirname "${file}")"
+	mkdir --parents "$(dirname "${file}")"
 
 	_atomic_write "${file}" <<EOF
 PORTAL_URL=http://localhost:${http_port}
@@ -330,6 +333,35 @@ function _set_port_offset {
 		OFFSET="$(cat "${offset_file}")"
 
 		return
+	fi
+
+	local lock_file
+
+	lock_file="$(git -C "${WORKTREE_DIR}" rev-parse --path-format=absolute --git-common-dir)/.worktree-port-offset.lock"
+
+	local lock_dir="${lock_file}.d"
+
+	local lock_fd
+	local use_flock=0
+
+	command -v flock >/dev/null 2>&1 && use_flock=1
+
+	if [[ ${use_flock} -eq 1 ]]
+	then
+		exec {lock_fd}>"${lock_file}"
+
+		flock "${lock_fd}"
+	else
+		local waited=0
+
+		until mkdir "${lock_dir}" 2>/dev/null
+		do
+			sleep 1
+
+			waited=$((waited + 1))
+
+			[[ ${waited} -lt 120 ]] || _die "Unable to acquire the port offset lock at ${lock_dir}."
+		done
 	fi
 
 	local claimed_offsets
@@ -347,11 +379,18 @@ function _set_port_offset {
 			OFFSET="${offset}"
 			echo "${OFFSET}" > "${offset_file}"
 
-			return
+			break
 		fi
 	done
 
-	_die "Unable to find a free port offset between 1 and 99."
+	if [[ ${use_flock} -eq 1 ]]
+	then
+		exec {lock_fd}>&-
+	else
+		rmdir "${lock_dir}" 2>/dev/null || true
+	fi
+
+	[[ -f ${offset_file} ]] || _die "Unable to find a free port offset between 1 and 99."
 }
 
 function _set_portal_home {
@@ -368,6 +407,15 @@ function _set_portal_http_address {
 	_set_property "${BUNDLES_DIR}/portal-ext.properties" portal.instance.inet.socket.address "localhost:${http_port}"
 }
 
+function _set_poshi_url {
+	local file="${WORKTREE_DIR}/test.${USER}.properties"
+	local http_port=$((8080 + OFFSET))
+
+	_set_property "${file}" default.portal.url "http://localhost:${http_port}"
+	_set_property "${file}" instance.url "http://localhost:${http_port}"
+	_set_property "${file}" test.url "http://localhost:${http_port}"
+}
+
 function _set_property {
 	local file="${1}"
 	local key="${2}"
@@ -377,7 +425,7 @@ function _set_property {
 
 	local escaped="${key//./\\.}"
 
-	_sed_inplace --expression "/^[[:space:]]*${escaped}=/d" --regexp-extended "${file}"
+	_sed_inplace --regexp-extended --expression "/^[[:space:]]*${escaped}=/d" "${file}"
 
 	if [[ -s ${file} ]] && [[ -n $(tail --bytes=1 "${file}") ]]
 	then
@@ -434,7 +482,7 @@ function _set_worktree_paths {
 
 	main_worktree="$(_resolve_main_worktree_dir)"
 
-	[[ -n ${main_worktree} && ${main_worktree} != "${WORKTREE_DIR}" ]] || return 0
+	[[ -n ${main_worktree} && ${main_worktree} != ${WORKTREE_DIR} ]] || return 0
 
 	main_bundles="$(_find_app_server_parent_dir "${main_worktree}" 2>/dev/null)" || return 0
 	main_tomcat="$(_find_tomcat_dir "${main_bundles}" 2>/dev/null)" || return 0
@@ -475,6 +523,7 @@ function main {
 	_set_playwright_port
 	_set_portal_home
 	_set_portal_http_address
+	_set_poshi_url
 	_set_test_integration_port
 	_set_tomcat_ports
 

@@ -5795,9 +5795,10 @@ test.describe('Manage object entries through View Object Entries', () => {
 	);
 
 	test(
-		'can add an entry with phone number object field where prefix type is fixed',
-		{tag: ['@LPD-83570']},
+		'can add an entry with phone number object field where country source is fixed',
+		{tag: ['@LPD-83570', '@LPD-91322']},
 		async ({apiHelpers, page, viewObjectEntriesPage}) => {
+			const country = 'US';
 			const localNumber = '11987654321';
 			const prefix = '+1';
 
@@ -5807,12 +5808,12 @@ test.describe('Manage object entries through View Object Entries', () => {
 						businessType: 'PhoneNumber',
 						objectFieldSettings: [
 							{
-								name: 'prefixType',
+								name: 'countrySource',
 								value: 'fixed',
 							},
 							{
-								name: 'prefix',
-								value: prefix,
+								name: 'country',
+								value: country,
 							},
 						],
 						required: true,
@@ -5827,6 +5828,8 @@ test.describe('Manage object entries through View Object Entries', () => {
 			});
 
 			const phoneNumberInput = fieldContainer.getByLabel('Phone Number');
+
+			const usFlagIcon = fieldContainer.locator('svg.lexicon-icon-en-us');
 
 			let objectDefinition: ObjectDefinition;
 
@@ -5891,6 +5894,8 @@ test.describe('Manage object entries through View Object Entries', () => {
 			await test.step('Fill the phone number field and save the entry', async () => {
 				await expect(fieldContainer.getByText(prefix)).toBeVisible();
 
+				await expect(usFlagIcon).toBeVisible();
+
 				await phoneNumberInput.fill(localNumber);
 
 				await viewObjectEntriesPage.saveObjectEntryButton.click();
@@ -5908,6 +5913,8 @@ test.describe('Manage object entries through View Object Entries', () => {
 					.click();
 
 				await expect(fieldContainer.getByText(prefix)).toBeVisible();
+
+				await expect(usFlagIcon).toBeVisible();
 
 				await expect(phoneNumberInput).toHaveValue(localNumber);
 			});
@@ -6231,6 +6238,124 @@ test.describe('Manage object entries through Workflow', () => {
 					'input[placeholder="__/__/____ __:__ _"][value="10/05/2025 09:00 AM"]'
 				)
 			).toHaveValue('10/05/2025 09:00 AM');
+		}
+	);
+});
+
+test.describe('Manage object entries with custom Object Layout', () => {
+	test(
+		'verify that friendly URL is preserved when updating an entry through a custom layout without the Friendly URL field',
+		{tag: ['@LPD-90363']},
+		async ({
+			apiHelpers,
+			objectLayoutsPage,
+			page,
+			viewObjectEntriesPage,
+		}) => {
+			test.slow();
+
+			const objectDefinitionLabel =
+				'ObjectDefinitionLabel' + getRandomInt();
+			const objectDefinitionName =
+				'ObjectDefinitionName' + getRandomInt();
+
+			const objectFields = generateObjectFields({
+				objectFieldBusinessTypes: ['Text'],
+			});
+
+			const objectField = objectFields[0];
+
+			const objectDefinitionAPIClient =
+				await apiHelpers.buildRestClient(ObjectDefinitionAPI);
+
+			const {body: objectDefinition} =
+				await objectDefinitionAPIClient.postObjectDefinition({
+					active: true,
+					enableFriendlyURLCustomization: true,
+					label: {
+						en_US: objectDefinitionLabel,
+					},
+					name: objectDefinitionName,
+					objectFields,
+					pluralLabel: {
+						en_US: objectDefinitionLabel,
+					},
+					portlet: true,
+					scope: 'company',
+					status: {
+						code: 0,
+					},
+				});
+
+			apiHelpers.data.push({
+				id: objectDefinition.id,
+				type: 'objectDefinition',
+			});
+
+			const applicationName =
+				'c/' + objectDefinition.name.toLowerCase() + 's';
+
+			const preservedURL = 'preserved-url';
+
+			const objectEntry = await apiHelpers.objectEntry.postObjectEntry(
+				{friendlyUrlPath: preservedURL},
+				applicationName
+			);
+
+			await objectLayoutsPage.goto(objectDefinitionLabel);
+
+			const objectLayoutName = getRandomString();
+
+			await objectLayoutsPage.createObjectLayout(objectLayoutName);
+
+			await page.getByRole('link', {name: objectLayoutName}).click();
+
+			await objectLayoutsPage.markAsDefaultButton.check();
+
+			await objectLayoutsPage.layoutTab.click();
+
+			await objectLayoutsPage.createObjectLayoutTab(getRandomString());
+
+			await objectLayoutsPage.createObjectLayoutBlock({
+				objectLayoutRegularBlockName: getRandomString(),
+			});
+
+			await objectLayoutsPage.openObjectLayoutObjectField();
+
+			await objectLayoutsPage.iframeLocator
+				.getByRole('option', {name: objectField.label.en_US})
+				.click();
+
+			await objectLayoutsPage.saveAddFieldButton.click();
+
+			await objectLayoutsPage.saveUpdateLayoutButton.click();
+
+			await viewObjectEntriesPage.goto(objectDefinition.className);
+
+			await page
+				.getByRole('link', {name: String(objectEntry.id)})
+				.click();
+
+			await expect(page.getByLabel('Friendly URL')).not.toBeVisible();
+
+			await page
+				.getByLabel(objectField.label.en_US)
+				.fill('updated value');
+
+			await viewObjectEntriesPage.saveObjectEntryButton.click();
+
+			await expect(viewObjectEntriesPage.successMessage).toBeVisible();
+
+			const updatedEntry =
+				await apiHelpers.objectEntry.getObjectEntryByExternalReferenceCode(
+					{
+						applicationName,
+						externalReferenceCode:
+							objectEntry.externalReferenceCode,
+					}
+				);
+
+			expect(updatedEntry.friendlyUrlPath).toBe(preservedURL);
 		}
 	);
 });

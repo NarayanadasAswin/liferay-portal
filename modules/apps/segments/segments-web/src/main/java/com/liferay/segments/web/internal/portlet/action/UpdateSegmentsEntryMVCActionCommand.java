@@ -25,7 +25,9 @@ import com.liferay.portal.kernel.util.HttpComponentsUtil;
 import com.liferay.portal.kernel.util.Localization;
 import com.liferay.portal.kernel.util.MapUtil;
 import com.liferay.portal.kernel.util.ParamUtil;
+import com.liferay.portal.kernel.util.Portal;
 import com.liferay.portal.kernel.util.Validator;
+import com.liferay.segments.constants.SegmentsEntryConstants;
 import com.liferay.segments.constants.SegmentsPortletKeys;
 import com.liferay.segments.criteria.Criteria;
 import com.liferay.segments.criteria.CriteriaSerializer;
@@ -36,6 +38,7 @@ import com.liferay.segments.exception.SegmentsEntryKeyException;
 import com.liferay.segments.exception.SegmentsEntryNameException;
 import com.liferay.segments.model.SegmentsEntry;
 import com.liferay.segments.service.SegmentsEntryService;
+import com.liferay.segments.web.internal.util.AudiencesPortletUtil;
 
 import jakarta.portlet.ActionRequest;
 import jakarta.portlet.ActionResponse;
@@ -51,6 +54,7 @@ import org.osgi.service.component.annotations.Reference;
  */
 @Component(
 	property = {
+		"jakarta.portlet.name=" + SegmentsPortletKeys.AUDIENCES,
 		"jakarta.portlet.name=" + SegmentsPortletKeys.SEGMENTS,
 		"mvc.command.name=/segments/update_segments_entry"
 	},
@@ -96,9 +100,16 @@ public class UpdateSegmentsEntryMVCActionCommand extends BaseMVCActionCommand {
 				serviceContext.setScopeGroupId(
 					_getGroupId(actionRequest, serviceContext));
 
+				String source = null;
+
+				if (AudiencesPortletUtil.isAudiencesPortlet(actionRequest)) {
+					source = SegmentsEntryConstants.SOURCE_AUDIENCE;
+				}
+
 				segmentsEntry = _segmentsEntryService.addSegmentsEntry(
 					segmentsEntryKey, nameMap, descriptionMap, active,
-					CriteriaSerializer.serialize(criteria), serviceContext);
+					CriteriaSerializer.serialize(criteria), source,
+					serviceContext);
 			}
 			else {
 				segmentsEntry = _segmentsEntryService.updateSegmentsEntry(
@@ -181,7 +192,7 @@ public class UpdateSegmentsEntryMVCActionCommand extends BaseMVCActionCommand {
 
 		return PortletURLBuilder.create(
 			requestBackedPortletURLFactory.createRenderURL(
-				SegmentsPortletKeys.SEGMENTS)
+				_portal.getPortletId(actionRequest))
 		).setMVCRenderCommandName(
 			"/segments/edit_segments_entry"
 		).setCMD(
@@ -213,6 +224,9 @@ public class UpdateSegmentsEntryMVCActionCommand extends BaseMVCActionCommand {
 
 	@Reference
 	private Localization _localization;
+
+	@Reference
+	private Portal _portal;
 
 	@Reference
 	private SegmentsCriteriaContributorRegistry

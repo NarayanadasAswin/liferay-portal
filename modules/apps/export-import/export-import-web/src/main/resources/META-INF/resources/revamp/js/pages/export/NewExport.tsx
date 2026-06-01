@@ -103,13 +103,16 @@ export function NewExport({
 				contentSelection: undefined,
 				dateFilter: {range: Range.All} as DateFilterValues,
 				deletions: false,
-				fileName: '',
+				name: '',
+				permissions: false,
 			}}
 			onSubmit={async (values) => {
 				const result = await postExportProcess({
-					exportRequest: {
+					exportProcessRequest: {
 						...normalizeDateFilter(values.dateFilter),
-						fileName: values.fileName,
+						deletions: !!values.deletions,
+						name: values.name,
+						permissions: !!values.permissions,
 						requestPortletDataHandlers:
 							toRequestPortletDataHandlers(
 								sections,
@@ -133,8 +136,8 @@ export function NewExport({
 			validate={(values: FormikValues) => {
 				const errors: {[key: string]: string} = {};
 
-				if (!values?.fileName) {
-					errors.fileName = Liferay.Language.get(
+				if (!values?.name) {
+					errors.name = Liferay.Language.get(
 						'this-field-is-required'
 					);
 				}

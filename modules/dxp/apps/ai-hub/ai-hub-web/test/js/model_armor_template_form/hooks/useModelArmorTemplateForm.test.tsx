@@ -32,15 +32,12 @@ jest.mock('@liferay/object-js-components-web', () => ({
 };
 
 function renderModelArmorHook({
-	accountEntryExternalReferenceCode = 'ACCOUNT',
 	externalReferenceCode = '',
 }: {
-	accountEntryExternalReferenceCode?: string;
 	externalReferenceCode?: string;
 } = {}) {
 	return renderHook(() =>
 		useModelArmorTemplateForm({
-			accountEntryExternalReferenceCode,
 			externalReferenceCode,
 		})
 	);
@@ -60,10 +57,9 @@ describe('fetch lifecycle', () => {
 			guardrailType: 'output',
 			location: 'us-central1',
 			maliciousUriFilterEnabled: true,
-			multiLanguageDetectionEnabled: false,
+			multilanguageDetectionEnabled: false,
 			piAndJailbreakConfidenceLevel: 'high',
 			piAndJailbreakFilterEnabled: true,
-			r_accountToAIHubModelArmorTemplates_accountEntryERC: 'ACCOUNT',
 			raiDangerousLevel: 'lowAndAbove',
 			raiHarassmentLevel: 'mediumAndAbove',
 			raiHateSpeechLevel: 'high',
@@ -131,17 +127,6 @@ describe('useModelArmorTemplateForm', () => {
 			expect(result.current.values.raiDangerousLevel).toBe('none');
 			expect(result.current.values.maliciousUriFilterEnabled).toBe(false);
 		});
-
-		it('seeds the account-relationship field from the prop', () => {
-			const {result} = renderModelArmorHook({
-				accountEntryExternalReferenceCode: 'ACCOUNT_42',
-			});
-
-			expect(
-				result.current.values
-					.r_accountToAIHubModelArmorTemplates_accountEntryERC
-			).toBe('ACCOUNT_42');
-		});
 	});
 
 	describe('setField', () => {
@@ -149,10 +134,10 @@ describe('useModelArmorTemplateForm', () => {
 			const {result} = renderModelArmorHook();
 
 			await act(async () => {
-				result.current.setField('multiLanguageDetectionEnabled', true);
+				result.current.setField('multilanguageDetectionEnabled', true);
 			});
 
-			expect(result.current.values.multiLanguageDetectionEnabled).toBe(
+			expect(result.current.values.multilanguageDetectionEnabled).toBe(
 				true
 			);
 		});
@@ -305,9 +290,6 @@ describe('useModelArmorTemplateForm', () => {
 
 			await waitFor(() => {
 				expect(result.current.errors.title_i18n).toBe('required');
-				expect(result.current.errors.externalReferenceCode).toBe(
-					'required'
-				);
 				expect(result.current.errors.location).toBe('required');
 			});
 

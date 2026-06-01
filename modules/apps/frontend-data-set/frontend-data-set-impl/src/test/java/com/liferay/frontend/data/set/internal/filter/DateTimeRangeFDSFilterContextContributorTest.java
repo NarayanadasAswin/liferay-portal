@@ -42,11 +42,10 @@ public class DateTimeRangeFDSFilterContextContributorTest {
 
 	@Test
 	public void testGetFDSFilterContextReturnsEmptyMapForUnrelatedFilter() {
-		Map<String, Object> fdsFilterContext =
+		Assert.assertEquals(
+			Collections.emptyMap(),
 			_dateTimeRangeFDSFilterContextContributor.getFDSFilterContext(
-				new UnrelatedFDSFilter(), LocaleUtil.US);
-
-		Assert.assertEquals(Collections.emptyMap(), fdsFilterContext);
+				new UnrelatedFDSFilter(), LocaleUtil.US));
 	}
 
 	@Test
@@ -90,7 +89,7 @@ public class DateTimeRangeFDSFilterContextContributorTest {
 		Assert.assertEquals("now", fdsFilterContext.get("max"));
 	}
 
-	private DateTimeRangeFDSFilterContextContributor
+	private final DateTimeRangeFDSFilterContextContributor
 		_dateTimeRangeFDSFilterContextContributor =
 			new DateTimeRangeFDSFilterContextContributor();
 

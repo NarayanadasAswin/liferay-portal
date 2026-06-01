@@ -3,13 +3,15 @@
  * SPDX-License-Identifier: LGPL-2.1-or-later OR LicenseRef-Liferay-DXP-EULA-2.0.0-2023-06
  */
 
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import {EventSource} from 'eventsource';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 
 import {
 	createEventSource,
 	getChatbotConfiguration,
 	postChatMessage,
 } from '../api';
+import {getLanguageId, getLocalizedValue} from '../locale';
 import AssistantMessage from './AssistantMessage';
 import ChatbotFooter from './ChatbotFooter';
 import ChatbotHeader from './ChatbotHeader';
@@ -41,6 +43,7 @@ export default function ChatbotWidget({
 	const [open, setOpen] = useState(false);
 	const [subscribed, setSubscribed] = useState(false);
 
+	const eventSourceRef = useRef<EventSource | null>(null);
 	const eventSourceReference = useRef<string | null>(null);
 	const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
 		null
@@ -63,49 +66,86 @@ export default function ChatbotWidget({
 			return;
 		}
 
-		const eventSource = createEventSource();
+		let active = true;
 
-		eventSource.addEventListener('Chat Message Sent', (event) => {
-			if (loadingTimeoutRef.current) {
-				clearTimeout(loadingTimeoutRef.current);
-				loadingTimeoutRef.current = null;
-			}
+		createEventSource()
+			.then((eventSource) => {
+				if (!active) {
+					eventSource?.close();
 
-			try {
-				const data = JSON.parse((event as MessageEvent).data);
+					return;
+				}
 
-				setMessages((prev) => [
-					...prev,
-					{sender: 'assistant', text: data.data},
-				]);
-			}
-			catch (error) {
-				console.error('Error parsing chat message:', error);
+				if (!eventSource) {
+					setMessages((prev) => [
+						...prev,
+						{sender: 'error', text: ''},
+					]);
+					setLoading(false);
+
+					return;
+				}
+
+				eventSourceRef.current = eventSource;
+
+				eventSource.addEventListener('Chat Message Sent', (event) => {
+					if (loadingTimeoutRef.current) {
+						clearTimeout(loadingTimeoutRef.current);
+						loadingTimeoutRef.current = null;
+					}
+
+					try {
+						const data = JSON.parse((event as MessageEvent).data);
+
+						setMessages((prev) => [
+							...prev,
+							{sender: 'assistant', text: data.data},
+						]);
+					}
+					catch (error) {
+						console.error('Error parsing chat message:', error);
+
+						setMessages((prev) => [
+							...prev,
+							{sender: 'error', text: ''},
+						]);
+					}
+
+					setLoading(false);
+				});
+
+				eventSource.addEventListener('Subscribe', (event) => {
+					eventSourceReference.current = (event as MessageEvent).data;
+					setSubscribed(true);
+				});
+
+				eventSource.addEventListener('error', () => {
+					console.error('EventSource connection error');
+
+					setSubscribed(false);
+					setMessages((prev) => [
+						...prev,
+						{sender: 'error', text: ''},
+					]);
+					setLoading(false);
+				});
+			})
+			.catch((error) => {
+				console.error('Failed to create event source:', error);
 
 				setMessages((prev) => [...prev, {sender: 'error', text: ''}]);
-			}
-
-			setLoading(false);
-		});
-
-		eventSource.addEventListener('Subscribe', (event) => {
-			eventSourceReference.current = (event as MessageEvent).data;
-			setSubscribed(true);
-		});
-
-		eventSource.addEventListener('error', () => {
-			console.error('EventSource connection error');
-
-			setSubscribed(false);
-			setMessages((prev) => [...prev, {sender: 'error', text: ''}]);
-		});
+				setLoading(false);
+			});
 
 		return () => {
+			active = false;
+
 			if (loadingTimeoutRef.current) {
 				clearTimeout(loadingTimeoutRef.current);
 			}
 
-			eventSource.close();
+			eventSourceRef.current?.close();
+			eventSourceRef.current = null;
 			setSubscribed(false);
 		};
 	}, [chatbotConfiguration]);
@@ -163,7 +203,32 @@ export default function ChatbotWidget({
 		[widgetConfiguration.chatbotExternalReferenceCode]
 	);
 
-	if (!chatbotConfiguration?.active) {
+	const localized = useMemo(() => {
+		if (!chatbotConfiguration) {
+			return null;
+		}
+
+		const pick = getLocalizedValue({
+			defaultLanguageId: chatbotConfiguration.defaultLanguageId,
+			editingLanguageId: getLanguageId(),
+		});
+
+		return {
+			disclaimerMessage: pick(
+				chatbotConfiguration.disclaimerMessage_i18n
+			),
+			introMessage: pick(chatbotConfiguration.introMessage_i18n),
+			notificationMessage: pick(
+				chatbotConfiguration.notificationMessage_i18n
+			),
+			placeholderMessage: pick(
+				chatbotConfiguration.placeholderMessage_i18n
+			),
+			title: pick(chatbotConfiguration.title_i18n),
+		};
+	}, [chatbotConfiguration]);
+
+	if (!chatbotConfiguration?.active || !localized) {
 		return null;
 	}
 
@@ -179,14 +244,14 @@ export default function ChatbotWidget({
 				<ChatbotHeader
 					companyLogo={companyLogoURL}
 					onClose={handleToggle}
-					title={chatbotConfiguration.title}
+					title={localized.title}
 				/>
 
 				<div aria-live="polite" className="aihub-messages">
 					<ChatbotIntro
 						companyLogo={companyLogoURL}
-						introMessage={chatbotConfiguration.introMessage}
-						title={chatbotConfiguration.title}
+						introMessage={localized.introMessage}
+						title={localized.title}
 					/>
 
 					{messages.map((msg, index) => {
@@ -196,7 +261,7 @@ export default function ChatbotWidget({
 									companyLogo={companyLogoURL}
 									key={index}
 									text={msg.text}
-									title={chatbotConfiguration.title}
+									title={localized.title}
 								/>
 							);
 						}
@@ -218,17 +283,19 @@ export default function ChatbotWidget({
 						loading || !subscribed || !eventSourceReference.current
 					}
 					onSubmit={sendMessage}
-					placeholder={chatbotConfiguration.placeholderMessage}
+					placeholder={localized.placeholderMessage}
 				/>
 
-				<ChatbotFooter />
+				<ChatbotFooter
+					disclaimerMessage={localized.disclaimerMessage}
+				/>
 			</div>
 
 			{!open &&
 				!notificationDismissed &&
-				chatbotConfiguration.notificationMessage && (
+				localized.notificationMessage && (
 					<div className="aihub-notification">
-						<span>{chatbotConfiguration.notificationMessage}</span>
+						<span>{localized.notificationMessage}</span>
 
 						<button
 							aria-label="Dismiss"

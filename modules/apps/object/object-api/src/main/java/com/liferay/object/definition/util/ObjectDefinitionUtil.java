@@ -9,6 +9,8 @@ import com.liferay.batch.engine.unit.BatchEngineUnitThreadLocal;
 import com.liferay.object.constants.ObjectDefinitionConstants;
 import com.liferay.object.constants.ObjectPortletKeys;
 import com.liferay.object.model.ObjectDefinition;
+import com.liferay.object.modifiable.system.ModifiableSystemObjectDefinition;
+import com.liferay.object.modifiable.system.ModifiableSystemObjectDefinitionRegistryUtil;
 import com.liferay.petra.string.StringPool;
 import com.liferay.portal.events.StartupHelperUtil;
 import com.liferay.portal.kernel.portlet.FriendlyURLResolver;
@@ -57,7 +59,22 @@ public class ObjectDefinitionUtil {
 			return "/test";
 		}
 
-		return _allowedModifiableSystemObjectDefinitionNames.get(name);
+		String restContextPath =
+			_allowedModifiableSystemObjectDefinitionNames.get(name);
+
+		if (restContextPath != null) {
+			return restContextPath;
+		}
+
+		ModifiableSystemObjectDefinition modifiableSystemObjectDefinition =
+			ModifiableSystemObjectDefinitionRegistryUtil.
+				getModifiableSystemObjectDefinition(name);
+
+		if (modifiableSystemObjectDefinition == null) {
+			return null;
+		}
+
+		return modifiableSystemObjectDefinition.getRESTContextPath();
 	}
 
 	public static String getPortletId(String className) {
@@ -71,11 +88,26 @@ public class ObjectDefinitionUtil {
 	public static boolean isAllowedModifiableSystemObjectDefinitionName(
 		String name) {
 
-		if (PortalRunMode.isTestMode() && StringUtil.startsWith(name, "Test")) {
+		if ((PortalRunMode.isTestMode() &&
+			 StringUtil.startsWith(name, "Test")) ||
+			_allowedModifiableSystemObjectDefinitionNames.containsKey(name)) {
+
 			return true;
 		}
 
-		return _allowedModifiableSystemObjectDefinitionNames.containsKey(name);
+		if (!isInvokerBundleAllowed()) {
+			return false;
+		}
+
+		ModifiableSystemObjectDefinition modifiableSystemObjectDefinition =
+			ModifiableSystemObjectDefinitionRegistryUtil.
+				getModifiableSystemObjectDefinition(name);
+
+		if (modifiableSystemObjectDefinition != null) {
+			return true;
+		}
+
+		return false;
 	}
 
 	public static boolean isDefaultFriendlyURLSeparator(
@@ -132,12 +164,13 @@ public class ObjectDefinitionUtil {
 	}
 
 	private static final String[] _ALLOWED_INVOKER_BUNDLE_SYMBOLIC_NAMES = {
+		"com.liferay.ai.hub.pricing.site.initializer",
 		"com.liferay.ai.hub.site.initializer", "com.liferay.commerce.service",
 		"com.liferay.content.site.generator.impl", "com.liferay.cookies.impl",
 		"com.liferay.frontend.data.set.admin.web",
 		"com.liferay.frontend.data.set.impl",
 		"com.liferay.headless.builder.impl", "com.liferay.list.type.service",
-		"com.liferay.mcp.server", "com.liferay.notification.service",
+		"com.liferay.mcp.server.rest.impl", "com.liferay.notification.service",
 		"com.liferay.object.service", "com.liferay.seo.studio.site.initializer",
 		"com.liferay.site.initializer.cmp", "com.liferay.site.initializer.cms",
 		"com.liferay.site.initializer.dsr"
@@ -158,8 +191,6 @@ public class ObjectDefinitionUtil {
 			"AIHubMCPServer", "/ai-hub/mcp-servers"
 		).put(
 			"AIHubModelArmorTemplate", "/ai-hub/model-armor-templates"
-		).put(
-			"AIHubQuota", "/ai-hub/quotas"
 		).put(
 			"APIApplication", "/headless-builder/applications"
 		).put(

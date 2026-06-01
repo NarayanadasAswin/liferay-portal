@@ -1310,13 +1310,19 @@ public class ContentPageEditorDisplayContext {
 
 			segmentsEntries = _segmentsEntryService.getSegmentsEntries(
 				stagingGroupHelper.getStagedPortletGroupId(
-					getGroupId(), SegmentsPortletKeys.SEGMENTS));
+					getGroupId(), SegmentsPortletKeys.SEGMENTS),
+				new String[] {
+					SegmentsEntryConstants.SOURCE_ASAH_FARO_BACKEND,
+					SegmentsEntryConstants.SOURCE_DEFAULT,
+					SegmentsEntryConstants.SOURCE_REFERRED
+				},
+				QueryUtil.ALL_POS, QueryUtil.ALL_POS, null);
 		}
 		else {
 			segmentsEntries = _segmentsEntryService.getSegmentsEntries(
 				stagingGroupHelper.getStagedPortletGroupId(
 					getGroupId(), SegmentsPortletKeys.SEGMENTS),
-				SegmentsEntryConstants.SOURCE_ASAH_FARO_BACKEND,
+				new String[] {SegmentsEntryConstants.SOURCE_ASAH_FARO_BACKEND},
 				QueryUtil.ALL_POS, QueryUtil.ALL_POS, null);
 		}
 

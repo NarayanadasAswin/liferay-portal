@@ -7,10 +7,13 @@ package com.liferay.ai.hub.service;
 
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
+import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
 import io.fabric8.kubernetes.api.model.batch.v1.JobBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
+import io.fabric8.kubernetes.client.dsl.PrettyLoggable;
+import io.fabric8.kubernetes.client.dsl.ScalableResource;
 import io.fabric8.kubernetes.client.utils.Serialization;
 
 import jakarta.annotation.PreDestroy;
@@ -53,7 +56,7 @@ public class KubernetesJobService {
 		_kubernetesClient.close();
 	}
 
-	public Job createJob(String indexName, String url) {
+	public Job createJob(long accountEntryId, String indexName, String url) {
 		URI uri;
 
 		try {
@@ -73,13 +76,23 @@ public class KubernetesJobService {
 		).resource(
 			new JobBuilder(
 				_jobTemplate
+			).editMetadata(
+			).addToLabels(
+				"account-entry-id", String.valueOf(accountEntryId)
+			).endMetadata(
 			).editSpec(
 			).editTemplate(
+			).editMetadata(
+			).addToLabels(
+				"account-entry-id", String.valueOf(accountEntryId)
+			).endMetadata(
 			).editSpec(
 			).editFirstContainer(
 			).withImage(
 				_imageName
 			).withEnv(
+				_createEnvVar(
+					"ACCOUNT_ENTRY_ID", String.valueOf(accountEntryId)),
 				_createEnvVar(
 					"CRAWLER_DOMAIN_URL",
 					uri.getScheme() + "://" + uri.getAuthority()),
@@ -96,13 +109,27 @@ public class KubernetesJobService {
 		).create();
 
 		if (_log.isInfoEnabled()) {
-			String jobName = job.getMetadata(
-			).getName();
+			ObjectMeta objectMeta = job.getMetadata();
 
-			_log.info("Kubernetes job dispatched: " + jobName);
+			_log.info("Kubernetes job dispatched: " + objectMeta.getName());
 		}
 
 		return job;
+	}
+
+	public Job getJob(String name) {
+		ScalableResource<Job> scalableResource = _getJobScalableResource(name);
+
+		return scalableResource.get();
+	}
+
+	public String getJobLog(String name, int tailLines) {
+		ScalableResource<Job> scalableResource = _getJobScalableResource(name);
+
+		PrettyLoggable prettyLoggable = scalableResource.tailingLines(
+			tailLines);
+
+		return prettyLoggable.getLog();
 	}
 
 	private EnvVar _createEnvVar(String name, String value) {
@@ -112,6 +139,17 @@ public class KubernetesJobService {
 		).withValue(
 			value
 		).build();
+	}
+
+	private ScalableResource<Job> _getJobScalableResource(String name) {
+		return _kubernetesClient.batch(
+		).v1(
+		).jobs(
+		).inNamespace(
+			_namespace
+		).withName(
+			name
+		);
 	}
 
 	private Job _loadJobTemplate() {

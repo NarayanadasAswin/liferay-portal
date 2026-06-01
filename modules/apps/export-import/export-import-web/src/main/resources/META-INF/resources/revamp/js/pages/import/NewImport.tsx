@@ -8,7 +8,10 @@ import ClayIcon from '@clayui/icon';
 import React, {useState} from 'react';
 
 import {Wizard, WizardStep} from '../../components/Wizard';
+import {postImportProcess} from '../../services/postImportProcess';
 import {ImportPreview} from '../../types/exportImportPreview';
+import {DataStrategy, UserIdStrategy} from '../../types/exportImportProcess';
+import {toRequestPortletDataHandlers} from '../../utils/toRequestPortletDataHandlers';
 import DataSelectionStep from './steps/DataSelectionStep';
 import FileSelectionStep from './steps/FileSelectionStep';
 import SettingsStep, {SETTINGS_STEP_INITIAL_VALUES} from './steps/SettingsStep';
@@ -16,9 +19,11 @@ import SettingsStep, {SETTINGS_STEP_INITIAL_VALUES} from './steps/SettingsStep';
 export function NewImport({
 	backURL,
 	importPreviewAPIURL,
+	importProcessAPIURL,
 }: {
 	backURL: string;
 	importPreviewAPIURL: string;
+	importProcessAPIURL: string;
 }) {
 	const [importPreview, setImportPreview] = useState<
 		ImportPreview | undefined
@@ -54,7 +59,7 @@ export function NewImport({
 				initialValues={{
 					contentSelection: undefined,
 					deletions: false,
-					importPermissions: false,
+					permissions: false,
 				}}
 				isStepValid={(values) => !!values.contentSelection}
 				title={Liferay.Language.get('data-selection')}
@@ -76,8 +81,46 @@ export function NewImport({
 					'set-up-your-import-configuration'
 				)}
 				initialValues={SETTINGS_STEP_INITIAL_VALUES}
-				onSubmit={async () => {
-					alert('Import started!');
+				onSubmit={async (values) => {
+					if (!importPreview) {
+						Liferay.Util.openToast({
+							message: Liferay.Language.get(
+								'an-unexpected-error-occurred'
+							),
+							type: 'danger',
+						});
+
+						return;
+					}
+
+					const result = await postImportProcess({
+						importProcessRequest: {
+							dataStrategy: values.dataStrategy as DataStrategy,
+							deletions: !!values.deletions,
+							name: values.name,
+							permissions: !!values.permissions,
+							requestPortletDataHandlers:
+								toRequestPortletDataHandlers(
+									importPreview.previewPortletDataHandlerSections ??
+										[],
+									values.contentSelection
+								),
+							userIdStrategy:
+								values.userIdStrategy as UserIdStrategy,
+						},
+						url: importProcessAPIURL,
+					});
+
+					if (result.error) {
+						Liferay.Util.openToast({
+							message: result.error,
+							type: 'danger',
+						});
+
+						return;
+					}
+
+					Liferay.Util.navigate(backURL);
 				}}
 				title={Liferay.Language.get('settings')}
 			>

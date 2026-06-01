@@ -288,7 +288,7 @@ components:
                 fieldType:
                     description:
                         "Logical data type of the value. Use this to interpret the `value` field."
-                    enum: [boolean, date, number, string]
+                    enum: [BOOLEAN, DATE, NUMBER, STRING]
                     readOnly: true
                     type: string
                 label:
@@ -802,9 +802,8 @@ paths:
                         type: string
                 -   in: query
                     description:
-                        "Sort expression `column:asc|desc`. Defaults to `views:desc` when omitted. Common columns:
-                        views, downloads, impressions, reads."
-                    example: views:desc
+                        "Sort expression `column:asc|desc`. Defaults to `viewsMetric:desc` when omitted. Common columns: viewsMetric, downloadsMetric, impressionMadeMetric, readsMetric."
+                    example: viewsMetric:desc
                     name: sort
                     schema:
                         type: string
@@ -1129,9 +1128,8 @@ paths:
                         type: string
                 -   in: query
                     description:
-                        "Sort expression `column:asc|desc`. Defaults to `views:desc`. Common columns: views, visitors,
-                        bounceRate, avgTimeOnPage."
-                    example: views:desc
+                        "Sort expression `column:asc|desc`. Defaults to `viewsMetric:desc`. Common columns: viewsMetric, visitorsMetric, bounceMetric, avgTimeOnPageMetric."
+                    example: viewsMetric:desc
                     name: sort
                     schema:
                         type: string

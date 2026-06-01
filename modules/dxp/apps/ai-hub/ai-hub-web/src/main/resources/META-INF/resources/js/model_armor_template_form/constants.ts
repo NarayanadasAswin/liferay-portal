@@ -5,17 +5,14 @@
 
 import {ModelArmorTemplate} from './types/ModelArmorTemplate';
 
-export const DEFAULT_MODEL_ARMOR_TEMPLATE: Omit<
-	ModelArmorTemplate,
-	'r_accountToAIHubModelArmorTemplates_accountEntryERC'
-> = {
+export const DEFAULT_MODEL_ARMOR_TEMPLATE: ModelArmorTemplate = {
 	active: true,
 	description: '',
 	externalReferenceCode: '',
 	guardrailType: '',
 	location: '',
 	maliciousUriFilterEnabled: false,
-	multiLanguageDetectionEnabled: false,
+	multilanguageDetectionEnabled: false,
 	piAndJailbreakConfidenceLevel: 'mediumAndAbove',
 	piAndJailbreakFilterEnabled: false,
 	raiDangerousLevel: 'none',

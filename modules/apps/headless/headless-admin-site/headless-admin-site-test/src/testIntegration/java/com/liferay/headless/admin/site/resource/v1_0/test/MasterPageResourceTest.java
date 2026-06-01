@@ -139,7 +139,8 @@ public class MasterPageResourceTest extends BaseMasterPageResourceTestCase {
 
 		MasterPage liveGroupMasterPage =
 			testGetSiteMasterPagesPage_addMasterPage(
-				irrelevantGroup.getExternalReferenceCode(), randomMasterPage());
+				irrelevantGroup.getExternalReferenceCode(),
+				_randomMasterPage(irrelevantGroup));
 
 		_enableLocalStaging(irrelevantGroup);
 
@@ -451,20 +452,7 @@ public class MasterPageResourceTest extends BaseMasterPageResourceTestCase {
 
 	@Override
 	protected MasterPage randomMasterPage() throws Exception {
-		MasterPage masterPage = super.randomMasterPage();
-
-		ServiceContext serviceContext =
-			ServiceContextTestUtil.getServiceContext(
-				testGroup, TestPropsValues.getUserId());
-
-		masterPage.setKeywords(AssetTestUtil.randomKeywords(serviceContext));
-
-		masterPage.setMarkedAsDefault(Boolean.FALSE);
-		masterPage.setTaxonomyCategoryBriefs(
-			AssetTestUtil.randomTaxonomyCategoryBriefs(
-				testCompany.getGroupId(), serviceContext));
-
-		return masterPage;
+		return _randomMasterPage(testGroup);
 	}
 
 	@Override
@@ -649,10 +637,18 @@ public class MasterPageResourceTest extends BaseMasterPageResourceTestCase {
 	}
 
 	private void _enableLocalStaging(Group group) throws Exception {
-		_stagingLocalService.enableLocalStaging(
-			TestPropsValues.getUserId(), group, true, false,
-			ServiceContextTestUtil.getServiceContext(
-				group, TestPropsValues.getUserId()));
+		try (LogCapture logCapture = LoggerTestUtil.configureLog4JLogger(
+				"com.liferay.batch.engine.internal." +
+					"BatchEngineImportTaskExecutorImpl",
+				LoggerTestUtil.OFF)) {
+
+			_stagingLocalService.enableLocalStaging(
+				TestPropsValues.getUserId(), group, true, false,
+				ServiceContextTestUtil.getServiceContext(
+					group, TestPropsValues.getUserId()));
+		}
+
+		Assert.assertTrue(group.hasStagingGroup());
 	}
 
 	private PageElement _getContainerPageElement() {
@@ -780,6 +776,23 @@ public class MasterPageResourceTest extends BaseMasterPageResourceTestCase {
 			testGroup.getGroupId(), postMasterPage.getPageSpecifications());
 
 		return postMasterPage;
+	}
+
+	private MasterPage _randomMasterPage(Group group) throws Exception {
+		MasterPage masterPage = super.randomMasterPage();
+
+		ServiceContext serviceContext =
+			ServiceContextTestUtil.getServiceContext(
+				group, TestPropsValues.getUserId());
+
+		masterPage.setKeywords(AssetTestUtil.randomKeywords(serviceContext));
+
+		masterPage.setMarkedAsDefault(Boolean.FALSE);
+		masterPage.setTaxonomyCategoryBriefs(
+			AssetTestUtil.randomTaxonomyCategoryBriefs(
+				testCompany.getGroupId(), serviceContext));
+
+		return masterPage;
 	}
 
 	private void _testGetSiteMasterPage(MasterPage masterPage)

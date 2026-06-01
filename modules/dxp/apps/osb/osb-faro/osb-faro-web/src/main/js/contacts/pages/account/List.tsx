@@ -35,9 +35,9 @@ const List: React.FC<IListProps> = ({channelId, groupId}) => {
 	});
 
 	const {data: dataSourceData, loading: dataSourceLoading} = useRequest({
-		dataSourceFn: API.dataSource.search,
+		dataSourceFn: API.dataSource.fetchChannels,
 		variables: {
-			delta: 1,
+			channelIds: [channelId],
 			groupId
 		}
 	});
@@ -139,6 +139,7 @@ const List: React.FC<IListProps> = ({channelId, groupId}) => {
 						</div>
 
 						<AccountsDataSet
+							activityStatusFilter='ACTIVE'
 							apiURL={`/o/faro/contacts/${groupId}/account/search?channelId=${channelId}`}
 							channelId={channelId}
 							groupId={groupId}

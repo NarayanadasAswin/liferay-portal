@@ -18,6 +18,8 @@ import com.liferay.object.service.ObjectFieldLocalServiceUtil;
 import com.liferay.portal.kernel.language.Language;
 import com.liferay.portal.kernel.theme.ThemeDisplay;
 import com.liferay.portal.kernel.util.HashMapBuilder;
+import com.liferay.portal.kernel.util.PortalUtil;
+import com.liferay.portal.kernel.util.Validator;
 import com.liferay.portal.kernel.util.WebKeys;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -42,7 +44,7 @@ public class EditChatbotDisplayContext {
 	}
 
 	public Map<String, Object> getReactData() throws Exception {
-		ObjectField objectField = _getCompanyLogoObjectField();
+		ObjectField objectField = _getAvatarObjectField();
 
 		String acceptedFileExtensions = "";
 		long maximumFileSize = 0;
@@ -70,18 +72,15 @@ public class EditChatbotDisplayContext {
 				return accountEntry.getExternalReferenceCode();
 			}
 		).put(
-			"backURL",
-			DisplayContextUtil.getAIHubURL(_themeDisplay) + "/chatbots"
+			"avatarAcceptedFileExtensions", acceptedFileExtensions
 		).put(
-			"companyLogoAcceptedFileExtensions", acceptedFileExtensions
+			"avatarMaximumFileSize", maximumFileSize
 		).put(
-			"companyLogoMaximumFileSize", maximumFileSize
-		).put(
-			"companyLogoMaximumFileSizeLabel",
+			"avatarMaximumFileSizeLabel",
 			_language.formatStorageSize(
 				maximumFileSize, _themeDisplay.getLocale())
 		).put(
-			"companyLogoUploadTip",
+			"avatarUploadTip",
 			_language.format(
 				_themeDisplay.getLocale(), "upload-a-x-no-larger-than-x",
 				new Object[] {
@@ -89,6 +88,19 @@ public class EditChatbotDisplayContext {
 					_language.formatStorageSize(
 						maximumFileSize, _themeDisplay.getLocale())
 				})
+		).put(
+			"backURL",
+			() -> {
+				String backURL = PortalUtil.escapeRedirect(
+					_httpServletRequest.getParameter("backURL"));
+
+				if (Validator.isNotNull(backURL)) {
+					return backURL;
+				}
+
+				return DisplayContextUtil.getAIHubURL(_themeDisplay) +
+					"/chatbots";
+			}
 		).put(
 			"externalReferenceCode",
 			_httpServletRequest.getParameter("externalReferenceCode")
@@ -103,7 +115,7 @@ public class EditChatbotDisplayContext {
 		).build();
 	}
 
-	private ObjectField _getCompanyLogoObjectField() {
+	private ObjectField _getAvatarObjectField() {
 		ObjectDefinition objectDefinition =
 			ObjectDefinitionLocalServiceUtil.
 				fetchObjectDefinitionByExternalReferenceCode(
@@ -114,7 +126,7 @@ public class EditChatbotDisplayContext {
 		}
 
 		return ObjectFieldLocalServiceUtil.fetchObjectField(
-			objectDefinition.getObjectDefinitionId(), "companyLogo");
+			objectDefinition.getObjectDefinitionId(), "avatar");
 	}
 
 	private final AttachmentManager _attachmentManager;
