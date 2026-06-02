@@ -1,11 +1,11 @@
 import * as API from 'shared/api';
 import Card from 'shared/components/Card';
 import React from 'react';
-import {columns, pagination, useSnapshots} from 'shared/util/frontend-data-set';
 import {
-	EConfigInURLBehavior,
-	FrontendDataSet
-} from '@liferay/frontend-data-set-web';
+	columns,
+	FrontendDataSet,
+	pagination
+} from 'shared/components/FrontendDataSet';
 import {
 	LifecycleStages,
 	lifecycleStagesLabelMap
@@ -61,8 +61,6 @@ const AccountsDataSet: React.FC<IAccountsDataSetProps> = ({
 		rangeStart: null
 	}
 }) => {
-	const snapshots = useSnapshots('accounts-list-dataset');
-
 	const {data: lifecycleStageFieldValues} = useRequest({
 		dataSourceFn: API.accounts.fetchLifecycleStageFieldValues,
 		skipRequest: !accountLifecycleId,
@@ -100,10 +98,9 @@ const AccountsDataSet: React.FC<IAccountsDataSetProps> = ({
 	const rangeApiURL = `${apiURL}?${rangeSelectorParams}`;
 
 	return (
-		<Card>
+		<Card minHeight={300}>
 			<FrontendDataSet
 				apiURL={rangeApiURL}
-				configInURLBehavior={EConfigInURLBehavior.OFF}
 				customDataRenderers={{
 					accountActivityStatusRenderer: ({value}: {value: string}) =>
 						value &&
@@ -222,7 +219,6 @@ const AccountsDataSet: React.FC<IAccountsDataSetProps> = ({
 				].join()}
 				pagination={pagination}
 				showPagination
-				snapshots={snapshots}
 				snapshotsEnabled
 				sorts={[
 					{

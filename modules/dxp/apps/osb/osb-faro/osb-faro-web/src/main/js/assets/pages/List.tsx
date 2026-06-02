@@ -8,13 +8,9 @@ import FaroConstants from 'shared/util/constants';
 import React, {useMemo, useState} from 'react';
 import URLConstants from 'shared/util/url-constants';
 import {DropdownRangeKey} from 'shared/components/dropdown-range-key/DropdownRangeKey';
-import {
-	EConfigInURLBehavior,
-	FrontendDataSet
-} from '@liferay/frontend-data-set-web';
+import {FrontendDataSet, pagination} from 'shared/components/FrontendDataSet';
 import {getMimeType} from 'assets/components/mime-type';
 import {InfoPanel} from 'assets/components/InfoPanel';
-import {pagination, useSnapshots} from 'shared/util/frontend-data-set';
 import {pickBy} from 'lodash';
 import {RangeSelectors} from 'shared/types';
 import {
@@ -150,8 +146,6 @@ const List = () => {
 
 	const [infoPanelData, setInfoPanelData] = useState<any>(null);
 
-	const snapshots = useSnapshots('assetTable');
-
 	let rangeSelectorParams = `rangeKey=${rangeSelectors.rangeKey}`;
 
 	if (rangeSelectors.rangeEnd) {
@@ -257,12 +251,9 @@ const List = () => {
 			</BasePage.SubHeader>
 
 			<BasePage.Body fluid sidebarOpened={!!infoPanelData}>
-				<Card>
+				<Card minHeight={300}>
 					<FrontendDataSet
 						apiURL={`/o/faro/contacts/${groupId}/asset-summary?channelId=${channelId}&${rangeSelectorParams}`}
-						// Trick to turn off dirty the URL with paramas.
-
-						configInURLBehavior={EConfigInURLBehavior.OFF}
 						customDataRenderers={{
 							assetMetricRenderer: columns.assetMetricRenderer,
 							assetTitleRenderer: columns.assetTitleRenderer({
@@ -313,7 +304,6 @@ const List = () => {
 						key={Object.values(rangeSelectors).join()}
 						pagination={pagination}
 						showPagination
-						snapshots={snapshots}
 						snapshotsEnabled
 						views={[
 							{

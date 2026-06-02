@@ -6,16 +6,16 @@
 import {useSelector} from '@xstate/store/react';
 import {Navigate} from 'react-router-dom';
 
-import ProductPurchase from '../../../../components/ProductPurchase';
-import {Section} from '../../../../components/Section/Section';
-import i18n from '../../../../i18n';
-import {Liferay} from '../../../../liferay/liferay';
-import zodSchema, {z} from '../../../../schema/zod';
-import {formatCurrency} from '../../../../utils/currencies';
-import {useProductPurchaseOutletContext} from '../../ProductPurchaseOutlet';
-import ProductPurchaseLDP from '../../services/ProductPurchaseLDP';
-import {productPurchaseStore} from '../../store';
-import LicenseTermsCheckbox from '../App/License/LicenseTermsCheckbox';
+import ProductPurchase from '../../../../../components/ProductPurchase';
+import {Section} from '../../../../../components/Section/Section';
+import i18n from '../../../../../i18n';
+import {Liferay} from '../../../../../liferay/liferay';
+import zodSchema, {z} from '../../../../../schema/zod';
+import {formatCurrency} from '../../../../../utils/currencies';
+import {useProductPurchaseOutletContext} from '../../../ProductPurchaseOutlet';
+import ProductPurchaseAnalytics from '../../../services/ProductPurchaseAnalytics';
+import {productPurchaseStore} from '../../../store';
+import LicenseTermsCheckbox from '../../App/License/LicenseTermsCheckbox';
 
 const LDPOrderSummary = () => {
 	const {
@@ -46,7 +46,7 @@ const LDPOrderSummary = () => {
 	const onSubmit = async (
 		form: z.infer<typeof zodSchema.ldpProvisioning>
 	) => {
-		const productPurchase = new ProductPurchaseLDP(
+		const productPurchase = new ProductPurchaseAnalytics(
 			selectedAccount,
 			product
 		);
@@ -55,7 +55,7 @@ const LDPOrderSummary = () => {
 			...form,
 			salesforceProjectId:
 				salesforceProject?.externalReferenceCode as string,
-		});
+		} as any);
 
 		await handlePurchase(productPurchase, {
 			...productPurchaseCart.cart,
