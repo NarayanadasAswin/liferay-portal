@@ -129,7 +129,7 @@ public class LLMNodeExecutor extends BaseNodeExecutor {
 
 		VertexAiGeminiStreamingChatModel vertexAiGeminiStreamingChatModel =
 			VertexAiGeminiUtil.createVertexAiGeminiStreamingChatModel(
-				serviceContext.getCompanyId());
+				_quotaManager, serviceContext);
 
 		AtomicReference<ChatResponse> chatResponseAtomicReference =
 			new AtomicReference<>();
@@ -153,8 +153,8 @@ public class LLMNodeExecutor extends BaseNodeExecutor {
 
 		GuardrailsUtil.populate(
 			_dtoConverterRegistry, inputGuardrails, _modelArmorHandler,
-			_objectEntryManager, outputGuardrails, serviceContext,
-			workflowContext);
+			_objectEntryManager, outputGuardrails, _quotaManager,
+			serviceContext, workflowContext);
 
 		AssistantHandlerUtil.handle(
 			AssistantHandlerContext.builder(
@@ -201,7 +201,8 @@ public class LLMNodeExecutor extends BaseNodeExecutor {
 					_fieldConfigBuilderFactory, _highlightBuilderFactory,
 					kaleoNodeSettingValues, serviceContext.getLocale(),
 					_objectEntryManager, _searchEngineAdapter,
-					serviceContext.getUserId(), workflowContext)
+					serviceContext.getUserId(), workflowContext,
+					kaleoInstanceToken.getKaleoInstanceId())
 			).systemMessageProviderFunction(
 				memoryId -> prompt
 			).toolProvider(
@@ -277,9 +278,6 @@ public class LLMNodeExecutor extends BaseNodeExecutor {
 		KaleoLogUtil.addNodeUsageKaleoLog(
 			chatResponse, kaleoInstanceToken, aiMessage.text(), prompt,
 			executionContext.getServiceContext(), userMessage);
-
-		QuotaUtil.updateUsage(
-			chatResponse, _quotaManager, executionContext.getServiceContext());
 
 		List<KaleoTransition> kaleoTransitions =
 			kaleoNode.getKaleoTransitions();

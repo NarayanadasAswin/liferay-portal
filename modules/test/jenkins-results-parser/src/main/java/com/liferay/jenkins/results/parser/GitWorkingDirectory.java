@@ -1612,17 +1612,17 @@ public class GitWorkingDirectory {
 				continue;
 			}
 
-			RemoteGitBranch remoteGitBranch = null;
+			RemoteGitBranch upstreamRemoteGitBranch = null;
 
 			if (localGitBranchName.equals(upstreamBranchName)) {
-				remoteGitBranch = getUpstreamRemoteGitBranch();
+				upstreamRemoteGitBranch = getUpstreamRemoteGitBranch();
 			}
 
 			localGitBranches.add(
 				GitBranchFactory.newLocalGitBranch(
 					localGitRepository, localGitBranchName,
 					localGitBranchesShaMap.get(localGitBranchName),
-					remoteGitBranch));
+					upstreamRemoteGitBranch));
 		}
 
 		return localGitBranches;
@@ -2722,8 +2722,10 @@ public class GitWorkingDirectory {
 	}
 
 	public boolean refContainsSHA(LocalGitBranch localGitBranch, String sha) {
+		String name = localGitBranch.getName();
+
 		for (int deepenAttempt = 0;; deepenAttempt++) {
-			if (refContainsSHA(localGitBranch.getName(), sha)) {
+			if (refContainsSHA(name, sha)) {
 				return true;
 			}
 

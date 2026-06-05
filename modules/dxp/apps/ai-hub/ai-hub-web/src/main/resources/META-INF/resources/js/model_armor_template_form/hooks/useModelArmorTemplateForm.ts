@@ -11,6 +11,7 @@ import {generateExternalReferenceCode} from '../../utils/externalReferenceCode';
 import {DEFAULT_MODEL_ARMOR_TEMPLATE} from '../constants';
 import {
 	getModelArmorTemplate,
+	postModelArmorTemplate,
 	putModelArmorTemplate,
 } from '../services/ModelArmorTemplateService';
 import {ModelArmorTemplate} from '../types/ModelArmorTemplate';
@@ -44,7 +45,12 @@ export function useModelArmorTemplateForm({
 		},
 		onSubmit: async (formValues) => {
 			try {
-				await putModelArmorTemplate(formValues);
+				if (externalReferenceCode) {
+					await putModelArmorTemplate(formValues);
+				}
+				else {
+					await postModelArmorTemplate(formValues);
+				}
 
 				openToast({
 					message: Liferay.Language.get(
@@ -80,10 +86,6 @@ export function useModelArmorTemplateForm({
 					Liferay.Language.get('required');
 			}
 
-			if (!formValues.location) {
-				validationErrors.location = Liferay.Language.get('required');
-			}
-
 			return validationErrors;
 		},
 	});
@@ -115,7 +117,6 @@ export function useModelArmorTemplateForm({
 					externalReferenceCode:
 						modelArmorTemplate.externalReferenceCode,
 					guardrailType: modelArmorTemplate.guardrailType,
-					location: modelArmorTemplate.location,
 					maliciousUriFilterEnabled:
 						modelArmorTemplate.maliciousUriFilterEnabled,
 					multilanguageDetectionEnabled:

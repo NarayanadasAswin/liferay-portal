@@ -74,7 +74,8 @@ public class SupervisorAgentImpl implements SupervisorAgent {
 
 					try (VertexAiGeminiChatModel vertexAiGeminiChatModel =
 							VertexAiGeminiUtil.createVertexAiGeminiChatModel(
-								agentContext.getCompanyId())) {
+								_quotaManager,
+								agentContext.getServiceContext())) {
 
 						PermissionThreadLocal.setPermissionChecker(
 							permissionChecker);
@@ -226,7 +227,7 @@ public class SupervisorAgentImpl implements SupervisorAgent {
 		String message = MapUtil.getString(agentContext.getInput(), "message");
 
 		_quotaManager.checkUsage(
-			agentContext.getCompanyId(), message, agentContext.getUserId());
+			agentContext.getCompanyId(), agentContext.getUserId());
 
 		dev.langchain4j.agentic.supervisor.SupervisorAgent supervisorAgent =
 			AgenticServices.supervisorBuilder(

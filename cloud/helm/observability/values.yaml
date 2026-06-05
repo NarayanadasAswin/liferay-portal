@@ -1,3 +1,90 @@
+alloy:
+    enabled: false
+    iam:
+        awsRoleArn: ""
+        gcpServiceAccount: ""
+    remoteWrite:
+        basicAuth:
+            password: ""
+            username: ""
+        bearerToken: ""
+        headers: {}
+        url: ""
+    scrape:
+        cadvisor:
+            enabled: true
+            path: /metrics/cadvisor
+        cloudwatchRDS:
+            discoveryInterval: 5m
+            enabled: false
+            metrics:
+                -   name: CPUUtilization
+                    statistics:
+                        -   Average
+                        -   Maximum
+                -   name: DiskQueueDepth
+                    statistics:
+                        -   Average
+                        -   Maximum
+                -   name: FreeStorageSpace
+                    statistics:
+                        -   Average
+                        -   Minimum
+                -   name: FreeableMemory
+                    statistics:
+                        -   Average
+                        -   Minimum
+                -   name: ReadIOPS
+                    statistics:
+                        -   Average
+                -   name: ReadLatency
+                    statistics:
+                        -   Average
+                        -   Maximum
+                -   name: ReplicaLag
+                    statistics:
+                        -   Average
+                        -   Maximum
+                -   name: SwapUsage
+                    statistics:
+                        -   Average
+                        -   Maximum
+                -   name: WriteIOPS
+                    statistics:
+                        -   Average
+                -   name: WriteLatency
+                    statistics:
+                        -   Average
+                        -   Maximum
+            nameTagRegex: .*-database-(blue|green)$
+            region: ""
+            scrapeInterval: 1m
+        envoy:
+            enabled: true
+            path: /stats/prometheus
+            port: 19001
+        kubeStateMetrics:
+            enabled: true
+            path: /metrics
+            port: http
+        liferay:
+            enabled: true
+            matchLabels:
+                component: liferay
+            path: /metrics
+            port: 12345
+        nodeExporter:
+            enabled: true
+            path: /metrics
+            port: metrics
+        rdsExporter:
+            enabled: false
+            path: /metrics
+            port: http
+    scrapeInterval: 1m
+aws:
+    ampWorkspaceURL: ""
+    region: ""
 cloudProvider: ""
 customLabels: {}
 datasource:
@@ -5,4 +92,111 @@ datasource:
     type: prometheus
     uid: managed-prometheus
 fullnameOverride: ""
+gcp:
+    projectId: ""
+grafana-alloy:
+    alloy:
+        clustering:
+            enabled: true
+        configMap:
+            create: false
+            key: config.alloy
+            name: liferay-alloy-config
+        mounts:
+            extra:
+                -   mountPath: /var/run/secrets/alloy
+                    name: remote-write-credentials
+                    readOnly: true
+        securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+                drop:
+                    -   ALL
+            privileged: false
+            readOnlyRootFilesystem: false
+    configReloader:
+        securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+                drop:
+                    -   ALL
+            privileged: false
+            readOnlyRootFilesystem: false
+    controller:
+        type: daemonset
+        volumes:
+            extra:
+                -   name: remote-write-credentials
+                    secret:
+                        optional: true
+                        secretName: liferay-alloy-remote-write
+    global:
+        podSecurityContext:
+            fsGroup: 473
+            runAsGroup: 473
+            runAsNonRoot: true
+            runAsUser: 473
+            seccompProfile:
+                type: RuntimeDefault
+    serviceAccount:
+        create: false
+        name: liferay-alloy
+kube-state-metrics:
+    enabled: true
+    extraArgs:
+        -   --metric-allowlist=kube_deployment_status_replicas_ready,kube_namespace_labels,kube_node_info,kube_node_status_condition,kube_pod_container_info,kube_pod_container_resource_limits,kube_pod_container_resource_requests,kube_pod_container_status_restarts_total,kube_statefulset_status_replicas_ready
+        -   --v=1
+    metricLabelsAllowlist:
+        -   namespaces=[liferay.com/observable]
+    networkPolicy:
+        egress:
+            -   {}
+        enabled: true
+        ingress:
+            -   from:
+                    -   podSelector: {}
+    podDisruptionBudget:
+        maxUnavailable: 1
+    prometheus:
+        monitor:
+            enabled: false
+    prometheusScrape: false
+    resources:
+        limits:
+            cpu: 100m
+            memory: 256Mi
+        requests:
+            cpu: 30m
+            memory: 128Mi
+    serviceAccount:
+        automountServiceAccountToken: false
 nameOverride: ""
+prometheus-node-exporter:
+    enabled: true
+    extraArgs:
+        -   --log.format=json
+        -   --log.level=error
+    networkPolicy:
+        enabled: true
+        ingress:
+            -   from:
+                    -   podSelector: {}
+    prometheus:
+        monitor:
+            enabled: false
+        podMonitor:
+            enabled: false
+    rbac:
+        create: true
+    resources:
+        limits:
+            cpu: 102m
+            memory: 180Mi
+        requests:
+            cpu: 102m
+            memory: 180Mi
+    service:
+        enabled: true
+    serviceAccount:
+        automountServiceAccountToken: false
+        create: true

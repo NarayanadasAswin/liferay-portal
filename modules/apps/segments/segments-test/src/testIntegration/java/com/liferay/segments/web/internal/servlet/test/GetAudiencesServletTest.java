@@ -9,6 +9,7 @@ import com.liferay.arquillian.extension.junit.bridge.junit.Arquillian;
 import com.liferay.portal.kernel.json.JSONArray;
 import com.liferay.portal.kernel.json.JSONFactory;
 import com.liferay.portal.kernel.json.JSONObject;
+import com.liferay.portal.kernel.json.JSONUtil;
 import com.liferay.portal.kernel.model.Group;
 import com.liferay.portal.kernel.service.GroupLocalService;
 import com.liferay.portal.kernel.test.TestInfo;
@@ -17,26 +18,31 @@ import com.liferay.portal.kernel.test.rule.DeleteAfterTestRun;
 import com.liferay.portal.kernel.test.util.RandomTestUtil;
 import com.liferay.portal.kernel.test.util.ServiceContextTestUtil;
 import com.liferay.portal.kernel.test.util.TestPropsValues;
+import com.liferay.portal.kernel.util.ArrayUtil;
 import com.liferay.portal.kernel.util.ContentTypes;
+import com.liferay.portal.kernel.util.LocaleUtil;
 import com.liferay.portal.test.rule.FeatureFlag;
 import com.liferay.portal.test.rule.FeatureFlags;
 import com.liferay.portal.test.rule.Inject;
 import com.liferay.portal.test.rule.LiferayIntegrationTestRule;
 import com.liferay.portal.test.rule.PermissionCheckerMethodTestRule;
 import com.liferay.segments.constants.SegmentsEntryConstants;
-import com.liferay.segments.criteria.Criteria;
-import com.liferay.segments.criteria.CriteriaSerializer;
-import com.liferay.segments.criteria.contributor.SegmentsCriteriaContributor;
+import com.liferay.segments.context.Context;
 import com.liferay.segments.model.SegmentsEntry;
 import com.liferay.segments.test.util.SegmentsTestUtil;
 
 import jakarta.servlet.Servlet;
 import jakarta.servlet.http.HttpServletResponse;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -71,23 +77,18 @@ public class GetAudiencesServletTest {
 	@Test
 	@TestInfo("LPD-91094")
 	public void testGetAudiences() throws Exception {
-		String segmentsEntryKey = RandomTestUtil.randomString();
-
-		_addSegmentsEntry(
-			segmentsEntryKey, "(url eq '/pricing')",
+		SegmentsEntry segmentsEntry = _addSegmentsEntry(
+			_createGroupJSONObject(
+				"and", _createRuleJSONObject(Context.URL, "/pricing")),
+			RandomTestUtil.randomString(),
 			SegmentsEntryConstants.SOURCE_AUDIENCE);
 
-		JSONArray audiencesJSONArray = _getAudiencesJSONArray();
+		JSONObject audienceJSONObject = _getAudienceJSONObject(
+			_getAudiencesJSONArray(), segmentsEntry.getSegmentsEntryKey());
 
-		Assert.assertEquals(1, audiencesJSONArray.length());
-
-		JSONObject audienceJSONObject = audiencesJSONArray.getJSONObject(0);
-
-		Assert.assertEquals(
-			segmentsEntryKey, audienceJSONObject.getString("id"));
 		Assert.assertEquals("AND", audienceJSONObject.getString("conjunction"));
 		Assert.assertEquals(
-			"SESSION", audienceJSONObject.getString("retentionType"));
+			"BROWSER", audienceJSONObject.getString("retentionType"));
 
 		JSONArray rulesJSONArray = audienceJSONObject.getJSONArray("rules");
 
@@ -95,9 +96,106 @@ public class GetAudiencesServletTest {
 
 		JSONObject ruleJSONObject = rulesJSONArray.getJSONObject(0);
 
-		Assert.assertEquals("url", ruleJSONObject.getString("attribute"));
-		Assert.assertEquals("eq", ruleJSONObject.getString("operation"));
+		Assert.assertEquals(Context.URL, ruleJSONObject.getString("attribute"));
+		Assert.assertEquals("eq", ruleJSONObject.getString("operator"));
 		Assert.assertEquals("/pricing", ruleJSONObject.getString("value"));
+	}
+
+	@Test
+	@TestInfo("LPD-91094")
+	public void testGetAudiencesMapsAttributeNames() throws Exception {
+		SegmentsEntry segmentsEntry = _addSegmentsEntry(
+			_createGroupJSONObject(
+				"and",
+				_createRuleJSONObject(
+					Context.BROWSER, RandomTestUtil.randomString()),
+				_createRuleJSONObject(
+					Context.LANGUAGE_ID, RandomTestUtil.randomString()),
+				_createRuleJSONObject(
+					Context.LAST_SIGN_IN_DATE_TIME,
+					RandomTestUtil.randomString()),
+				_createRuleJSONObject(
+					Context.LOCAL_DATE, RandomTestUtil.randomString()),
+				_createRuleJSONObject(
+					Context.REFERRER_URL, RandomTestUtil.randomString()),
+				_createRuleJSONObject(
+					Context.REQUEST_PARAMETERS, RandomTestUtil.randomString()),
+				_createRuleJSONObject(
+					Context.SIGNED_IN, RandomTestUtil.randomString()),
+				_createRuleJSONObject(
+					Context.URL, RandomTestUtil.randomString()),
+				_createRuleJSONObject(
+					Context.USER_AGENT, RandomTestUtil.randomString()),
+				_createRuleJSONObject(
+					"customContext/ipGeocoderCountry",
+					RandomTestUtil.randomString())),
+			RandomTestUtil.randomString(),
+			SegmentsEntryConstants.SOURCE_AUDIENCE);
+
+		JSONObject audienceJSONObject = _getAudienceJSONObject(
+			_getAudiencesJSONArray(), segmentsEntry.getSegmentsEntryKey());
+
+		JSONArray rulesJSONArray = audienceJSONObject.getJSONArray("rules");
+
+		String[] attributeNames = new String[rulesJSONArray.length()];
+
+		for (int i = 0; i < rulesJSONArray.length(); i++) {
+			JSONObject ruleJSONObject = rulesJSONArray.getJSONObject(i);
+
+			attributeNames[i] = ruleJSONObject.getString("attribute");
+		}
+
+		String[] expectedAttributeNames = {
+			"browser_name", "ip_geocoder_country", "language",
+			"last_sign_in_date", "local_date", "referrer", "request_parameters",
+			"signed_in", "url", "user_agent"
+		};
+
+		Assert.assertEquals(
+			Arrays.toString(attributeNames), expectedAttributeNames.length,
+			attributeNames.length);
+
+		for (String expectedAttributeName : expectedAttributeNames) {
+			Assert.assertTrue(
+				ArrayUtil.contains(attributeNames, expectedAttributeName));
+		}
+	}
+
+	@Test
+	@TestInfo("LPD-92872")
+	public void testGetAudiencesMapsValues() throws Exception {
+		LocalDate localDate = LocalDate.now();
+
+		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern(
+			"MM/dd/yyyy");
+
+		SegmentsEntry segmentsEntry = _addSegmentsEntry(
+			_createGroupJSONObject(
+				"and",
+				_createRuleJSONObject(
+					Context.LANGUAGE_ID,
+					LocaleUtil.toLanguageId(LocaleUtil.US)),
+				_createRuleJSONObject(
+					Context.LOCAL_DATE, localDate.format(dateTimeFormatter))),
+			RandomTestUtil.randomString(),
+			SegmentsEntryConstants.SOURCE_AUDIENCE);
+
+		JSONObject audienceJSONObject = _getAudienceJSONObject(
+			_getAudiencesJSONArray(), segmentsEntry.getSegmentsEntryKey());
+
+		JSONArray rulesJSONArray = audienceJSONObject.getJSONArray("rules");
+
+		JSONObject ruleJSONObject = rulesJSONArray.getJSONObject(0);
+
+		Assert.assertEquals(
+			LocaleUtil.toBCP47LanguageId(LocaleUtil.US),
+			ruleJSONObject.get("value"));
+
+		ruleJSONObject = rulesJSONArray.getJSONObject(1);
+
+		Assert.assertEquals(
+			localDate.format(DateTimeFormatter.ISO_LOCAL_DATE),
+			ruleJSONObject.get("value"));
 	}
 
 	@Test
@@ -123,41 +221,43 @@ public class GetAudiencesServletTest {
 	@Test
 	@TestInfo("LPD-91094")
 	public void testGetAudiencesReturnsOnlyAudienceSources() throws Exception {
-		_addSegmentsEntry(
-			RandomTestUtil.randomString(), "(url eq '/decoy')",
+		SegmentsEntry defaultSegmentsEntry = _addSegmentsEntry(
+			_createGroupJSONObject(
+				"and", _createRuleJSONObject(Context.URL, "/decoy")),
+			RandomTestUtil.randomString(),
 			SegmentsEntryConstants.SOURCE_DEFAULT);
 
-		String segmentsEntryKey = RandomTestUtil.randomString();
-
-		_addSegmentsEntry(
-			segmentsEntryKey, "(url eq '/pricing')",
+		SegmentsEntry segmentsEntry = _addSegmentsEntry(
+			_createGroupJSONObject(
+				"and", _createRuleJSONObject(Context.URL, "/pricing")),
+			RandomTestUtil.randomString(),
 			SegmentsEntryConstants.SOURCE_AUDIENCE);
 
 		JSONArray audiencesJSONArray = _getAudiencesJSONArray();
 
-		Assert.assertEquals(
-			audiencesJSONArray.toString(), 1, audiencesJSONArray.length());
-
-		JSONObject jsonObject = audiencesJSONArray.getJSONObject(0);
-
-		Assert.assertEquals(segmentsEntryKey, jsonObject.getString("id"));
+		Assert.assertNotNull(
+			_getAudienceJSONObject(
+				audiencesJSONArray, segmentsEntry.getSegmentsEntryKey()));
+		Assert.assertNull(
+			_getAudienceJSONObject(
+				audiencesJSONArray,
+				defaultSegmentsEntry.getSegmentsEntryKey()));
 	}
 
 	@Test
 	@TestInfo("LPD-91094")
 	public void testGetAudiencesWithNestedRules() throws Exception {
-		String segmentsEntryKey = RandomTestUtil.randomString();
-
-		_addSegmentsEntry(
-			segmentsEntryKey,
-			"(url eq '/pricing' and (url eq '/features' or url eq '/billing'))",
+		SegmentsEntry segmentsEntry = _addSegmentsEntry(
+			_createGroupJSONObject(
+				"and", _createRuleJSONObject(Context.URL, "/pricing"),
+				_createGroupJSONObject(
+					"or", _createRuleJSONObject(Context.URL, "/features"),
+					_createRuleJSONObject(Context.URL, "/billing"))),
+			RandomTestUtil.randomString(),
 			SegmentsEntryConstants.SOURCE_AUDIENCE);
 
-		JSONArray audiencesJSONArray = _getAudiencesJSONArray();
-
-		Assert.assertEquals(1, audiencesJSONArray.length());
-
-		JSONObject audienceJSONObject = audiencesJSONArray.getJSONObject(0);
+		JSONObject audienceJSONObject = _getAudienceJSONObject(
+			_getAudiencesJSONArray(), segmentsEntry.getSegmentsEntryKey());
 
 		Assert.assertEquals("AND", audienceJSONObject.getString("conjunction"));
 
@@ -167,8 +267,8 @@ public class GetAudiencesServletTest {
 
 		JSONObject leafJSONObject = rulesJSONArray.getJSONObject(0);
 
-		Assert.assertEquals("url", leafJSONObject.getString("attribute"));
-		Assert.assertEquals("eq", leafJSONObject.getString("operation"));
+		Assert.assertEquals(Context.URL, leafJSONObject.getString("attribute"));
+		Assert.assertEquals("eq", leafJSONObject.getString("operator"));
 		Assert.assertEquals("/pricing", leafJSONObject.getString("value"));
 
 		JSONObject groupJSONObject = rulesJSONArray.getJSONObject(1);
@@ -192,15 +292,15 @@ public class GetAudiencesServletTest {
 	@Test
 	@TestInfo("LPD-91094")
 	public void testGetAudiencesWithOrRule() throws Exception {
-		_addSegmentsEntry(
-			"OR_RULE", "(url eq 'facebook.com' or url eq 'twitter.com')",
+		SegmentsEntry segmentsEntry = _addSegmentsEntry(
+			_createGroupJSONObject(
+				"or", _createRuleJSONObject(Context.URL, "facebook.com"),
+				_createRuleJSONObject(Context.URL, "twitter.com")),
+			RandomTestUtil.randomString(),
 			SegmentsEntryConstants.SOURCE_AUDIENCE);
 
-		JSONArray audiencesJSONArray = _getAudiencesJSONArray();
-
-		Assert.assertEquals(1, audiencesJSONArray.length());
-
-		JSONObject audienceJSONObject = audiencesJSONArray.getJSONObject(0);
+		JSONObject audienceJSONObject = _getAudienceJSONObject(
+			_getAudiencesJSONArray(), segmentsEntry.getSegmentsEntryKey());
 
 		Assert.assertEquals("OR", audienceJSONObject.getString("conjunction"));
 
@@ -220,21 +320,55 @@ public class GetAudiencesServletTest {
 		Assert.assertTrue(rulesByValue.containsKey("twitter.com"));
 	}
 
-	private void _addSegmentsEntry(
-			String segmentsEntryKey, String filterString, String source)
+	private SegmentsEntry _addSegmentsEntry(
+			JSONObject queryJSONObject, String segmentsEntryKey, String source)
 		throws Exception {
 
-		Criteria criteria = new Criteria();
+		SegmentsEntry segmentsEntry = SegmentsTestUtil.addSegmentsEntry(
+			segmentsEntryKey, segmentsEntryKey, segmentsEntryKey,
+			queryJSONObject.toString(), source,
+			ServiceContextTestUtil.getServiceContext(
+				_companyGroup.getGroupId(), TestPropsValues.getUserId()));
 
-		_contextSegmentsCriteriaContributor.contribute(
-			criteria, filterString, Criteria.Conjunction.AND);
+		_segmentsEntries.add(segmentsEntry);
 
-		_segmentsEntries.add(
-			SegmentsTestUtil.addSegmentsEntry(
-				segmentsEntryKey, segmentsEntryKey, segmentsEntryKey,
-				CriteriaSerializer.serialize(criteria), source,
-				ServiceContextTestUtil.getServiceContext(
-					_companyGroup.getGroupId(), TestPropsValues.getUserId())));
+		return segmentsEntry;
+	}
+
+	private JSONObject _createGroupJSONObject(
+		String conjunctionName, JSONObject... itemJSONObjects) {
+
+		return JSONUtil.put(
+			"conjunctionName", conjunctionName
+		).put(
+			"items", JSONUtil.putAll((Object[])itemJSONObjects)
+		);
+	}
+
+	private JSONObject _createRuleJSONObject(
+		String propertyName, String value) {
+
+		return JSONUtil.put(
+			"operatorName", _TYPE_EQUALS
+		).put(
+			"propertyName", propertyName
+		).put(
+			"value", value
+		);
+	}
+
+	private JSONObject _getAudienceJSONObject(
+		JSONArray audiencesJSONArray, String id) {
+
+		for (int i = 0; i < audiencesJSONArray.length(); i++) {
+			JSONObject audienceJSONObject = audiencesJSONArray.getJSONObject(i);
+
+			if (Objects.equals(id, audienceJSONObject.getString("id"))) {
+				return audienceJSONObject;
+			}
+		}
+
+		return null;
 	}
 
 	private JSONArray _getAudiencesJSONArray() throws Exception {
@@ -261,13 +395,9 @@ public class GetAudiencesServletTest {
 		return mockHttpServletResponse;
 	}
 
-	private Group _companyGroup;
+	private static final String _TYPE_EQUALS = "eq";
 
-	@Inject(
-		filter = "segments.criteria.contributor.key=context",
-		type = SegmentsCriteriaContributor.class
-	)
-	private SegmentsCriteriaContributor _contextSegmentsCriteriaContributor;
+	private Group _companyGroup;
 
 	@Inject
 	private GroupLocalService _groupLocalService;

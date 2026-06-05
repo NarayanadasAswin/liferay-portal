@@ -5,6 +5,7 @@
 
 import {Locator, Page} from '@playwright/test';
 
+import {waitForPageToBeLoaded} from '../../../utils/waitForPageToBeLoaded';
 import {ViewObjectDefinitionsPage} from '../ViewObjectDefinitionsPage';
 
 export class ObjectRelationshipsPage {
@@ -119,5 +120,13 @@ export class ObjectRelationshipsPage {
 		);
 
 		await this.relationshipTabItem.click();
+	}
+
+	async saveObjectRelationship() {
+		await this.saveObjectRelationshipButton.click();
+
+		await this.saveObjectRelationshipButton.waitFor({state: 'hidden'});
+
+		await waitForPageToBeLoaded(this.page);
 	}
 }

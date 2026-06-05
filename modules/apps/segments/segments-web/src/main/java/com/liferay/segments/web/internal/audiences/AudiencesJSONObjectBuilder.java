@@ -5,81 +5,140 @@
 
 package com.liferay.segments.web.internal.audiences;
 
+import com.liferay.portal.kernel.json.JSONArray;
+import com.liferay.portal.kernel.json.JSONFactoryUtil;
 import com.liferay.portal.kernel.json.JSONObject;
 import com.liferay.portal.kernel.json.JSONUtil;
+import com.liferay.portal.kernel.log.Log;
+import com.liferay.portal.kernel.log.LogFactoryUtil;
+import com.liferay.portal.kernel.util.HashMapBuilder;
+import com.liferay.portal.kernel.util.LocaleUtil;
 import com.liferay.portal.kernel.util.StringUtil;
 import com.liferay.portal.kernel.util.Validator;
-import com.liferay.portal.odata.filter.FilterParser;
-import com.liferay.portal.odata.filter.FilterParserProvider;
-import com.liferay.portal.odata.filter.expression.Expression;
-import com.liferay.segments.criteria.Criteria;
-import com.liferay.segments.criteria.CriteriaSerializer;
-import com.liferay.segments.criteria.contributor.SegmentsCriteriaContributor;
+import com.liferay.segments.context.Context;
 import com.liferay.segments.model.SegmentsEntry;
-import com.liferay.segments.web.internal.odata.AudiencesExpressionVisitor;
+
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+
+import java.util.Map;
+import java.util.Objects;
 
 /**
  * @author Eudaldo Alonso
  */
 public class AudiencesJSONObjectBuilder {
 
-	public static JSONObject toAudienceJSONObject(
-			FilterParserProvider filterParserProvider,
-			SegmentsCriteriaContributor contextContributor,
-			SegmentsEntry segmentsEntry)
+	public static JSONObject toAudienceJSONObject(SegmentsEntry segmentsEntry)
 		throws Exception {
 
-		Criteria criteria = CriteriaSerializer.deserialize(
-			segmentsEntry.getCriteria());
+		String criteria = segmentsEntry.getCriteria();
 
-		Criteria.Criterion criterion = criteria.getCriterion(
-			contextContributor.getKey());
-
-		if (criterion == null) {
+		if (Validator.isNull(criteria)) {
 			return null;
 		}
 
-		String filterString = criterion.getFilterString();
+		JSONObject audienceJSONObject = _toAudienceJSONObject(
+			JSONFactoryUtil.createJSONObject(criteria));
 
-		if (Validator.isNull(filterString)) {
-			return null;
-		}
-
-		FilterParser filterParser = filterParserProvider.provide(
-			contextContributor.getEntityModel());
-
-		Expression expression = filterParser.parse(filterString);
-
-		JSONObject jsonObject = (JSONObject)expression.accept(
-			new AudiencesExpressionVisitor(
-				contextContributor.getEntityModel()));
-
-		if (!jsonObject.has("rules")) {
-			jsonObject = JSONUtil.put(
-				"conjunction", "AND"
-			).put(
-				"rules", JSONUtil.putAll(jsonObject)
-			);
-		}
-
-		return jsonObject.put(
+		return audienceJSONObject.put(
 			"id", segmentsEntry.getSegmentsEntryKey()
 		).put(
-			"retentionType", _getRetentionType(segmentsEntry.getSource())
+			"retentionType", "BROWSER"
 		);
 	}
 
-	private static String _getRetentionType(String source) {
-		int index = source.indexOf(':');
+	private static String _getValue(String propertyName, String value) {
+		if (Objects.equals(propertyName, Context.LANGUAGE_ID)) {
+			return LocaleUtil.toBCP47LanguageId(value);
+		}
+		else if (Objects.equals(propertyName, Context.LOCAL_DATE)) {
+			try {
+				LocalDate localDate = LocalDate.parse(
+					value, _dateTimeFormatter);
 
-		if (index < 0) {
-			return "SESSION";
+				return localDate.format(DateTimeFormatter.ISO_LOCAL_DATE);
+			}
+			catch (DateTimeParseException dateTimeParseException) {
+				if (_log.isDebugEnabled()) {
+					_log.debug(dateTimeParseException);
+				}
+
+				return value;
+			}
 		}
 
-		return StringUtil.toUpperCase(source.substring(index + 1));
+		return value;
+	}
+
+	private static JSONObject _toAudienceJSONObject(
+		JSONObject queryJSONObject) {
+
+		if (!queryJSONObject.has("items")) {
+			String propertyName = queryJSONObject.getString("propertyName");
+
+			return JSONUtil.put(
+				"attribute",
+				_attributeNames.getOrDefault(propertyName, propertyName)
+			).put(
+				"operator",
+				StringUtil.replace(
+					queryJSONObject.getString("operatorName"), '-', '_')
+			).put(
+				"value",
+				_getValue(propertyName, queryJSONObject.getString("value"))
+			);
+		}
+
+		return JSONUtil.put(
+			"conjunction",
+			StringUtil.toUpperCase(queryJSONObject.getString("conjunctionName"))
+		).put(
+			"rules",
+			() -> {
+				JSONArray rulesJSONArray = JSONFactoryUtil.createJSONArray();
+
+				JSONArray itemsJSONArray = queryJSONObject.getJSONArray(
+					"items");
+
+				for (int i = 0; i < itemsJSONArray.length(); i++) {
+					rulesJSONArray.put(
+						_toAudienceJSONObject(itemsJSONArray.getJSONObject(i)));
+				}
+
+				return rulesJSONArray;
+			}
+		);
 	}
 
 	private AudiencesJSONObjectBuilder() {
 	}
+
+	private static final Log _log = LogFactoryUtil.getLog(
+		AudiencesJSONObjectBuilder.class);
+
+	private static final Map<String, String> _attributeNames =
+		HashMapBuilder.put(
+			Context.BROWSER, "browser_name"
+		).put(
+			Context.LANGUAGE_ID, "language"
+		).put(
+			Context.LAST_SIGN_IN_DATE_TIME, "last_sign_in_date"
+		).put(
+			Context.LOCAL_DATE, "local_date"
+		).put(
+			Context.REFERRER_URL, "referrer"
+		).put(
+			Context.REQUEST_PARAMETERS, "request_parameters"
+		).put(
+			Context.SIGNED_IN, "signed_in"
+		).put(
+			Context.USER_AGENT, "user_agent"
+		).put(
+			"customContext/ipGeocoderCountry", "ip_geocoder_country"
+		).build();
+	private static final DateTimeFormatter _dateTimeFormatter =
+		DateTimeFormatter.ofPattern("MM/dd/yyyy");
 
 }

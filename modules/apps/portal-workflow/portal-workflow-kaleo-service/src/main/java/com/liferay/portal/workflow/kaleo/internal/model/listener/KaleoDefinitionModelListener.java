@@ -16,6 +16,8 @@ import com.liferay.portal.kernel.transaction.TransactionCommitCallbackUtil;
 import com.liferay.portal.workflow.kaleo.definition.constants.WorkflowDefinitionDestinationNames;
 import com.liferay.portal.workflow.kaleo.model.KaleoDefinition;
 
+import java.util.Date;
+
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
 
@@ -62,6 +64,7 @@ public class KaleoDefinitionModelListener
 				try {
 					Message message = new Message();
 
+					message.put("createDate", new Date());
 					message.put("eventType", eventType);
 					message.put("kaleoDefinition", kaleoDefinition);
 					message.put("name", kaleoDefinition.getName());

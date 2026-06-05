@@ -16,6 +16,7 @@ import React from 'react';
 import ModelArmorTemplateForm from '../../../src/main/resources/META-INF/resources/js/model_armor_template_form/ModelArmorTemplateForm';
 
 const mockGetModelArmorTemplate = jest.fn();
+const mockPostModelArmorTemplate = jest.fn();
 const mockPutModelArmorTemplate = jest.fn();
 const mockOpenToast = jest.fn();
 
@@ -24,6 +25,8 @@ jest.mock(
 	() => ({
 		getModelArmorTemplate: (...args: any[]) =>
 			mockGetModelArmorTemplate(...args),
+		postModelArmorTemplate: (...args: any[]) =>
+			mockPostModelArmorTemplate(...args),
 		putModelArmorTemplate: (...args: any[]) =>
 			mockPutModelArmorTemplate(...args),
 	})
@@ -124,6 +127,7 @@ const defaultProps = {
 describe('ModelArmorTemplateForm', () => {
 	beforeEach(() => {
 		mockGetModelArmorTemplate.mockReset();
+		mockPostModelArmorTemplate.mockReset();
 		mockPutModelArmorTemplate.mockReset();
 		mockOpenToast.mockReset();
 	});
@@ -138,7 +142,6 @@ describe('ModelArmorTemplateForm', () => {
 				active: true,
 				externalReferenceCode: 'TEMPLATE_X',
 				guardrailType: 'input',
-				location: '',
 				maliciousUriFilterEnabled: false,
 				multilanguageDetectionEnabled: false,
 				piAndJailbreakConfidenceLevel: 'mediumAndAbove',
@@ -222,8 +225,14 @@ describe('ModelArmorTemplateForm', () => {
 	});
 
 	describe('save', () => {
-		it('blocks the submit and surfaces required-field errors when title and ERC are empty', async () => {
+		it('blocks the submit and surfaces a required-field error when a required field is empty', async () => {
 			render(<ModelArmorTemplateForm {...defaultProps} />);
+
+			fireEvent.change(
+				screen.getByLabelText(/^external-reference-code/i),
+				{target: {value: ''}}
+			);
+			fireEvent.blur(screen.getByLabelText(/^external-reference-code/i));
 
 			fireEvent.click(screen.getByRole('button', {name: 'save'}));
 
@@ -233,11 +242,12 @@ describe('ModelArmorTemplateForm', () => {
 				);
 			});
 
+			expect(mockPostModelArmorTemplate).not.toHaveBeenCalled();
 			expect(mockPutModelArmorTemplate).not.toHaveBeenCalled();
 		});
 
 		it('submits filled values and shows the success toast', async () => {
-			mockPutModelArmorTemplate.mockResolvedValueOnce({
+			mockPostModelArmorTemplate.mockResolvedValueOnce({
 				externalReferenceCode: 'TEMPLATE_X',
 			});
 
@@ -250,17 +260,13 @@ describe('ModelArmorTemplateForm', () => {
 				screen.getByLabelText(/^external-reference-code/i),
 				{target: {value: 'TEMPLATE-X'}}
 			);
-			fireEvent.change(screen.getByLabelText(/^location/i), {
-				target: {value: 'us-central1'},
-			});
 
 			fireEvent.click(screen.getByRole('button', {name: 'save'}));
 
 			await waitFor(() => {
-				expect(mockPutModelArmorTemplate).toHaveBeenCalledWith(
+				expect(mockPostModelArmorTemplate).toHaveBeenCalledWith(
 					expect.objectContaining({
 						externalReferenceCode: 'TEMPLATE-X',
-						location: 'us-central1',
 						title_i18n: {en_US: 'My Template'},
 					})
 				);

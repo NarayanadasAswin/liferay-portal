@@ -13,6 +13,7 @@ export default function CollapsibleGroup({
 	bodyVisibleClassName,
 	checkboxId,
 	children,
+	description,
 	disclosure,
 	indeterminate,
 	label,
@@ -26,6 +27,7 @@ export default function CollapsibleGroup({
 	bodyVisibleClassName?: string;
 	checkboxId: string;
 	children: ReactNode;
+	description?: string;
 	disclosure: (props: {
 		'aria-controls': string;
 		'aria-expanded': boolean;
@@ -47,6 +49,7 @@ export default function CollapsibleGroup({
 		<>
 			<ControlRow
 				checkboxId={checkboxId}
+				description={description}
 				disclosure={disclosure({
 					'aria-controls': bodyId,
 					'aria-expanded': expanded,
@@ -59,11 +62,11 @@ export default function CollapsibleGroup({
 				onToggle={onToggle}
 				selected={selected}
 				tags={tags}
-			/>
-
-			<small className="d-block pl-4 text-secondary text-truncate">
-				{summary || Liferay.Language.get('nothing-selected')}
-			</small>
+			>
+				<small className="d-block text-secondary text-truncate">
+					{summary || Liferay.Language.get('nothing-selected')}
+				</small>
+			</ControlRow>
 
 			<div
 				className={classnames(

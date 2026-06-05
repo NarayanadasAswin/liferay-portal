@@ -1243,7 +1243,7 @@ public class JenkinsResultsParserUtil {
 	}
 
 	public static String getBuildDirPath() {
-		String topLevelBuildURL = System.getenv("TOP_LEVEL_BUILD_URL");
+		String topLevelBuildURL = Environment.get("TOP_LEVEL_BUILD_URL");
 
 		if (topLevelBuildURL != null) {
 			String buildDirPath = getBuildDirPath(topLevelBuildURL);
@@ -1253,9 +1253,9 @@ public class JenkinsResultsParserUtil {
 			}
 		}
 
-		String buildNumber = System.getenv("BUILD_NUMBER");
-		String jobName = System.getenv("JOB_NAME");
-		String masterHostname = System.getenv("MASTER_HOSTNAME");
+		String buildNumber = Environment.get("BUILD_NUMBER");
+		String jobName = Environment.get("JOB_NAME");
+		String masterHostname = Environment.get("MASTER_HOSTNAME");
 
 		return getBuildDirPath(buildNumber, jobName, masterHostname);
 	}
@@ -1443,7 +1443,7 @@ public class JenkinsResultsParserUtil {
 				_buildPropertiesURLs = _getDefaultBuildPropertiesURLs();
 			}
 
-			Map<String, String> map = System.getenv();
+			Map<String, String> map = Environment.getAll();
 
 			for (Map.Entry<String, String> entry : map.entrySet()) {
 				properties.setProperty(entry.getKey(), entry.getValue());
@@ -1462,11 +1462,11 @@ public class JenkinsResultsParserUtil {
 					new EnvironmentBuildProperties(getLocalURL(url)));
 			}
 
-			String s3BucketName = System.getenv("S3_BUCKET_NAME");
+			String s3BucketName = Environment.get("S3_BUCKET_NAME");
 
 			if (!isNullOrEmpty(s3BucketName)) {
 				properties.setProperty(
-					"env.S3_BUCKET_NAME", System.getenv("S3_BUCKET_NAME"));
+					"env.S3_BUCKET_NAME", Environment.get("S3_BUCKET_NAME"));
 			}
 
 			if (!properties.containsKey("user.home")) {
@@ -1742,7 +1742,7 @@ public class JenkinsResultsParserUtil {
 	}
 
 	public static String getCohortName() {
-		String jenkinsURL = System.getenv("JENKINS_URL");
+		String jenkinsURL = Environment.get("JENKINS_URL");
 
 		return getCohortName(jenkinsURL);
 	}
@@ -1929,7 +1929,7 @@ public class JenkinsResultsParserUtil {
 	public static String getEnvironmentVariable(
 		String environmentVariableName) {
 
-		String environmentVariableValue = System.getenv(
+		String environmentVariableValue = Environment.get(
 			environmentVariableName);
 
 		if ((environmentVariableValue == null) ||
@@ -2702,7 +2702,7 @@ public class JenkinsResultsParserUtil {
 
 		if (jenkinsMaster.isBlackListed()) {
 			jenkinsMaster = JenkinsMaster.getInstance(
-				System.getenv("MASTER_HOSTNAME"));
+				Environment.get("MASTER_HOSTNAME"));
 		}
 
 		String key = jenkinsMaster.getName() + "_" + jobName;
@@ -3790,7 +3790,7 @@ public class JenkinsResultsParserUtil {
 			return false;
 		}
 
-		String buildCachingEnabled = System.getenv("BUILD_CACHING_ENABLED");
+		String buildCachingEnabled = Environment.get("BUILD_CACHING_ENABLED");
 
 		if (!isNullOrEmpty(buildCachingEnabled)) {
 			return Objects.equals(buildCachingEnabled, "true");
@@ -3813,8 +3813,8 @@ public class JenkinsResultsParserUtil {
 
 	public static boolean isCINode() {
 		if (_ciNode == null) {
-			if (isNullOrEmpty(System.getenv("JENKINS_URL")) &&
-				isNullOrEmpty(System.getenv("MASTER_NETWORK_NAME"))) {
+			if (isNullOrEmpty(Environment.get("JENKINS_URL")) &&
+				isNullOrEmpty(Environment.get("MASTER_NETWORK_NAME"))) {
 
 				_ciNode = false;
 			}
@@ -3831,7 +3831,7 @@ public class JenkinsResultsParserUtil {
 			return false;
 		}
 
-		String masterNetworkName = System.getenv("MASTER_NETWORK_NAME");
+		String masterNetworkName = Environment.get("MASTER_NETWORK_NAME");
 
 		if (!isNullOrEmpty(masterNetworkName) &&
 			(masterNetworkName.equals("aws-network") ||
@@ -4133,7 +4133,7 @@ public class JenkinsResultsParserUtil {
 			return _topLevelJobNames.contains(jobName);
 		}
 
-		String masterHostname = System.getenv("MASTER_HOSTNAME");
+		String masterHostname = Environment.get("MASTER_HOSTNAME");
 
 		if (isNullOrEmpty(masterHostname)) {
 			return false;
@@ -4605,7 +4605,7 @@ public class JenkinsResultsParserUtil {
 		File baseDir, String[] excludedDockerImageNames,
 		String ecrRegistryName) {
 
-		String dockerEnabled = System.getenv("LIFERAY_DOCKER_ENABLED");
+		String dockerEnabled = Environment.get("LIFERAY_DOCKER_ENABLED");
 
 		if (isNullOrEmpty(dockerEnabled) || !dockerEnabled.equals("true")) {
 			return;
@@ -4729,9 +4729,9 @@ public class JenkinsResultsParserUtil {
 
 		String timeStamp = getDistinctTimeStamp();
 
-		File tempFile = new File(System.getenv("WORKSPACE"), timeStamp);
+		File tempFile = new File(Environment.get("WORKSPACE"), timeStamp);
 		File tempGzipFile = new File(
-			System.getenv("WORKSPACE"), timeStamp + ".gz");
+			Environment.get("WORKSPACE"), timeStamp + ".gz");
 
 		try {
 			copy(file, tempGzipFile);
@@ -6698,7 +6698,7 @@ public class JenkinsResultsParserUtil {
 			return _cacheURL;
 		}
 
-		String cacheDirPath = System.getenv("CACHE_DIR");
+		String cacheDirPath = Environment.get("CACHE_DIR");
 
 		if (cacheDirPath == null) {
 			cacheDirPath = "/opt/dev/projects/github";
@@ -7039,8 +7039,8 @@ public class JenkinsResultsParserUtil {
 		String basePropertiesFileName = basePropertiesFile.getName();
 
 		String[] environments = {
-			System.getenv("HOSTNAME"), System.getenv("HOST"),
-			System.getenv("COMPUTERNAME"), System.getProperty("user.name")
+			Environment.get("HOSTNAME"), Environment.get("HOST"),
+			Environment.get("COMPUTERNAME"), System.getProperty("user.name")
 		};
 
 		for (String environment : environments) {

@@ -561,6 +561,21 @@ public class DynamicQueryEntryTest {
 	}
 
 	@Test
+	public void testDynamicQueryWithProjectionReusedProjectionInstance() {
+		ProjectionList projectionList = ProjectionFactoryUtil.projectionList();
+
+		Projection projection = ProjectionFactoryUtil.property("name");
+
+		projectionList.add(projection, "a");
+		projectionList.add(projection, "b");
+
+		_testDynamicQueryWithProjection(
+			projectionList, new Object[] {"alpha", "alpha"},
+			new Object[] {"beta", "beta"}, new Object[] {"gamma", "gamma"},
+			new Object[] {"delta", "delta"});
+	}
+
+	@Test
 	public void testDynamicQueryWithProjectionSqlGroupProjection() {
 		DynamicQuery dynamicQuery =
 			_dynamicQueryEntryLocalService.dynamicQuery();

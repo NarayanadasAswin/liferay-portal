@@ -5,6 +5,7 @@
 
 import {Page, expect, mergeTests} from '@playwright/test';
 
+import {featureFlagsTest} from '../../../fixtures/featureFlagsTest';
 import {isolatedSiteTest} from '../../../fixtures/isolatedSiteTest';
 import {loginTest} from '../../../fixtures/loginTest';
 import {masterPagesPagesTest} from '../../../fixtures/masterPagesPagesTest';
@@ -39,6 +40,9 @@ async function expectStyleBookToBeSelected({
 }
 
 const test = mergeTests(
+	featureFlagsTest({
+		'LPD-76864': {enabled: true},
+	}),
 	isolatedSiteTest,
 	loginTest(),
 	masterPagesPagesTest,
@@ -52,7 +56,7 @@ test.beforeEach(async ({site, styleBooksPage}) => {
 
 	await styleBooksPage.create(STYLE_BOOK_NAME);
 
-	await styleBooksPage.updateTokenInputColor('Brand Color 4', TEST_COLOR);
+	await styleBooksPage.updateTokenInput('Brand Color 4', TEST_COLOR);
 
 	await styleBooksPage.waitForAutoSave();
 

@@ -230,6 +230,33 @@ public class EditSegmentsEntryDisplayContext {
 		return _title;
 	}
 
+	private JSONObject _getAudienceCriteriaJSONObject(
+			SegmentsCriteriaContributor segmentsCriteriaContributor)
+		throws Exception {
+
+		SegmentsEntry segmentsEntry = _getSegmentsEntry();
+
+		if ((segmentsEntry == null) ||
+			(segmentsCriteriaContributor.getType() != Criteria.Type.CONTEXT) ||
+			Validator.isNull(segmentsEntry.getCriteria())) {
+
+			return JSONUtil.put(
+				"conjunctionName", StringPool.BLANK
+			).put(
+				"query", (JSONObject)null
+			);
+		}
+
+		JSONObject queryJSONObject = JSONFactoryUtil.createJSONObject(
+			segmentsEntry.getCriteria());
+
+		return JSONUtil.put(
+			"conjunctionName", queryJSONObject.getString("conjunctionName")
+		).put(
+			"query", queryJSONObject
+		);
+	}
+
 	private Map<String, String> _getAvailableLocales() throws Exception {
 		Map<String, String> availableLocales = new HashMap<>();
 
@@ -259,13 +286,23 @@ public class EditSegmentsEntryDisplayContext {
 	private JSONArray _getContributorsJSONArray() throws Exception {
 		JSONArray contributorsJSONArray = JSONFactoryUtil.createJSONArray();
 
+		boolean audiencesPortlet = AudiencesPortletUtil.isAudiencesPortlet(
+			_renderRequest);
+
 		for (SegmentsCriteriaContributor segmentsCriteriaContributor :
 				_segmentsCriteriaContributorRegistry.
 					getSegmentsCriteriaContributors()) {
 
-			JSONObject jsonObject =
-				segmentsCriteriaContributor.getCriteriaJSONObject(
+			JSONObject jsonObject = null;
+
+			if (audiencesPortlet) {
+				jsonObject = _getAudienceCriteriaJSONObject(
+					segmentsCriteriaContributor);
+			}
+			else {
+				jsonObject = segmentsCriteriaContributor.getCriteriaJSONObject(
 					_getCriteria());
+			}
 
 			contributorsJSONArray.put(
 				JSONUtil.put(

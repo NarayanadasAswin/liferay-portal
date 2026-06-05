@@ -22,6 +22,7 @@ import dev.langchain4j.guardrail.GuardrailResult;
 
 import java.time.Duration;
 
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -58,7 +59,7 @@ public abstract class BaseGuardrailExecutedListener {
 
 			AuditRouterUtil.route(
 				WorkflowInstance.class.getName(),
-				kaleoInstanceToken.getKaleoInstanceId(),
+				kaleoInstanceToken.getKaleoInstanceId(), new Date(),
 				AIHubEventTypes.AI_HUB_GUARDRAIL_VIOLATION,
 				JSONUtil.put(
 					"agentDefinitionExternalReferenceCode",

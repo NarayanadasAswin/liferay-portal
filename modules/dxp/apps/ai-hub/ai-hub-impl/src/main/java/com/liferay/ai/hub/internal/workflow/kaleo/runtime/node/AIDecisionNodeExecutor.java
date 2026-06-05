@@ -184,7 +184,7 @@ public class AIDecisionNodeExecutor extends BaseNodeExecutor {
 
 		VertexAiGeminiStreamingChatModel vertexAiGeminiStreamingChatModel =
 			VertexAiGeminiUtil.createVertexAiGeminiStreamingChatModel(
-				serviceContext.getCompanyId());
+				_quotaManager, serviceContext);
 
 		String sseEventSinkKey = GetterUtil.getString(
 			workflowContext.get("sseEventSinkKey"));
@@ -194,8 +194,8 @@ public class AIDecisionNodeExecutor extends BaseNodeExecutor {
 
 		GuardrailsUtil.populate(
 			_dtoConverterRegistry, inputGuardrails, _modelArmorHandler,
-			_objectEntryManager, outputGuardrails, serviceContext,
-			workflowContext);
+			_objectEntryManager, outputGuardrails, _quotaManager,
+			serviceContext, workflowContext);
 
 		AssistantHandlerUtil.handle(
 			AssistantHandlerContext.builder(
@@ -221,9 +221,6 @@ public class AIDecisionNodeExecutor extends BaseNodeExecutor {
 						GetterUtil.getString(workflowContext.get("reason")),
 						prompt, executionContext.getServiceContext(),
 						userMessage);
-
-					QuotaUtil.updateUsage(
-						response, _quotaManager, serviceContext);
 				}
 			).onErrorConsumer(
 				throwable -> {
@@ -241,7 +238,8 @@ public class AIDecisionNodeExecutor extends BaseNodeExecutor {
 					_fieldConfigBuilderFactory, _highlightBuilderFactory,
 					kaleoNodeSettingValues, serviceContext.getLocale(),
 					_objectEntryManager, _searchEngineAdapter,
-					serviceContext.getUserId(), workflowContext)
+					serviceContext.getUserId(), workflowContext,
+					kaleoInstanceToken.getKaleoInstanceId())
 			).systemMessageProviderFunction(
 				memoryId -> prompt
 			).tools(
