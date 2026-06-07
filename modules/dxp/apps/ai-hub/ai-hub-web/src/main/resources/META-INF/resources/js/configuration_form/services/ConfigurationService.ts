@@ -5,7 +5,7 @@
 
 import {fetch} from 'frontend-js-web';
 
-import {Configuration} from '../types/Configuration';
+import {Configuration, Credential} from '../types/Configuration';
 
 const HEADERS = new Headers({
 	'Accept': 'application/json',
@@ -27,6 +27,19 @@ async function getConfiguration(externalReferenceCode: string) {
 	}
 
 	return response.json() as Promise<Configuration>;
+}
+
+async function getCredential() {
+	const response = await fetch('/o/ai-hub/v1.0/credentials', {
+		headers: HEADERS,
+		method: 'GET',
+	});
+
+	if (!response.ok) {
+		throw new Error('Failed to fetch credential');
+	}
+
+	return response.json() as Promise<Credential>;
 }
 
 async function putConfiguration(
@@ -51,4 +64,4 @@ async function putConfiguration(
 	return response.json() as Promise<Configuration>;
 }
 
-export {getConfiguration, putConfiguration};
+export {getConfiguration, getCredential, putConfiguration};

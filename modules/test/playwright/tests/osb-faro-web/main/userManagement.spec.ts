@@ -762,3 +762,62 @@ test(
 		}
 	}
 );
+
+test(
+	'Admin and Owner users can add data sources',
+	{
+		tag: ['@LRAC-9090', '@LRAC-9093'],
+	},
+	async ({page, project}) => {
+		const privilegedUsers = [
+			'michelle.hoshi@faro.io',
+			'bryan.cheung@faro.io',
+		];
+
+		try {
+			for (const email of privilegedUsers) {
+				await signInToAnalyticsCloud(page, email);
+
+				await navigateToACSettingsViaURL({
+					acPage: ACPage.dataSourcePage,
+					page,
+					projectID: project.groupId,
+				});
+
+				await expect(
+					page.getByRole('button', {name: 'Add Data Source'})
+				).toBeVisible();
+			}
+		}
+		finally {
+			await signInToAnalyticsCloud(page, faroConfig.user.login);
+		}
+	}
+);
+
+test(
+	'User Management list order is reversed when toggling the name column sort',
+	{
+		tag: '@LRAC-9044',
+	},
+	async ({page, project}) => {
+		await navigateToACSettingsViaURL({
+			acPage: ACPage.userManagementPage,
+			page,
+			projectID: project.groupId,
+		});
+
+		const readNames = async () =>
+			(await page.locator('.table-title').allInnerTexts()).map((name) =>
+				name.trim()
+			);
+
+		const initialNames = await readNames();
+
+		// Toggle the active name-column sort direction
+
+		await page.getByRole('link', {name: 'Name Ascending'}).click();
+
+		await expect.poll(readNames).toEqual([...initialNames].reverse());
+	}
+);

@@ -8,6 +8,7 @@ package com.liferay.design.library.web.internal.display.context;
 import com.liferay.depot.model.DepotEntry;
 import com.liferay.depot.service.DepotEntryLocalServiceUtil;
 import com.liferay.design.library.web.internal.constants.DesignLibraryConstants;
+import com.liferay.exportimport.constants.ExportImportPortletKeys;
 import com.liferay.frontend.data.set.model.FDSActionDropdownItem;
 import com.liferay.petra.string.StringBundler;
 import com.liferay.portal.kernel.exception.PortalException;
@@ -208,18 +209,22 @@ public class DesignLibraryResourcesDisplayContext {
 				"symbolLeft", "users"
 			),
 			JSONUtil.put(
-				"href", "#import"
-			).put(
-				"label", LanguageUtil.get(_httpServletRequest, "import")
-			).put(
-				"symbolLeft", "import"
-			),
-			JSONUtil.put(
-				"href", "#export"
+				"href",
+				_getExportImportPortletURL(
+					group, ExportImportPortletKeys.EXPORT)
 			).put(
 				"label", LanguageUtil.get(_httpServletRequest, "export")
 			).put(
 				"symbolLeft", "export"
+			),
+			JSONUtil.put(
+				"href",
+				_getExportImportPortletURL(
+					group, ExportImportPortletKeys.IMPORT)
+			).put(
+				"label", LanguageUtil.get(_httpServletRequest, "import")
+			).put(
+				"symbolLeft", "import"
 			),
 			JSONUtil.put(
 				"descriptiveName", group.getDescriptiveName()
@@ -285,6 +290,16 @@ public class DesignLibraryResourcesDisplayContext {
 			).put(
 				"label", group.getName(_httpServletRequest.getLocale())
 			));
+	}
+
+	private String _getExportImportPortletURL(Group group, String portletId) {
+		return PortletURLBuilder.create(
+			PortalUtil.getControlPanelPortletURL(
+				_httpServletRequest, group, portletId, 0, 0,
+				PortletRequest.RENDER_PHASE)
+		).setBackURL(
+			PortalUtil.getCurrentURL(_httpServletRequest)
+		).buildString();
 	}
 
 	private boolean _hasManageStyleBookEntriesPermission(long groupId) {

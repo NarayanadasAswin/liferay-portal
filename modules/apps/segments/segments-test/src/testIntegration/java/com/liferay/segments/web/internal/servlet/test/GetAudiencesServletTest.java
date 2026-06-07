@@ -109,6 +109,11 @@ public class GetAudiencesServletTest {
 				"and",
 				_createRuleJSONObject(
 					Context.BROWSER, RandomTestUtil.randomString()),
+				_createRuleJSONObject(Context.BROWSER_VERSION, "124.0"),
+				_createRuleJSONObject(
+					Context.DEVICE_TYPE, RandomTestUtil.randomString()),
+				_createRuleJSONObject(
+					Context.GEOLOCATION, RandomTestUtil.randomString()),
 				_createRuleJSONObject(
 					Context.LANGUAGE_ID, RandomTestUtil.randomString()),
 				_createRuleJSONObject(
@@ -117,11 +122,17 @@ public class GetAudiencesServletTest {
 				_createRuleJSONObject(
 					Context.LOCAL_DATE, RandomTestUtil.randomString()),
 				_createRuleJSONObject(
+					Context.LOCAL_TIME, RandomTestUtil.randomString()),
+				_createRuleJSONObject(
+					Context.PATHNAME, RandomTestUtil.randomString()),
+				_createRuleJSONObject(
 					Context.REFERRER_URL, RandomTestUtil.randomString()),
 				_createRuleJSONObject(
 					Context.REQUEST_PARAMETERS, RandomTestUtil.randomString()),
 				_createRuleJSONObject(
 					Context.SIGNED_IN, RandomTestUtil.randomString()),
+				_createRuleJSONObject(
+					Context.TIME_ZONE, RandomTestUtil.randomString()),
 				_createRuleJSONObject(
 					Context.URL, RandomTestUtil.randomString()),
 				_createRuleJSONObject(
@@ -146,9 +157,10 @@ public class GetAudiencesServletTest {
 		}
 
 		String[] expectedAttributeNames = {
-			"browser_name", "ip_geocoder_country", "language",
-			"last_sign_in_date", "local_date", "referrer", "request_parameters",
-			"signed_in", "url", "user_agent"
+			"browser_name", "browser_version", "device_type", "geolocation",
+			"ip_geocoder_country", "language", "last_sign_in_date",
+			"local_date", "local_time", "pathname", "referrer_url",
+			"request_parameters", "signed_in", "time_zone", "user_agent", "url"
 		};
 
 		Assert.assertEquals(
@@ -159,6 +171,35 @@ public class GetAudiencesServletTest {
 			Assert.assertTrue(
 				ArrayUtil.contains(attributeNames, expectedAttributeName));
 		}
+	}
+
+	@Test
+	@TestInfo("LPD-93510")
+	public void testGetAudiencesMapsCollectionOperators() throws Exception {
+		SegmentsEntry segmentsEntry = _addSegmentsEntry(
+			_createGroupJSONObject(
+				"and",
+				_createRuleJSONObject(
+					Context.COOKIES, "contains", RandomTestUtil.randomString()),
+				_createRuleJSONObject(
+					Context.COOKIES, "not-contains",
+					RandomTestUtil.randomString())),
+			RandomTestUtil.randomString(),
+			SegmentsEntryConstants.SOURCE_AUDIENCE);
+
+		JSONObject audienceJSONObject = _getAudienceJSONObject(
+			_getAudiencesJSONArray(), segmentsEntry.getSegmentsEntryKey());
+
+		JSONArray rulesJSONArray = audienceJSONObject.getJSONArray("rules");
+
+		JSONObject ruleJSONObject = rulesJSONArray.getJSONObject(0);
+
+		Assert.assertEquals("includes", ruleJSONObject.getString("operator"));
+
+		ruleJSONObject = rulesJSONArray.getJSONObject(1);
+
+		Assert.assertEquals(
+			"not_includes", ruleJSONObject.getString("operator"));
 	}
 
 	@Test
@@ -348,8 +389,14 @@ public class GetAudiencesServletTest {
 	private JSONObject _createRuleJSONObject(
 		String propertyName, String value) {
 
+		return _createRuleJSONObject(propertyName, _TYPE_EQUALS, value);
+	}
+
+	private JSONObject _createRuleJSONObject(
+		String propertyName, String operatorName, String value) {
+
 		return JSONUtil.put(
-			"operatorName", _TYPE_EQUALS
+			"operatorName", operatorName
 		).put(
 			"propertyName", propertyName
 		).put(

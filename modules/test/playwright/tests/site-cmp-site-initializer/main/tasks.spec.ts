@@ -10,7 +10,9 @@ import {featureFlagsTest} from '../../../fixtures/featureFlagsTest';
 import {globalMenuPagesTest} from '../../../fixtures/globalMenuPagesTest';
 import {loginTest} from '../../../fixtures/loginTest';
 import {workflowPagesTest} from '../../../fixtures/workflowPagesTest';
+import {addSpaceUser} from '../../../utils/addSpaceUser';
 import getRandomString from '../../../utils/getRandomString';
+import {performUserSwitch} from '../../../utils/performLogin';
 import {waitForAlert} from '../../../utils/waitForAlert';
 import {cmsPagesTest} from '../../site-cms-site-initializer/main/fixtures/cmsPagesTest';
 import {cmpPagesTest} from './fixtures/cmpPagesTest';
@@ -116,9 +118,9 @@ test('Bulk delete tasks', {tag: ['@LPD-75299']}, async ({page, tasksPage}) => {
 		await expect(async () => {
 			await tasksPage.goto();
 
-			await expect(page.getByLabel(taskNames[0])).toBeHidden();
-			await expect(page.getByLabel(taskNames[1])).toBeHidden();
-			await expect(page.getByLabel(taskNames[2])).toBeVisible();
+			await expect(tasksPage.getItem(taskNames[0])).toBeHidden();
+			await expect(tasksPage.getItem(taskNames[1])).toBeHidden();
+			await expect(tasksPage.getItem(taskNames[2])).toBeVisible();
 		}).toPass({timeout: 10000});
 	});
 });
@@ -365,6 +367,124 @@ test(
 				'L_CMP_TASK_'
 			);
 		});
+	}
+);
+
+test(
+	'Verify task visibility across Global Tasks tabs based on user permission',
+	{tag: ['@LPD-88846']},
+	async ({apiHelpers, assignWorkflowToAssetType, page, tasksPage}) => {
+		await assignWorkflowToAssetType('Single Approver', 'Blog');
+
+		const spaces =
+			await apiHelpers.headlessAssetLibrary.getAssetLibrariesPage();
+
+		const defaultSpace = spaces.find((space) => space.name === 'Default');
+
+		const user = await addSpaceUser(
+			apiHelpers,
+			defaultSpace.externalReferenceCode,
+			'Asset Library Administrator'
+		);
+
+		await apiHelpers.headlessAssetLibrary.putAssetLibraryUserAccount(
+			project.systemProperties.scope.externalReferenceCode,
+			user.externalReferenceCode
+		);
+
+		await apiHelpers.headlessAssetLibrary.putAssetLibraryUserAccountRoles(
+			project.systemProperties.scope.externalReferenceCode,
+			user.externalReferenceCode,
+			['Asset Library Administrator']
+		);
+
+		const assignedBlogTitle = getRandomString();
+		const unassignedBlogTitle = getRandomString();
+
+		await test.step('Create two CMS Blog entries; both generate KaleoTaskInstanceTokens', async () => {
+			await apiHelpers.objectEntry.postObjectEntry(
+				{
+					keywords: [taskTags[0]],
+					objectEntryFolderExternalReferenceCode: 'L_CONTENTS',
+					title: assignedBlogTitle,
+				},
+				'cms/blogs',
+				'Default'
+			);
+
+			await apiHelpers.objectEntry.postObjectEntry(
+				{
+					keywords: [taskTags[0]],
+					objectEntryFolderExternalReferenceCode: 'L_CONTENTS',
+					title: unassignedBlogTitle,
+				},
+				'cms/blogs',
+				'Default'
+			);
+		});
+
+		await test.step('Assign a workflow tasks to admin user', async () => {
+			await tasksPage.goto();
+
+			await tasksPage
+				.getItem(assignedBlogTitle)
+				.getByRole('button')
+				.click();
+
+			await page.getByRole('menuitem', {name: 'Assign to Me'}).click();
+
+			await tasksPage.saveButton.click();
+
+			await page.reload();
+		});
+
+		await test.step('Admin sees tasks separated by tab regardless of assignment', async () => {
+			await tasksPage.goto();
+
+			await tasksPage.allTasksTab.click();
+
+			await expect(tasksPage.getItem(taskNames[0])).toBeVisible();
+			await expect(tasksPage.getItem(assignedBlogTitle)).toBeVisible();
+			await expect(tasksPage.getItem(unassignedBlogTitle)).toBeVisible();
+
+			await tasksPage.projectTasksTab.click();
+
+			await expect(tasksPage.getItem(taskNames[0])).toBeVisible();
+			await expect(tasksPage.getItem(assignedBlogTitle)).toBeHidden();
+			await expect(tasksPage.getItem(unassignedBlogTitle)).toBeHidden();
+
+			await tasksPage.workflowTasksTab.click();
+
+			await expect(tasksPage.getItem(taskNames[0])).toBeHidden();
+			await expect(tasksPage.getItem(assignedBlogTitle)).toBeVisible();
+			await expect(tasksPage.getItem(unassignedBlogTitle)).toBeVisible();
+		});
+
+		await test.step('Space admin sees tasks separated by tab based on assignment', async () => {
+			await performUserSwitch(page, user.alternateName);
+
+			await tasksPage.goto();
+
+			await tasksPage.allTasksTab.click();
+
+			await expect(tasksPage.getItem(taskNames[0])).toBeVisible();
+			await expect(tasksPage.getItem(assignedBlogTitle)).toBeHidden();
+			await expect(tasksPage.getItem(unassignedBlogTitle)).toBeVisible();
+
+			await tasksPage.projectTasksTab.click();
+
+			await expect(tasksPage.getItem(taskNames[0])).toBeVisible();
+			await expect(tasksPage.getItem(assignedBlogTitle)).toBeHidden();
+			await expect(tasksPage.getItem(unassignedBlogTitle)).toBeHidden();
+
+			await tasksPage.workflowTasksTab.click();
+
+			await expect(tasksPage.getItem(taskNames[0])).toBeHidden();
+			await expect(tasksPage.getItem(assignedBlogTitle)).toBeHidden();
+			await expect(tasksPage.getItem(unassignedBlogTitle)).toBeVisible();
+		});
+
+		await performUserSwitch(page, 'test');
 	}
 );
 

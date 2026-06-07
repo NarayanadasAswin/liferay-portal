@@ -50,7 +50,6 @@ import com.liferay.portal.kernel.util.HashMapDictionaryBuilder;
 import com.liferay.portal.kernel.util.JavaConstants;
 import com.liferay.portal.kernel.util.LocaleUtil;
 import com.liferay.portal.kernel.util.Portal;
-import com.liferay.portal.kernel.util.PortalUtil;
 import com.liferay.portal.kernel.util.UnicodeProperties;
 import com.liferay.portal.kernel.util.Validator;
 import com.liferay.portal.kernel.util.WebKeys;
@@ -425,7 +424,7 @@ public class LayoutSEOLinkManagerTest {
 		}
 
 		return StringBundler.concat(
-			_PORTAL_URL, expectedLanguagePath, _groupFriendlyURL, urlPrefix,
+			_getPortalURL(), expectedLanguagePath, _groupFriendlyURL, urlPrefix,
 			_expectedFriendlyURLs.get(locale));
 	}
 
@@ -469,7 +468,7 @@ public class LayoutSEOLinkManagerTest {
 		_themeDisplay.setResponse(new MockHttpServletResponse());
 		_themeDisplay.setScopeGroupId(_group.getGroupId());
 		_themeDisplay.setServerName("localhost");
-		_themeDisplay.setServerPort(PortalUtil.getPortalServerPort(false));
+		_themeDisplay.setServerPort(_portal.getPortalServerPort(false));
 		_themeDisplay.setSiteGroupId(_group.getGroupId());
 		_themeDisplay.setUser(TestPropsValues.getUser());
 
@@ -477,6 +476,10 @@ public class LayoutSEOLinkManagerTest {
 			WebKeys.THEME_DISPLAY, _themeDisplay);
 
 		return mockHttpServletRequest;
+	}
+
+	private String _getPortalURL() {
+		return "http://localhost:" + _portal.getPortalServerPort(false);
 	}
 
 	private LayoutSEOLink _getXDefaultAlternateLayoutSEOLink(
@@ -502,7 +505,7 @@ public class LayoutSEOLinkManagerTest {
 			_group.getPublicLayoutSet(), _themeDisplay, false, false);
 
 		_canonicalURL = StringBundler.concat(
-			_PORTAL_URL, _groupFriendlyURL,
+			_getPortalURL(), _groupFriendlyURL,
 			FriendlyURLResolverConstants.URL_SEPARATOR_JOURNAL_ARTICLE,
 			_expectedFriendlyURLs.get(LocaleUtil.US));
 	}
@@ -531,7 +534,7 @@ public class LayoutSEOLinkManagerTest {
 			_group.getPublicLayoutSet(), _themeDisplay, false, false);
 
 		_canonicalURL = StringBundler.concat(
-			_PORTAL_URL, _groupFriendlyURL, StringPool.SLASH,
+			_getPortalURL(), _groupFriendlyURL, StringPool.SLASH,
 			_expectedFriendlyURLs.get(LocaleUtil.US));
 	}
 
@@ -625,9 +628,6 @@ public class LayoutSEOLinkManagerTest {
 	private static final String _LAYOUT_SEO_CONFIGURATION_PID =
 		"com.liferay.layout.seo.internal.configuration." +
 			"LayoutSEOCompanyConfiguration";
-
-	private static final String _PORTAL_URL =
-		"http://localhost:" + PortalUtil.getPortalServerPort(false);
 
 	@Inject
 	private AssetDisplayPageEntryLocalService

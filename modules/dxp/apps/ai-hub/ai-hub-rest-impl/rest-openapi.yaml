@@ -90,6 +90,15 @@ components:
                 url:
                     type: string
             type: object
+        Credential:
+            properties:
+                clientId:
+                    readOnly: true
+                    type: string
+                clientSecret:
+                    readOnly: true
+                    type: string
+            type: object
         Message:
             properties:
                 chat:
@@ -189,15 +198,12 @@ components:
                     type: integer
                 accountEntryName:
                     type: string
-                liferayDXPURL:
-                    type: string
                 userAccounts:
                     items:
                         $ref: "#/components/schemas/UserAccount"
                     type: array
             required:
                 -   accountEntryName
-                -   liferayDXPURL
                 -   userAccounts
             type: object
         Site:
@@ -238,8 +244,7 @@ components:
             type: object
 info:
     description:
-        "A Java client JAR is available for use with the group ID 'com.liferay', artifact ID
-        'com.liferay.ai.hub.rest.client', and version '1.0.6'."
+        "A Java client JAR is available for use with the group ID 'com.liferay', artifact ID 'com.liferay.ai.hub.rest.client', and version '1.0.6'."
     license:
         name: Apache 2.0
         url: http://www.apache.org/licenses/LICENSE-2.0.html
@@ -458,6 +463,19 @@ paths:
                             schema:
                                 $ref: "#/components/schemas/ContentRetriever"
             tags: ["ContentRetriever"]
+    "/credentials":
+        get:
+            operationId: getCredential
+            responses:
+                200:
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Credential"
+                        application/xml:
+                            schema:
+                                $ref: "#/components/schemas/Credential"
+            tags: ["Credential"]
     "/model-armor-templates":
         post:
             operationId: postModelArmorTemplate

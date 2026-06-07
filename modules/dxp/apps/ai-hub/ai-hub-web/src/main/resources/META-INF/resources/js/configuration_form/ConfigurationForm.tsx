@@ -4,13 +4,14 @@
  */
 
 import Button from '@clayui/button';
-import ClayForm, {ClayInput} from '@clayui/form';
+import ClayForm from '@clayui/form';
 import ClayLayout from '@clayui/layout';
 import ClayLink from '@clayui/link';
 import ClayPanel from '@clayui/panel';
-import {FieldBase} from 'frontend-js-components-web';
 import React from 'react';
 
+import AccountConfigurationPanel from './AccountConfigurationPanel';
+import CredentialsPanel from './CredentialsPanel';
 import {useConfigurationForm} from './hooks/useConfigurationForm';
 
 const FORM_ID = 'configurationForm';
@@ -18,10 +19,12 @@ const FORM_ID = 'configurationForm';
 export default function ConfigurationForm({
 	accountEntryId,
 	backURL,
+	clientId,
 	externalReferenceCode,
 }: {
 	accountEntryId: number;
 	backURL: string;
+	clientId?: string;
 	externalReferenceCode: string;
 }) {
 	const {handleSubmit, isSubmitting, loading, setField, values} =
@@ -36,45 +39,18 @@ export default function ConfigurationForm({
 			<ClayForm id={FORM_ID} onSubmit={handleSubmit}>
 				<ClayPanel collapsable={false}>
 					<ClayPanel.Body>
-						<h2 className="mb-4">
-							{Liferay.Language.get('account-configuration')}
-						</h2>
+						<AccountConfigurationPanel
+							setField={setField}
+							values={values}
+						/>
 
-						<FieldBase
-							id="environmentUrls"
-							label={Liferay.Language.get('environment-url')}
-						>
-							<ClayInput
-								id="environmentUrls"
-								name="environmentUrls"
-								onChange={(event) =>
-									setField(
-										'environmentUrls',
-										event.target.value
-									)
-								}
-								type="text"
-								value={values.environmentUrls}
-							/>
-						</FieldBase>
+						{clientId && (
+							<>
+								<hr className="my-4" />
 
-						<FieldBase
-							id="recipientEmailAddress"
-							label={Liferay.Language.get('notification-email')}
-						>
-							<ClayInput
-								id="recipientEmailAddress"
-								name="recipientEmailAddress"
-								onChange={(event) =>
-									setField(
-										'recipientEmailAddress',
-										event.target.value
-									)
-								}
-								type="email"
-								value={values.recipientEmailAddress}
-							/>
-						</FieldBase>
+								<CredentialsPanel clientId={clientId} />
+							</>
+						)}
 
 						<div className="mt-4">
 							<Button

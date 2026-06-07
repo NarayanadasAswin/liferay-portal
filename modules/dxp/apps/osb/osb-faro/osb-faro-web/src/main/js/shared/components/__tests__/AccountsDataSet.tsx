@@ -5,12 +5,6 @@ import {LifecycleStages} from 'contacts/pages/account/utils/constants';
 import {RangeKeyTimeRanges} from 'shared/util/constants';
 import {useRequest} from 'shared/hooks/useRequest';
 
-const defaultRangeSelectors = {
-	rangeEnd: null,
-	rangeKey: RangeKeyTimeRanges.Last30Days,
-	rangeStart: null
-};
-
 const DEFAULT_STAGE_ITEMS = [
 	{id: '9990', stageType: LifecycleStages.AWARE},
 	{id: '9991', stageType: LifecycleStages.ENGAGED},
@@ -49,9 +43,6 @@ type FakeFilter = {
 };
 
 type FakeCustomDataRenderers = {
-	accountActivityStatusRenderer: (props: {
-		value: string;
-	}) => React.ReactElement | null | false;
 	accountNameRenderer: (props: {
 		itemData: {id: string | number};
 		value: string;
@@ -96,12 +87,7 @@ describe('AccountsDataSet', () => {
 
 	it('should render the FrontendDataSet with id "accounts-list-dataset"', () => {
 		render(
-			<AccountsDataSet
-				apiURL='fake-url'
-				channelId='123'
-				groupId='23'
-				rangeSelectors={defaultRangeSelectors}
-			/>
+			<AccountsDataSet apiURL='fake-url' channelId='123' groupId='23' />
 		);
 
 		expect(screen.getByTestId('fds-component')).toHaveAttribute(
@@ -110,35 +96,67 @@ describe('AccountsDataSet', () => {
 		);
 	});
 
-	it('should leave activityStatus/country/industry filters without preloadedData when no props are passed', () => {
+	it('should pass the apiURL directly to FrontendDataSet without appending range params', () => {
 		render(
-			<AccountsDataSet
-				apiURL='fake-url'
-				channelId='123'
-				groupId='23'
-				rangeSelectors={defaultRangeSelectors}
-			/>
+			<AccountsDataSet apiURL='fake-url' channelId='123' groupId='23' />
 		);
 
-		const activityStatusFilter = lastFilters?.find(
-			f => f.id === 'activityStatus'
+		expect(lastApiURL).toBe('fake-url');
+	});
+
+	it('should preload the rangeKey filter with Last 30 Days by default', () => {
+		render(
+			<AccountsDataSet apiURL='fake-url' channelId='123' groupId='23' />
 		);
+
+		const rangeKeyFilter = lastFilters?.find(f => f.id === 'rangeKey');
+
+		expect(rangeKeyFilter?.preloadedData).toEqual({
+			exclude: false,
+			selectedItems: [
+				{
+					label: 'Last 30 days',
+					value: RangeKeyTimeRanges.Last30Days
+				}
+			]
+		});
+	});
+
+	it('should include all 8 time range options in the rangeKey filter', () => {
+		render(
+			<AccountsDataSet apiURL='fake-url' channelId='123' groupId='23' />
+		);
+
+		const rangeKeyFilter = lastFilters?.find(f => f.id === 'rangeKey');
+
+		expect(rangeKeyFilter?.items).toHaveLength(8);
+		expect(rangeKeyFilter?.items?.map(i => i.value)).toEqual([
+			RangeKeyTimeRanges.Last24Hours,
+			RangeKeyTimeRanges.Yesterday,
+			RangeKeyTimeRanges.Last7Days,
+			RangeKeyTimeRanges.Last28Days,
+			RangeKeyTimeRanges.Last30Days,
+			RangeKeyTimeRanges.Last90Days,
+			RangeKeyTimeRanges.Last180Days,
+			RangeKeyTimeRanges.LastYear
+		]);
+	});
+
+	it('should leave country and industry filters without preloadedData when no props are passed', () => {
+		render(
+			<AccountsDataSet apiURL='fake-url' channelId='123' groupId='23' />
+		);
+
 		const countryFilter = lastFilters?.find(f => f.id === 'country');
 		const industryFilter = lastFilters?.find(f => f.id === 'industry');
 
-		expect(activityStatusFilter?.preloadedData).toBeUndefined();
 		expect(countryFilter?.preloadedData).toBeUndefined();
 		expect(industryFilter?.preloadedData).toBeUndefined();
 	});
 
 	it('should omit the lifecycleStatus filter when accountLifecycleId is not provided', () => {
 		render(
-			<AccountsDataSet
-				apiURL='fake-url'
-				channelId='123'
-				groupId='23'
-				rangeSelectors={defaultRangeSelectors}
-			/>
+			<AccountsDataSet apiURL='fake-url' channelId='123' groupId='23' />
 		);
 
 		const lifecycleStatusFilter = lastFilters?.find(
@@ -148,27 +166,6 @@ describe('AccountsDataSet', () => {
 		expect(lifecycleStatusFilter).toBeUndefined();
 	});
 
-	it('should preload the activityStatus filter when activityStatusFilter prop is provided', () => {
-		render(
-			<AccountsDataSet
-				activityStatusFilter='ACTIVE'
-				apiURL='fake-url'
-				channelId='123'
-				groupId='23'
-				rangeSelectors={defaultRangeSelectors}
-			/>
-		);
-
-		const activityStatusFilter = lastFilters?.find(
-			f => f.id === 'activityStatus'
-		);
-
-		expect(activityStatusFilter?.preloadedData).toEqual({
-			exclude: false,
-			selectedItems: [{label: 'Active', value: 'ACTIVE'}]
-		});
-	});
-
 	it('should preload the country filter when countryFilter prop is provided', () => {
 		render(
 			<AccountsDataSet
@@ -176,7 +173,6 @@ describe('AccountsDataSet', () => {
 				channelId='123'
 				countryFilter='US'
 				groupId='23'
-				rangeSelectors={defaultRangeSelectors}
 			/>
 		);
 
@@ -195,7 +191,6 @@ describe('AccountsDataSet', () => {
 				channelId='123'
 				groupId='23'
 				industryFilter='Tech'
-				rangeSelectors={defaultRangeSelectors}
 			/>
 		);
 
@@ -214,7 +209,6 @@ describe('AccountsDataSet', () => {
 				apiURL='fake-url'
 				channelId='123'
 				groupId='23'
-				rangeSelectors={defaultRangeSelectors}
 			/>
 		);
 
@@ -238,7 +232,6 @@ describe('AccountsDataSet', () => {
 				channelId='123'
 				groupId='23'
 				lifecycleStageFilter={LifecycleStages.AT_RISK}
-				rangeSelectors={defaultRangeSelectors}
 			/>
 		);
 
@@ -262,7 +255,6 @@ describe('AccountsDataSet', () => {
 				channelId='123'
 				groupId='23'
 				lifecycleStageFilter={LifecycleStages.AT_RISK}
-				rangeSelectors={defaultRangeSelectors}
 			/>
 		);
 
@@ -275,12 +267,7 @@ describe('AccountsDataSet', () => {
 
 	it('should render the account name link with channelId in the href', () => {
 		render(
-			<AccountsDataSet
-				apiURL='fake-url'
-				channelId='123'
-				groupId='23'
-				rangeSelectors={defaultRangeSelectors}
-			/>
+			<AccountsDataSet apiURL='fake-url' channelId='123' groupId='23' />
 		);
 
 		const {container} = render(
@@ -294,96 +281,5 @@ describe('AccountsDataSet', () => {
 			'href',
 			'/workspace/23/123/contacts/accounts/abc'
 		);
-	});
-
-	it('should append rangeKey as query param when a preset range is provided', () => {
-		render(
-			<AccountsDataSet
-				apiURL='fake-url'
-				channelId='123'
-				groupId='23'
-				rangeSelectors={{
-					rangeEnd: null,
-					rangeKey: RangeKeyTimeRanges.Last30Days,
-					rangeStart: null
-				}}
-			/>
-		);
-
-		expect(lastApiURL).toBe('fake-url?rangeKey=30');
-	});
-
-	it('should append rangeStart and rangeEnd as query params when a custom range is provided', () => {
-		render(
-			<AccountsDataSet
-				apiURL='fake-url'
-				channelId='123'
-				groupId='23'
-				rangeSelectors={{
-					rangeEnd: '2024-01-31',
-					rangeKey: RangeKeyTimeRanges.CustomRange,
-					rangeStart: '2024-01-01'
-				}}
-			/>
-		);
-
-		expect(lastApiURL).toBe(
-			'fake-url?rangeKey=CUSTOM&rangeEnd=2024-01-31&rangeStart=2024-01-01'
-		);
-	});
-
-	it('should render "Active" label for ACTIVE activity status', () => {
-		render(
-			<AccountsDataSet
-				apiURL='fake-url'
-				channelId='123'
-				groupId='23'
-				rangeSelectors={defaultRangeSelectors}
-			/>
-		);
-
-		const {getByText} = render(
-			lastCustomDataRenderers!.accountActivityStatusRenderer({
-				value: 'ACTIVE'
-			}) as React.ReactElement
-		);
-
-		expect(getByText('Active')).toBeInTheDocument();
-	});
-
-	it('should render "Inactive" label for INACTIVE activity status', () => {
-		render(
-			<AccountsDataSet
-				apiURL='fake-url'
-				channelId='123'
-				groupId='23'
-				rangeSelectors={defaultRangeSelectors}
-			/>
-		);
-
-		const {getByText} = render(
-			lastCustomDataRenderers!.accountActivityStatusRenderer({
-				value: 'INACTIVE'
-			}) as React.ReactElement
-		);
-
-		expect(getByText('Inactive')).toBeInTheDocument();
-	});
-
-	it('should render nothing when activity status value is empty', () => {
-		render(
-			<AccountsDataSet
-				apiURL='fake-url'
-				channelId='123'
-				groupId='23'
-				rangeSelectors={defaultRangeSelectors}
-			/>
-		);
-
-		const result = lastCustomDataRenderers!.accountActivityStatusRenderer({
-			value: ''
-		});
-
-		expect(result).toBeFalsy();
 	});
 });

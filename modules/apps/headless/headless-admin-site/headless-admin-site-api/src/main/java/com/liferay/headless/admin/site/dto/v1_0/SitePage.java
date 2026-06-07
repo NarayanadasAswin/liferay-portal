@@ -555,7 +555,7 @@ public class SitePage implements Serializable {
 	private Supplier<PageSettings> _pageSettingsSupplier;
 
 	@io.swagger.v3.oas.annotations.media.Schema(
-		description = "The page's specifications. A page of type content will contain 1 page specifications for its draft layout and 1 page specifications for its published layout. A page of type widget contains only 1 page specification for its published layout. This field is not returned by default. It can be requested via nestedFields."
+		description = "The page's specifications. A page of type content will contain 1 page specification for its draft layout and 1 page specification for its published layout. A page of type widget contains only 1 page specification for its published layout. A page of type content may also be created by sending a single content page specification. This field is not returned by default. It can be requested via nestedFields."
 	)
 	@Valid
 	public PageSpecification[] getPageSpecifications() {
@@ -593,7 +593,7 @@ public class SitePage implements Serializable {
 	}
 
 	@GraphQLField(
-		description = "The page's specifications. A page of type content will contain 1 page specifications for its draft layout and 1 page specifications for its published layout. A page of type widget contains only 1 page specification for its published layout. This field is not returned by default. It can be requested via nestedFields."
+		description = "The page's specifications. A page of type content will contain 1 page specification for its draft layout and 1 page specification for its published layout. A page of type widget contains only 1 page specification for its published layout. A page of type content may also be created by sending a single content page specification. This field is not returned by default. It can be requested via nestedFields."
 	)
 	@JsonProperty(access = JsonProperty.Access.READ_WRITE)
 	protected PageSpecification[] pageSpecifications;
@@ -1418,4 +1418,4 @@ public class SitePage implements Serializable {
 	private Map<String, Serializable> _extendedProperties;
 
 }
-// LIFERAY-REST-BUILDER-HASH:661579706
+// LIFERAY-REST-BUILDER-HASH:-1685986652

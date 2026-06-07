@@ -4,8 +4,13 @@
  */
 
 export type Configuration = {
-	environmentUrls: string;
+	environmentURLs: string;
 	externalReferenceCode: string;
 	r_accountToAIHubConfigurations_accountEntryId?: number;
 	recipientEmailAddress: string;
+};
+
+export type Credential = {
+	clientId?: string;
+	clientSecret?: string;
 };

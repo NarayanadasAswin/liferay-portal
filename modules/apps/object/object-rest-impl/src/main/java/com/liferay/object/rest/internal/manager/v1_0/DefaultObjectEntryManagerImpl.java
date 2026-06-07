@@ -786,7 +786,7 @@ public class DefaultObjectEntryManagerImpl
 		Long[] groupIds = groupIdsList.toArray(new Long[0]);
 
 		Predicate predicate = _filterFactory.create(
-			filterExpression, objectDefinition);
+			filterExpression, groupIds, objectDefinition);
 
 		int start = _getStartPosition(pagination);
 		int end = _getEndPosition(pagination);
@@ -3003,13 +3003,8 @@ public class DefaultObjectEntryManagerImpl
 			_systemObjectDefinitionManagerRegistry.
 				getSystemObjectDefinitionManager(objectDefinition.getName());
 
-		PersistedModelLocalService persistedModelLocalService =
-			PersistedModelLocalServiceRegistryUtil.
-				getPersistedModelLocalService(
-					systemObjectDefinitionManager.getModelClassName());
-
 		PersistedModel persistedModel =
-			persistedModelLocalService.getPersistedModel(objectEntryId);
+			systemObjectDefinitionManager.getPersistedModel(objectEntryId);
 
 		if (Objects.equals(
 				systemObjectDefinitionManager.getScope(),

@@ -272,15 +272,24 @@ export default function CMSShareModalContent({
 	}): string | null => {
 		if (
 			externalUserSharingEnabled &&
-			type === COLLABORATOR_TYPE.EXTERNAL_USER
+			type === COLLABORATOR_TYPE.EXTERNAL_USER &&
+			!toBeShared
 		) {
-			return toBeShared
-				? Liferay.Language.get('pending')
-				: Liferay.Language.get('invited');
+			return Liferay.Language.get('invited');
 		}
 
 		return toBeShared ? Liferay.Language.get('to-be-shared') : null;
 	};
+
+	const collaboratorNameSuffix = ({
+		type,
+	}: {
+		type: CollaboratorType;
+		user: ShareModalUserAccount | ShareModalUserGroup;
+	}): string | null =>
+		externalUserSharingEnabled && type === COLLABORATOR_TYPE.EXTERNAL_USER
+			? `(${Liferay.Language.get('guest').toLocaleLowerCase()})`
+			: null;
 
 	const collaboratorStickerIcon = ({
 		type,
@@ -333,6 +342,7 @@ export default function CMSShareModalContent({
 			canManageCollaborators={canManageCollaborators}
 			closeModal={closeModal}
 			collaboratorBadgeText={collaboratorBadgeText}
+			collaboratorNameSuffix={collaboratorNameSuffix}
 			collaboratorStickerIcon={collaboratorStickerIcon}
 			creator={creator}
 			initialCollaborators={

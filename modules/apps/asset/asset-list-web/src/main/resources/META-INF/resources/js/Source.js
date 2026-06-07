@@ -3,16 +3,27 @@
  * SPDX-License-Identifier: LGPL-2.1-or-later OR LicenseRef-Liferay-DXP-EULA-2.0.0-2023-06
  */
 
+import {State} from '@liferay/frontend-js-state-web';
 import {openSelectionModal} from 'frontend-js-components-web';
 import {
 	addParams,
 	delegate,
+	fetch,
 	sub,
 	toggleDisabled,
 	toggleSelectBox,
 } from 'frontend-js-web';
 
-export default function ({classTypes, namespace}) {
+import {propertiesAtom} from './atoms/propertiesAtom';
+
+export default function ({
+	classTypes,
+	initialProperties,
+	namespace,
+	propertiesURL,
+}) {
+	State.write(propertiesAtom, initialProperties || []);
+
 	const mapDDMStructures = {};
 
 	const assetMultipleSelector = document.getElementById(
@@ -60,8 +71,93 @@ export default function ({classTypes, namespace}) {
 
 	const eventDelegates = [];
 
+	/**
+	 * Refetches the filterable properties using `propertiesURL` upon
+	 * changes to the asset source (type / subtype selectors) and writes
+	 * the result to `propertiesAtom`.
+	 *
+	 * CollectionFilterBuilder and CollectionOrdering React components
+	 * subscribe to that atom via `useTypeProperties`.
+	 */
+	const refreshProperties = () => {
+		if (!propertiesURL) {
+			return;
+		}
+
+		const assetTypeValue = assetSelector?.value || '';
+
+		let classNameIds = [];
+
+		if (assetTypeValue === 'false') {
+
+			// Multi-selection: collect every option out of the hidden
+			// <select> the JSP populates with the user's picks.
+
+			classNameIds = Array.from(assetMultipleSelector?.options || []).map(
+				(option) => option.value
+			);
+		}
+		else if (assetTypeValue && assetTypeValue !== 'true') {
+			classNameIds = [assetTypeValue];
+		}
+
+		let classTypeIds = [];
+
+		if (classNameIds.length === 1) {
+
+			// Subtype selection: Subtypes only make sense when exactly one
+			// asset type is selected — the subtype UI is hidden otherwise.
+
+			const classType = classTypes.find(
+				(ct) => `${ct.classNameId}` === classNameIds[0]
+			);
+
+			if (classType) {
+				const subtypeValue =
+					subtypeSelector[classType.className]?.value;
+
+				if (subtypeValue === 'false') {
+
+					// Multi-subtype selection: same pattern as
+					// classNameIds above, but the element id is
+					// namespaced with the class name.
+
+					const multiSubtypeSelect = document.getElementById(
+						`${namespace}${classType.className}currentClassTypeIds`
+					);
+
+					classTypeIds = Array.from(
+						multiSubtypeSelect?.options || []
+					).map((option) => option.value);
+				}
+				else if (subtypeValue && subtypeValue !== 'true') {
+					classTypeIds = [subtypeValue];
+				}
+			}
+		}
+
+		fetch(
+			addParams(
+				{
+					[`${namespace}classNameIds`]: classNameIds.join(','),
+					[`${namespace}classTypeIds`]: classTypeIds.join(','),
+				},
+				propertiesURL
+			)
+		)
+			.then((response) => response.json())
+			.then((data) => State.write(propertiesAtom, data || []))
+			.catch((error) => {
+				if (process.env.NODE_ENV === 'development') {
+					console.error('Failed to fetch type properties: ', error);
+				}
+			});
+	};
+
 	const fireSourceChange = () => {
 		Liferay.fire(`${namespace}sourceChange`);
+
+		refreshProperties();
 	};
 
 	const createElement = (label, classNames, attributes, content) => {

@@ -49,6 +49,19 @@ public class AudiencesJSONObjectBuilder {
 		);
 	}
 
+	private static String _getOperator(String operatorName) {
+		String operator = StringUtil.replace(operatorName, '-', '_');
+
+		if (Objects.equals(operator, "contains")) {
+			return "includes";
+		}
+		else if (Objects.equals(operator, "not_contains")) {
+			return "not_includes";
+		}
+
+		return operator;
+	}
+
 	private static String _getValue(String propertyName, String value) {
 		if (Objects.equals(propertyName, Context.LANGUAGE_ID)) {
 			return LocaleUtil.toBCP47LanguageId(value);
@@ -83,8 +96,7 @@ public class AudiencesJSONObjectBuilder {
 				_attributeNames.getOrDefault(propertyName, propertyName)
 			).put(
 				"operator",
-				StringUtil.replace(
-					queryJSONObject.getString("operatorName"), '-', '_')
+				_getOperator(queryJSONObject.getString("operatorName"))
 			).put(
 				"value",
 				_getValue(propertyName, queryJSONObject.getString("value"))
@@ -122,17 +134,25 @@ public class AudiencesJSONObjectBuilder {
 		HashMapBuilder.put(
 			Context.BROWSER, "browser_name"
 		).put(
+			Context.BROWSER_VERSION, "browser_version"
+		).put(
+			Context.DEVICE_TYPE, "device_type"
+		).put(
 			Context.LANGUAGE_ID, "language"
 		).put(
 			Context.LAST_SIGN_IN_DATE_TIME, "last_sign_in_date"
 		).put(
 			Context.LOCAL_DATE, "local_date"
 		).put(
+			Context.LOCAL_TIME, "local_time"
+		).put(
 			Context.REFERRER_URL, "referrer"
 		).put(
 			Context.REQUEST_PARAMETERS, "request_parameters"
 		).put(
 			Context.SIGNED_IN, "signed_in"
+		).put(
+			Context.TIME_ZONE, "time_zone"
 		).put(
 			Context.USER_AGENT, "user_agent"
 		).put(
