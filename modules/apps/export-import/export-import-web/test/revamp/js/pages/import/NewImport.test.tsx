@@ -11,20 +11,10 @@ import React from 'react';
 
 import {NewImport} from '../../../../../src/main/resources/META-INF/resources/revamp/js/pages/import/NewImport';
 import {postImportPreview} from '../../../../../src/main/resources/META-INF/resources/revamp/js/services/postImportPreview';
+import {SCOPES} from '../../../../../src/main/resources/META-INF/resources/revamp/js/types/scope';
+import formatDate from '../../../../../src/main/resources/META-INF/resources/revamp/js/utils/formatDate';
 import {mockImportPreview} from '../../mocks/mockImportPreview';
 import {mockSectionsForFilterTest} from '../../mocks/mockSectionsForFilterTest';
-
-jest.mock('frontend-js-web', () => {
-	const actual = jest.requireActual('frontend-js-web');
-
-	return {
-		...actual,
-		dateUtils: {
-			...actual.dateUtils,
-			fromNow: jest.fn(() => '5 days ago'),
-		},
-	};
-});
 
 jest.mock(
 	'../../../../../src/main/resources/META-INF/resources/revamp/js/services/postImportPreview',
@@ -35,12 +25,21 @@ jest.mock(
 	})
 );
 
-const renderComponent = () =>
+const renderComponent = ({
+	commentsAndRatingsEnabled,
+	lookAndFeelEnabled,
+}: {
+	commentsAndRatingsEnabled?: boolean;
+	lookAndFeelEnabled?: boolean;
+} = {}) =>
 	render(
 		<NewImport
 			backURL="/some/back/url"
+			commentsAndRatingsEnabled={commentsAndRatingsEnabled}
 			importPreviewAPIURL="/o/export-import/v1.0/import-preview"
 			importProcessAPIURL="/o/export-import/v1.0/import-processes"
+			lookAndFeelEnabled={lookAndFeelEnabled}
+			scope={SCOPES.SITE}
 		/>
 	);
 
@@ -67,8 +66,13 @@ const uploadFile = async (fileName = 'site.lar') => {
 	jest.useRealTimers();
 };
 
-const goToDataSelectionStep = async () => {
-	const result = renderComponent();
+const goToDataSelectionStep = async (
+	options: {
+		commentsAndRatingsEnabled?: boolean;
+		lookAndFeelEnabled?: boolean;
+	} = {}
+) => {
+	const result = renderComponent(options);
 
 	await user.type(screen.getByLabelText(/^name/i), 'My import');
 
@@ -91,6 +95,8 @@ describe('NewImport', () => {
 					'collapse-x': 'Collapse {0}',
 					'expand-x': 'Expand {0}',
 					'hide-all-x': 'Hide All {0}',
+					'select-x': 'Select {0}',
+					'selected-x': 'Selected {0}',
 					'show-all-x': 'Show All {0}',
 				})[key] ?? key
 		);
@@ -228,7 +234,9 @@ describe('NewImport', () => {
 		expect(screen.getByText('file-summary')).toBeInTheDocument();
 		expect(screen.getAllByText('site.lar').length).toBeGreaterThan(0);
 		expect(screen.getByText('Test User')).toBeInTheDocument();
-		expect(screen.getByText('5 days ago')).toBeInTheDocument();
+		expect(
+			screen.getByText(formatDate('2000-07-27T00:00:00Z'))
+		).toBeInTheDocument();
 		expect(screen.getByText('4 KB')).toBeInTheDocument();
 
 		expect(screen.getByText('Design')).toBeInTheDocument();
@@ -267,7 +275,17 @@ describe('NewImport', () => {
 			screen.getByRole('checkbox', {name: 'Design'})
 		).toBePartiallyChecked();
 
-		expect(screen.getByText('Theme Settings, Logo')).toBeInTheDocument();
+		expect(
+			screen.getByText('Selected Theme Settings, Logo')
+		).toBeInTheDocument();
+	});
+
+	it('lists the available handlers with a Select prefix when nothing is selected', async () => {
+		await goToDataSelectionStep();
+
+		expect(
+			screen.getByText('Select Theme Settings, Logo, Fragments')
+		).toBeInTheDocument();
 	});
 
 	it('reveals and hides the nested handler controls through the Show all and Hide all toggle', async () => {
@@ -334,5 +352,31 @@ describe('NewImport', () => {
 		);
 
 		expect(screen.getByText('Deletions Only')).toBeInTheDocument();
+	});
+
+	it('renders the Look and Feel block inside the Site Builder section when lookAndFeelEnabled is true', async () => {
+		await goToDataSelectionStep({lookAndFeelEnabled: true});
+
+		expect(screen.getByText('look-and-feel')).toBeInTheDocument();
+		expect(screen.getByLabelText('theme-settings')).toBeInTheDocument();
+		expect(screen.getByLabelText('logo')).toBeInTheDocument();
+		expect(
+			screen.getByLabelText('site-pages-settings')
+		).toBeInTheDocument();
+		expect(
+			screen.getByLabelText('site-template-settings')
+		).toBeInTheDocument();
+	});
+
+	it('renders the Comments and Ratings block inside the Site Content section when commentsAndRatingsEnabled is true', async () => {
+		await goToDataSelectionStep({commentsAndRatingsEnabled: true});
+
+		await user.click(
+			screen.getByRole('checkbox', {name: 'Content & Data'})
+		);
+
+		expect(screen.getByText('comments-and-ratings')).toBeInTheDocument();
+		expect(screen.getByLabelText('comments')).toBeInTheDocument();
+		expect(screen.getByLabelText('ratings')).toBeInTheDocument();
 	});
 });

@@ -979,8 +979,7 @@ public class LayoutServiceWrapper
 			boolean hidden,
 			java.util.Map<java.util.Locale, String> friendlyURLMap,
 			boolean hasIconImage, byte[] iconBytes, String styleBookEntryERC,
-			String styleBookEntryScopeERC, String faviconFileEntryERC,
-			String faviconFileEntryScopeERC,
+			String faviconFileEntryERC, String faviconFileEntryScopeERC,
 			String masterLayoutPageTemplateEntryERC,
 			ServiceContext serviceContext)
 		throws com.liferay.portal.kernel.exception.PortalException {
@@ -989,9 +988,8 @@ public class LayoutServiceWrapper
 			groupId, privateLayout, layoutId, parentLayoutId, localeNamesMap,
 			localeTitlesMap, descriptionMap, keywordsMap, robotsMap, type,
 			hidden, friendlyURLMap, hasIconImage, iconBytes, styleBookEntryERC,
-			styleBookEntryScopeERC, faviconFileEntryERC,
-			faviconFileEntryScopeERC, masterLayoutPageTemplateEntryERC,
-			serviceContext);
+			faviconFileEntryERC, faviconFileEntryScopeERC,
+			masterLayoutPageTemplateEntryERC, serviceContext);
 	}
 
 	/**
@@ -1213,4 +1211,4 @@ public class LayoutServiceWrapper
 	private LayoutService _layoutService;
 
 }
-// LIFERAY-SERVICE-BUILDER-HASH:141789187
+// LIFERAY-SERVICE-BUILDER-HASH:-1795368686

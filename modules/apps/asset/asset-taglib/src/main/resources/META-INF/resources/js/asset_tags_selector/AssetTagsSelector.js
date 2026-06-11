@@ -255,6 +255,7 @@ function AssetTagsSelector({
 				<label
 					className={showLabel ? '' : 'sr-only'}
 					htmlFor={inputName + '_MultiSelect'}
+					id={inputName + '_MultiSelectLabel'}
 				>
 					{label}
 				</label>
@@ -265,6 +266,11 @@ function AssetTagsSelector({
 							aria-describedby={
 								helpText
 									? `${inputName}_MultiSelectHelpText`
+									: undefined
+							}
+							aria-labelledby={
+								label
+									? inputName + '_MultiSelectLabel'
 									: undefined
 							}
 							clearAllTitle={Liferay.Language.get('clear-all')}

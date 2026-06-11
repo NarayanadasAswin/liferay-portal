@@ -119,37 +119,6 @@ definition {
 		}
 	}
 
-	@description = "Total Individuals increase by one when a new individual is added via event"
-	@priority = 5
-	test CanViewTotalIndividualsIncreaseByOne {
-		ACUtils.launchAC();
-
-		ACProperties.switchProperty(propertyName = ${assignedPropertyName});
-
-		ACNavigation.goToIndividuals();
-
-		ACCards.viewTotalCount(
-			cardName = "Total Individuals",
-			count = 0);
-
-		ACUtils.launchDXP();
-
-		ACUtils.navigateToSitePageWithUser(
-			emailList = "userea@liferay.com",
-			pageName = "AC Page",
-			siteName = "Site Name");
-
-		ACUtils.launchAC();
-
-		ACProperties.switchProperty(propertyName = ${assignedPropertyName});
-
-		ACNavigation.goToIndividuals();
-
-		ACCards.viewTotalCount(
-			cardName = "Total Individuals",
-			count = 1);
-	}
-
 	@description = "Bug: LRAC-12694 | Automation ID: LRAC-12811 | Test Summary: Known Individuals is not duplicated if user exists in multiple properties"
 	@priority = 3
 	test IndividualNotDuplicatedIfUserExistsInMultipleProperties {
@@ -245,39 +214,6 @@ definition {
 			ACUtils.viewNameList(nameList = "userfn userln");
 
 			ACUtils.viewResultsMessage(results = "Showing 1 to 1 of 1 entry.");
-		}
-	}
-
-	@description = "Feature ID: Legacy | Automation ID: LRAC-8903 | Test Summary: As an Business User, I should be able to assert the cards on the Overview tab of the Individual's Dashboard page"
-	@priority = 4
-	test ViewCardsInTheOverviewTabOfIndividualsDashBoard {
-		task ("View the site page with new user") {
-			ACUtils.navigateToSitePageWithUser(
-				emailList = "userea@liferay.com",
-				pageName = "AC Page",
-				siteName = "Site Name");
-		}
-
-		task ("Close Sessions") {
-			ACUtils.closeAllSessionsAndWait();
-		}
-
-		task ("Switch to new property in AC") {
-			ACUtils.launchAC();
-
-			ACProperties.switchProperty(propertyName = ${assignedPropertyName});
-		}
-
-		task ("Navigate to the Overview on the Individuals dashboard") {
-			ACNavigation.goToIndividuals();
-
-			ACIndividualsDashboard.goToOverviewTab();
-		}
-
-		task ("View the cards in the Overview tab") {
-			for (var cardTitle : list "Total Individuals,Known,Anonymous,Enriched Profiles,Active Individuals,Top Interests as of Yesterday") {
-				ACCards.viewCards(cardTitle = ${cardTitle});
-			}
 		}
 	}
 

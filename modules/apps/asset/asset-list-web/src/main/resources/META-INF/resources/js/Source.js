@@ -22,8 +22,6 @@ export default function ({
 	namespace,
 	propertiesURL,
 }) {
-	State.write(propertiesAtom, initialProperties || []);
-
 	const mapDDMStructures = {};
 
 	const assetMultipleSelector = document.getElementById(
@@ -72,18 +70,20 @@ export default function ({
 	const eventDelegates = [];
 
 	/**
-	 * Refetches the filterable properties using `propertiesURL` upon
-	 * changes to the asset source (type / subtype selectors) and writes
-	 * the result to `propertiesAtom`.
-	 *
-	 * CollectionFilterBuilder and CollectionOrdering React components
-	 * subscribe to that atom via `useTypeProperties`.
+	 * When more than one asset type or subtype is selected, the per-type field
+	 * groups can collide, so expose only the first "Common Fields" group
+	 * shared across every type.
 	 */
-	const refreshProperties = () => {
-		if (!propertiesURL) {
-			return;
-		}
+	const collapseToCommonFields = (groups, {classNameIds, classTypeIds}) =>
+		classNameIds.length > 1 || classTypeIds.length > 1
+			? groups.slice(0, 1)
+			: groups;
 
+	/**
+	 * Reads the currently selected asset type(s) and subtype(s) from the
+	 * source panel selectors.
+	 */
+	const getSelectedIds = () => {
 		const assetTypeValue = assetSelector?.value || '';
 
 		let classNameIds = [];
@@ -136,6 +136,24 @@ export default function ({
 			}
 		}
 
+		return {classNameIds, classTypeIds};
+	};
+
+	/**
+	 * Refetches the filterable properties using `propertiesURL` upon
+	 * changes to the asset source (type / subtype selectors) and writes
+	 * the result to `propertiesAtom`.
+	 *
+	 * CollectionFilterBuilder and CollectionOrdering React components
+	 * subscribe to that atom via `useTypeProperties`.
+	 */
+	const refreshProperties = () => {
+		if (!propertiesURL) {
+			return;
+		}
+
+		const {classNameIds, classTypeIds} = getSelectedIds();
+
 		fetch(
 			addParams(
 				{
@@ -146,7 +164,15 @@ export default function ({
 			)
 		)
 			.then((response) => response.json())
-			.then((data) => State.write(propertiesAtom, data || []))
+			.then((data) =>
+				State.write(
+					propertiesAtom,
+					collapseToCommonFields(data || [], {
+						classNameIds,
+						classTypeIds,
+					})
+				)
+			)
 			.catch((error) => {
 				if (process.env.NODE_ENV === 'development') {
 					console.error('Failed to fetch type properties: ', error);
@@ -409,8 +435,6 @@ export default function ({
 		eventDelegates.push(changeSubtypeSelector);
 	});
 
-	toggleSubclasses(assetSelector.value);
-
 	const onChangeAssetSelector = () => {
 		ddmStructureFieldNameInput.value = '';
 		ddmStructureFieldValueInput.value = '';
@@ -535,10 +559,16 @@ export default function ({
 
 	eventDelegates.push(clickOpenModal);
 
+	toggleSubclasses(assetSelector.value);
 	toggleSelectBox(
 		`${namespace}anyAssetType`,
 		'false',
 		`${namespace}classNamesBoxes`
+	);
+
+	State.write(
+		propertiesAtom,
+		collapseToCommonFields(initialProperties || [], getSelectedIds())
 	);
 
 	return {

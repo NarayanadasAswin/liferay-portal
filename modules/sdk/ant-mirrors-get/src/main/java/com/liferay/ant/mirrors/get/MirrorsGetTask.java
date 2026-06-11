@@ -471,53 +471,75 @@ public class MirrorsGetTask extends Task {
 		}
 
 		if (!mirrorsCacheFile.exists()) {
-			List<URL> urls = new ArrayList<>();
-
 			if (_tryLocalNetwork) {
-				String mirrorsHostname = _getMirrorsHostname();
-				URL nexusTomcatURL = _getNexusTomcatURL();
+				File mirrorsMountFile = _getMirrorsMountFile();
 
-				if (nexusTomcatURL != null) {
-					urls.add(nexusTomcatURL);
-				}
-				else if (!mirrorsHostname.isEmpty()) {
-					urls.add(_getMirrorsURL());
-				}
-			}
-
-			urls.add(_getLocalURL());
-
-			urls.removeAll(Collections.singleton(null));
-
-			for (URL url : urls) {
-				try {
-					_downloadFile(url, mirrorsCacheTempFile, _retries);
-				}
-				catch (IOException ioException) {
-					if (_verbose) {
-						System.out.println("Unable to connect to " + url + ".");
-					}
-				}
-
-				if (mirrorsCacheTempFile.exists()) {
-					break;
-				}
-			}
-
-			if (!mirrorsCacheTempFile.exists()) {
-				_downloadGCPFile(mirrorsCacheTempFile);
-
-				if (!mirrorsCacheTempFile.exists()) {
-					URL remoteURL = _getRemoteURL();
-
+				if (mirrorsMountFile.isFile()) {
 					try {
-						_downloadFile(
-							remoteURL, mirrorsCacheTempFile, _retries);
+						_copyFile(mirrorsMountFile, mirrorsCacheTempFile);
 					}
 					catch (IOException ioException) {
 						_deleteFile(mirrorsCacheTempFile);
 
-						throw ioException;
+						if (_verbose) {
+							System.out.println(
+								"Unable to copy from mirrors mount " +
+									mirrorsMountFile.getPath() + ".");
+						}
+					}
+				}
+			}
+
+			if (!mirrorsCacheTempFile.exists()) {
+				List<URL> urls = new ArrayList<>();
+
+				if (_tryLocalNetwork) {
+					String mirrorsHostname = _getMirrorsHostname();
+					URL nexusTomcatURL = _getNexusTomcatURL();
+
+					if (nexusTomcatURL != null) {
+						urls.add(nexusTomcatURL);
+					}
+					else if (!mirrorsHostname.isEmpty()) {
+						urls.add(_getMirrorsURL());
+					}
+				}
+
+				urls.add(_getLocalURL());
+
+				urls.removeAll(Collections.singleton(null));
+
+				for (URL url : urls) {
+					try {
+						_downloadFile(url, mirrorsCacheTempFile, _retries);
+					}
+					catch (IOException ioException) {
+						if (_verbose) {
+							System.out.println(
+								"Unable to connect to " + url + ".");
+						}
+					}
+
+					if (mirrorsCacheTempFile.exists()) {
+						break;
+					}
+				}
+
+				if (!mirrorsCacheTempFile.exists()) {
+					_downloadGCPFile(mirrorsCacheTempFile);
+
+					if (!mirrorsCacheTempFile.exists()) {
+						URL remoteURL = _getRemoteURL();
+
+						try {
+							_downloadFile(
+								remoteURL, mirrorsCacheTempFile, _retries);
+						}
+						catch (IOException ioException) {
+							_deleteFile(mirrorsCacheTempFile);
+
+							throw ioException;
+						}
 					}
 				}
 			}
@@ -689,6 +711,18 @@ public class MirrorsGetTask extends Task {
 		}
 
 		return _mirrorsHostname;
+	}
+
+	private File _getMirrorsMountFile() {
+		StringBuilder sb = new StringBuilder();
+
+		sb.append("/mnt/shared/mirrors");
+		sb.append(File.separator);
+		sb.append(_hostName);
+		sb.append(File.separator);
+		sb.append(_getPlatformIndependentPath(_getPath()));
+
+		return new File(sb.toString(), _fileName);
 	}
 
 	private URL _getMirrorsURL() {
@@ -947,6 +981,26 @@ public class MirrorsGetTask extends Task {
 
 	private boolean _is7zFileName(String fileName) {
 		return fileName.endsWith(".7z");
+	}
+
+	private boolean _isCINode() {
+		if (_isNullOrEmpty(System.getenv("JENKINS_URL")) &&
+			_isNullOrEmpty(System.getenv("MASTER_NETWORK_NAME"))) {
+
+			return false;
+		}
+
+		return true;
+	}
+
+	private boolean _isNullOrEmpty(String string) {
+		if (string == null) {
+			return true;
+		}
+
+		String trimmedString = string.trim();
+
+		return trimmedString.isEmpty();
 	}
 
 	private boolean _isTarGzFile(File file) throws IOException {
@@ -1278,7 +1332,7 @@ public class MirrorsGetTask extends Task {
 	private boolean _skipChecksum;
 	private String _src;
 	private boolean _ssl;
-	private boolean _tryLocalNetwork = true;
+	private boolean _tryLocalNetwork = _isCINode();
 	private String _userAgent;
 	private String _username;
 	private boolean _verbose;

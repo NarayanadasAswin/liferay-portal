@@ -11,6 +11,7 @@ import {
 	getChatbotConfiguration,
 	postChatMessage,
 } from '../api';
+import {submitPositiveFeedback} from '../feedback';
 import {getLanguageId, getLocalizedValue} from '../locale';
 import AssistantMessage from './AssistantMessage';
 import ChatbotFooter from './ChatbotFooter';
@@ -20,6 +21,8 @@ import ChatbotIntro from './ChatbotIntro';
 import ErrorMessage from './ErrorMessage';
 import {ChatIcon, CloseIcon} from './Icons';
 import LoadingIndicator from './LoadingIndicator';
+import SendFeedbackModal from './SendFeedbackModal';
+import Toast from './Toast';
 import UserMessage from './UserMessage';
 
 import type {
@@ -28,8 +31,15 @@ import type {
 	WidgetConfiguration,
 } from '../types';
 
+const FEEDBACK_TOAST_MESSAGE = 'Thanks for your feedback!';
+
 interface ChatbotWidgetProps {
 	widgetConfiguration: WidgetConfiguration;
+}
+
+interface ReportContext {
+	agentDefinitionExternalReferenceCodes: string[];
+	index: number;
 }
 
 export default function ChatbotWidget({
@@ -37,11 +47,18 @@ export default function ChatbotWidget({
 }: ChatbotWidgetProps) {
 	const [chatbotConfiguration, setChatbotConfiguration] =
 		useState<ChatbotConfiguration | null>(null);
+	const [feedbackGiven, setFeedbackGiven] = useState<Record<number, boolean>>(
+		{}
+	);
 	const [loading, setLoading] = useState(false);
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const [notificationDismissed, setNotificationDismissed] = useState(false);
 	const [open, setOpen] = useState(false);
+	const [reportContext, setReportContext] = useState<ReportContext | null>(
+		null
+	);
 	const [subscribed, setSubscribed] = useState(false);
+	const [toastMessage, setToastMessage] = useState<string | null>(null);
 
 	const eventSourceRef = useRef<EventSource | null>(null);
 	const eventSourceReference = useRef<string | null>(null);
@@ -99,7 +116,13 @@ export default function ChatbotWidget({
 
 						setMessages((prev) => [
 							...prev,
-							{sender: 'assistant', text: data.data},
+							{
+								agentDefinitionExternalReferenceCodes:
+									data.agentDefinitionExternalReferenceCodes ??
+									[],
+								sender: 'assistant',
+								text: data.data,
+							},
 						]);
 					}
 					catch (error) {
@@ -114,20 +137,62 @@ export default function ChatbotWidget({
 					setLoading(false);
 				});
 
+				eventSource.addEventListener(
+					'Agent Invocation Failed',
+					(event) => {
+						if (loadingTimeoutRef.current) {
+							clearTimeout(loadingTimeoutRef.current);
+							loadingTimeoutRef.current = null;
+						}
+
+						let text = '';
+
+						try {
+							text =
+								JSON.parse((event as MessageEvent).data).data ??
+								'';
+						}
+						catch (error) {
+							console.error(
+								'Error parsing agent invocation failure:',
+								error
+							);
+						}
+
+						setMessages((prev) => [
+							...prev,
+							{sender: 'error', text},
+						]);
+						setLoading(false);
+					}
+				);
+
 				eventSource.addEventListener('Subscribe', (event) => {
 					eventSourceReference.current = (event as MessageEvent).data;
 					setSubscribed(true);
 				});
 
 				eventSource.addEventListener('error', () => {
-					console.error('EventSource connection error');
-
 					setSubscribed(false);
-					setMessages((prev) => [
-						...prev,
-						{sender: 'error', text: ''},
-					]);
-					setLoading(false);
+
+					if (loadingTimeoutRef.current) {
+						clearTimeout(loadingTimeoutRef.current);
+						loadingTimeoutRef.current = null;
+
+						setMessages((prev) => [
+							...prev,
+							{sender: 'error', text: ''},
+						]);
+						setLoading(false);
+					}
+					else if (eventSource.readyState === EventSource.CLOSED) {
+						console.error('EventSource connection closed');
+
+						setMessages((prev) => [
+							...prev,
+							{sender: 'error', text: ''},
+						]);
+					}
 				});
 			})
 			.catch((error) => {
@@ -203,6 +268,33 @@ export default function ChatbotWidget({
 		[widgetConfiguration.chatbotExternalReferenceCode]
 	);
 
+	const handleThumbsDown = (index: number, message: ChatMessage) => {
+		setReportContext({
+			agentDefinitionExternalReferenceCodes:
+				message.agentDefinitionExternalReferenceCodes ?? [],
+			index,
+		});
+	};
+
+	const handleThumbsUp = (index: number, message: ChatMessage) => {
+		if (feedbackGiven[index]) {
+			return;
+		}
+
+		setFeedbackGiven((prev) => ({...prev, [index]: true}));
+
+		submitPositiveFeedback(
+			{
+				agentDefinitionExternalReferenceCodes:
+					message.agentDefinitionExternalReferenceCodes ?? [],
+				chatbotExternalReferenceCode:
+					widgetConfiguration.chatbotExternalReferenceCode,
+				surface: 'clickToChat',
+			},
+			() => setToastMessage(FEEDBACK_TOAST_MESSAGE)
+		);
+	};
+
 	const localized = useMemo(() => {
 		if (!chatbotConfiguration) {
 			return null;
@@ -259,7 +351,16 @@ export default function ChatbotWidget({
 							return (
 								<AssistantMessage
 									avatar={avatarURL}
+									feedbackGiven={Boolean(
+										feedbackGiven[index]
+									)}
 									key={index}
+									onThumbsDown={() =>
+										handleThumbsDown(index, msg)
+									}
+									onThumbsUp={() =>
+										handleThumbsUp(index, msg)
+									}
 									text={msg.text}
 									title={localized.title}
 								/>
@@ -314,6 +415,33 @@ export default function ChatbotWidget({
 			>
 				{open ? <CloseIcon /> : <ChatIcon />}
 			</button>
+
+			{reportContext !== null && (
+				<SendFeedbackModal
+					agentDefinitionExternalReferenceCodes={
+						reportContext.agentDefinitionExternalReferenceCodes
+					}
+					chatbotExternalReferenceCode={
+						widgetConfiguration.chatbotExternalReferenceCode
+					}
+					onClose={() => setReportContext(null)}
+					onSubmitted={() => {
+						setFeedbackGiven((previousFeedbackGiven) => ({
+							...previousFeedbackGiven,
+							[reportContext.index]: true,
+						}));
+						setReportContext(null);
+						setToastMessage(FEEDBACK_TOAST_MESSAGE);
+					}}
+				/>
+			)}
+
+			{toastMessage && (
+				<Toast
+					message={toastMessage}
+					onDismiss={() => setToastMessage(null)}
+				/>
+			)}
 		</>
 	);
 }

@@ -119,7 +119,7 @@ public class SupervisorAgentImpl implements SupervisorAgent {
 
 			InternalAgentFactory internalAgentFactory =
 				new InternalAgentFactory(
-					agentContext, _workflowDefinitionManager,
+					agentContext, _quotaManager, _workflowDefinitionManager,
 					_workflowInstanceManager);
 
 			return TransformUtil.transformToArray(
@@ -224,9 +224,7 @@ public class SupervisorAgentImpl implements SupervisorAgent {
 			VertexAiGeminiChatModel vertexAiGeminiChatModel)
 		throws PortalException {
 
-		String message = MapUtil.getString(agentContext.getInput(), "message");
-
-		_quotaManager.checkUsage(
+		_quotaManager.checkTokensUsage(
 			agentContext.getCompanyId(), agentContext.getUserId());
 
 		dev.langchain4j.agentic.supervisor.SupervisorAgent supervisorAgent =
@@ -246,7 +244,8 @@ public class SupervisorAgentImpl implements SupervisorAgent {
 				SupervisorResponseStrategy.SCORED
 			).build();
 
-		String data = supervisorAgent.invoke(message);
+		String data = supervisorAgent.invoke(
+			MapUtil.getString(agentContext.getInput(), "message"));
 
 		if (Validator.isBlank(data)) {
 			DTOConverterContext dtoConverterContext =

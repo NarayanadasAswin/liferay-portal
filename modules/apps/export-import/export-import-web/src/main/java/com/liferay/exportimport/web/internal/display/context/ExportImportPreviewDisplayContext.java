@@ -5,7 +5,10 @@
 
 package com.liferay.exportimport.web.internal.display.context;
 
+import com.liferay.exportimport.vulcan.batch.engine.ExportImportVulcanBatchEngineTaskItemDelegate.Scope;
 import com.liferay.petra.string.StringBundler;
+import com.liferay.portal.kernel.feature.flag.FeatureFlagManagerUtil;
+import com.liferay.portal.kernel.group.capability.GroupCapabilityUtil;
 import com.liferay.portal.kernel.model.Group;
 import com.liferay.portal.kernel.portlet.LiferayPortletResponse;
 import com.liferay.portal.kernel.portlet.url.builder.PortletURLBuilder;
@@ -108,6 +111,45 @@ public class ExportImportPreviewDisplayContext {
 		_importProcessAPIURL = _getResourceAPIURL("/import-processes");
 
 		return _importProcessAPIURL;
+	}
+
+	public Scope getScope() {
+		if (Validator.isNotNull(
+				ParamUtil.getString(_httpServletRequest, "portletResource"))) {
+
+			return Scope.PORTLET;
+		}
+
+		if (_stagingGroupHelper.isCompanyGroup(_group)) {
+			return Scope.COMPANY;
+		}
+
+		if (_group.isDepot()) {
+			return Scope.DEPOT;
+		}
+
+		return Scope.SITE;
+	}
+
+	public boolean isCommentsAndRatingsEnabled() {
+		if (!_stagingGroupHelper.isCompanyGroup(_group) ||
+			FeatureFlagManagerUtil.isEnabled(
+				_group.getCompanyId(), "LPD-43996")) {
+
+			return true;
+		}
+
+		return false;
+	}
+
+	public boolean isLookAndFeelEnabled() {
+		if (GroupCapabilityUtil.isSupportsPages(_group) &&
+			!_group.isCompany() && !_group.isLayoutPrototype()) {
+
+			return true;
+		}
+
+		return false;
 	}
 
 	private String _encode(String value) {

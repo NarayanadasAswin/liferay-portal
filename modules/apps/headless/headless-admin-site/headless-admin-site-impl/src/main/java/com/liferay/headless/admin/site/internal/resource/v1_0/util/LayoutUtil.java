@@ -47,7 +47,6 @@ import com.liferay.petra.function.transform.TransformUtil;
 import com.liferay.petra.lang.SafeCloseable;
 import com.liferay.petra.string.StringBundler;
 import com.liferay.petra.string.StringPool;
-import com.liferay.portal.kernel.feature.flag.FeatureFlagManagerUtil;
 import com.liferay.portal.kernel.language.LanguageUtil;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
@@ -445,7 +444,6 @@ public class LayoutUtil {
 			return _updateLayout(
 				layout, nameMap, titleMap, descriptionMap, keywordsMap,
 				robotsMap, layout.getStyleBookEntryERC(),
-				layout.getStyleBookEntryScopeERC(),
 				layout.getFaviconFileEntryERC(),
 				layout.getFaviconFileEntryScopeERC(),
 				layout.getMasterLayoutPageTemplateEntryERC(), friendlyURLMap,
@@ -561,7 +559,7 @@ public class LayoutUtil {
 
 		return _updateLayout(
 			layout, nameMap, null, null, null, null, null, null, null, null,
-			null, friendlyURLMap, serviceContext);
+			friendlyURLMap, serviceContext);
 	}
 
 	public static Layout updatePortletLayout(
@@ -743,12 +741,11 @@ public class LayoutUtil {
 		return itemExternalReference.getExternalReferenceCode();
 	}
 
-	private static StyleBookEntryReference _getStyleBookEntryReference(
-			long companyId, long scopeGroupId, Settings settings)
-		throws Exception {
+	private static String _getStyleBookEntryERC(
+		long companyId, long groupId, Settings settings) {
 
 		if (settings == null) {
-			return new StyleBookEntryReference(null, null);
+			return null;
 		}
 
 		ItemExternalReference itemExternalReference =
@@ -758,40 +755,22 @@ public class LayoutUtil {
 			Validator.isNull(
 				itemExternalReference.getExternalReferenceCode())) {
 
-			return new StyleBookEntryReference(null, null);
+			return null;
 		}
 
-		String styleBookEntryScopeERC =
-			ItemScopeUtil.getItemScopeExternalReferenceCode(
-				itemExternalReference.getScope(), scopeGroupId);
-
-		if (Validator.isNotNull(styleBookEntryScopeERC)) {
-			FeatureFlagManagerUtil.checkEnabled(companyId, "LPD-57283");
-		}
-
-		Long groupId = ItemScopeUtil.getItemGroupId(
-			companyId, itemExternalReference.getScope(), scopeGroupId);
-
-		StyleBookEntry styleBookEntry = null;
-
-		if (groupId != null) {
-			styleBookEntry =
-				StyleBookEntryLocalServiceUtil.
-					fetchStyleBookEntryByExternalReferenceCode(
-						itemExternalReference.getExternalReferenceCode(),
-						StagingUtil.getLiveGroupId(groupId));
-		}
+		StyleBookEntry styleBookEntry =
+			StyleBookEntryLocalServiceUtil.
+				fetchStyleBookEntryByExternalReferenceCode(
+					itemExternalReference.getExternalReferenceCode(),
+					StagingUtil.getLiveGroupId(groupId));
 
 		if (styleBookEntry == null) {
 			LogUtil.logOptionalReference(
-				StyleBookEntry.class.getName(),
-				itemExternalReference.getExternalReferenceCode(),
-				itemExternalReference.getScope(), scopeGroupId);
+				StyleBookEntry.class,
+				itemExternalReference.getExternalReferenceCode(), companyId);
 		}
 
-		return new StyleBookEntryReference(
-			itemExternalReference.getExternalReferenceCode(),
-			styleBookEntryScopeERC);
+		return itemExternalReference.getExternalReferenceCode();
 	}
 
 	private static void _importPortletConfiguration(
@@ -1096,15 +1075,10 @@ public class LayoutUtil {
 			}
 		}
 
-		StyleBookEntryReference styleBookEntryReference =
-			_getStyleBookEntryReference(
-				layout.getCompanyId(), serviceContext.getScopeGroupId(),
-				settings);
-
 		layout = _updateLayout(
 			layout, nameMap, titleMap, descriptionMap, keywordsMap, robotsMap,
-			styleBookEntryReference.getStyleBookEntryERC(),
-			styleBookEntryReference.getStyleBookEntryScopeERC(),
+			_getStyleBookEntryERC(
+				layout.getCompanyId(), layout.getGroupId(), settings),
 			faviconFileEntryERC, faviconFileEntryScopeERC,
 			_getMasterLayoutPageTemplateEntryERC(
 				serviceContext.getScopeGroupId(), layout, settings),
@@ -1120,8 +1094,8 @@ public class LayoutUtil {
 			Layout layout, Map<Locale, String> nameMap,
 			Map<Locale, String> titleMap, Map<Locale, String> descriptionMap,
 			Map<Locale, String> keywordsMap, Map<Locale, String> robotsMap,
-			String styleBookEntryERC, String styleBookEntryScopeERC,
-			String faviconFileEntryERC, String faviconFileEntryScopeERC,
+			String styleBookEntryERC, String faviconFileEntryERC,
+			String faviconFileEntryScopeERC,
 			String masterLayoutPageTemplateEntryERC,
 			Map<Locale, String> friendlyURLMap, ServiceContext serviceContext)
 		throws Exception {
@@ -1141,9 +1115,8 @@ public class LayoutUtil {
 			GetterUtil.getBoolean(
 				serviceContext.getAttribute("hidden"), layout.isHidden()),
 			friendlyURLMap, layout.getIconImage(), null, styleBookEntryERC,
-			styleBookEntryScopeERC, faviconFileEntryERC,
-			faviconFileEntryScopeERC, masterLayoutPageTemplateEntryERC,
-			serviceContext);
+			faviconFileEntryERC, faviconFileEntryScopeERC,
+			masterLayoutPageTemplateEntryERC, serviceContext);
 	}
 
 	private static Layout _updateLookAndFeel(Layout layout, Settings settings)
@@ -1394,27 +1367,5 @@ public class LayoutUtil {
 		ListUtil.fromArray(
 			"portletSetupUseCustomTitle", "portletSetupPortletDecoratorId",
 			"portletSetupCss");
-
-	private static class StyleBookEntryReference {
-
-		public StyleBookEntryReference(
-			String styleBookEntryERC, String styleBookEntryScopeERC) {
-
-			_styleBookEntryERC = styleBookEntryERC;
-			_styleBookEntryScopeERC = styleBookEntryScopeERC;
-		}
-
-		public String getStyleBookEntryERC() {
-			return _styleBookEntryERC;
-		}
-
-		public String getStyleBookEntryScopeERC() {
-			return _styleBookEntryScopeERC;
-		}
-
-		private final String _styleBookEntryERC;
-		private final String _styleBookEntryScopeERC;
-
-	}
 
 }

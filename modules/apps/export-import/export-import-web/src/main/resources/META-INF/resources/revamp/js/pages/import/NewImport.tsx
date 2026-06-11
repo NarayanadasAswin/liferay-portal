@@ -8,9 +8,12 @@ import ClayIcon from '@clayui/icon';
 import React, {useState} from 'react';
 
 import {Wizard, WizardStep} from '../../components/Wizard';
+import {ContentSelection} from '../../components/forms/content_selector/ContentSelector';
 import {postImportProcess} from '../../services/postImportProcess';
 import {ImportPreview} from '../../types/exportImportPreview';
 import {DataStrategy, UserIdStrategy} from '../../types/exportImportProcess';
+import {Scope} from '../../types/scope';
+import {toProcessRequestFlags} from '../../utils/contentSelection';
 import {toRequestPortletDataHandlers} from '../../utils/toRequestPortletDataHandlers';
 import DataSelectionStep from './steps/DataSelectionStep';
 import FileSelectionStep from './steps/FileSelectionStep';
@@ -18,12 +21,18 @@ import SettingsStep, {SETTINGS_STEP_INITIAL_VALUES} from './steps/SettingsStep';
 
 export function NewImport({
 	backURL,
+	commentsAndRatingsEnabled = false,
 	importPreviewAPIURL,
 	importProcessAPIURL,
+	lookAndFeelEnabled = false,
+	scope,
 }: {
 	backURL: string;
+	commentsAndRatingsEnabled?: boolean;
 	importPreviewAPIURL: string;
 	importProcessAPIURL: string;
+	lookAndFeelEnabled?: boolean;
+	scope: Scope;
 }) {
 	const [importPreview, setImportPreview] = useState<
 		ImportPreview | undefined
@@ -64,7 +73,11 @@ export function NewImport({
 				isStepValid={(values) => !!values.contentSelection}
 				title={Liferay.Language.get('data-selection')}
 			>
-				<DataSelectionStep importPreview={importPreview} />
+				<DataSelectionStep
+					commentsAndRatingsEnabled={commentsAndRatingsEnabled}
+					importPreview={importPreview}
+					lookAndFeelEnabled={lookAndFeelEnabled}
+				/>
 			</WizardStep>
 
 			<WizardStep
@@ -93,8 +106,13 @@ export function NewImport({
 						return;
 					}
 
+					const contentSelection = values.contentSelection as
+						| ContentSelection
+						| undefined;
+
 					const result = await postImportProcess({
 						importProcessRequest: {
+							...toProcessRequestFlags(contentSelection),
 							dataStrategy: values.dataStrategy as DataStrategy,
 							deletions: !!values.deletions,
 							name: values.name,
@@ -124,7 +142,7 @@ export function NewImport({
 				}}
 				title={Liferay.Language.get('settings')}
 			>
-				<SettingsStep />
+				<SettingsStep scope={scope} />
 			</WizardStep>
 		</Wizard>
 	);

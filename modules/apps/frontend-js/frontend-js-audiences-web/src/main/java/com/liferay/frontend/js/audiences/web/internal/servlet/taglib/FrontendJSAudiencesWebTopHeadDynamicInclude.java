@@ -11,8 +11,6 @@ import com.liferay.portal.kernel.feature.flag.FeatureFlagManagerUtil;
 import com.liferay.portal.kernel.module.configuration.ConfigurationException;
 import com.liferay.portal.kernel.servlet.taglib.DynamicInclude;
 import com.liferay.portal.kernel.theme.ThemeDisplay;
-import com.liferay.portal.kernel.util.HtmlUtil;
-import com.liferay.portal.kernel.util.Validator;
 import com.liferay.portal.kernel.util.WebKeys;
 import com.liferay.portal.url.builder.AbsolutePortalURLBuilder;
 import com.liferay.portal.url.builder.AbsolutePortalURLBuilderFactory;
@@ -62,18 +60,17 @@ public class FrontendJSAudiencesWebTopHeadDynamicInclude
 			throw new IOException(configurationException);
 		}
 
-		String handlersURL = frontendJSAudiencesConfiguration.handlersURL();
-
-		if (Validator.isBlank(handlersURL)) {
-			return;
-		}
-
 		PrintWriter printWriter = httpServletResponse.getWriter();
 
 		printWriter.println(
 			"<script data-senna-track=\"temporary\" type=\"module\">");
 		printWriter.println(
 			"import {audiences} from '@liferay/frontend-js-audiences-web';");
+
+		if (frontendJSAudiencesConfiguration.enableLog()) {
+			printWriter.println("audiences.setLogEnabled(true);");
+		}
+
 		printWriter.println("audiences.clear('PAGE');");
 		printWriter.print("await audiences.runDetection('");
 
@@ -87,11 +84,8 @@ public class FrontendJSAudiencesWebTopHeadDynamicInclude
 		printWriter.print(servletAbsolutePortalURLBuilder.build());
 
 		printWriter.println("');");
-		printWriter.print("await import('");
-		printWriter.print(HtmlUtil.escapeJS(handlersURL));
-		printWriter.println("');");
 		printWriter.println("await audiences.runHandlers();");
-		printWriter.print("</script>");
+		printWriter.println("</script>");
 	}
 
 	@Override

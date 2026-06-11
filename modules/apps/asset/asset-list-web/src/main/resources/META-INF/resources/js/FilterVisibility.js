@@ -23,8 +23,13 @@ export default function ({namespace}) {
 		const isSingleCMSType =
 			!!selectedOption && selectedOption.dataset.cms === 'true';
 
-		collectionWrapper.classList.toggle('hide', !isSingleCMSType);
-		assetWrapper.classList.toggle('hide', isSingleCMSType);
+		const isMultiSelection =
+			assetSelector.value === 'false' || assetSelector.value === 'true';
+
+		const showCollection = isSingleCMSType || isMultiSelection;
+
+		assetWrapper.classList.toggle('hide', showCollection);
+		collectionWrapper.classList.toggle('hide', !showCollection);
 	};
 
 	updateVisibility();

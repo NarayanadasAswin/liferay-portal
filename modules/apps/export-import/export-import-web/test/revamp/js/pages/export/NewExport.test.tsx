@@ -20,6 +20,17 @@ jest.mock('staging-taglib', () => ({
 	PagesTree: require('../../mocks/MockPagesTree').MockPagesTree,
 }));
 
+const expandSection = async (label: string) => {
+	const sectionLabel = screen.getByText(label, {selector: 'label'});
+	const sheet = sectionLabel.closest('.sheet');
+
+	const button = within(sheet as HTMLElement).getByRole('button', {
+		name: /expand-x/,
+	});
+
+	await userEvent.click(button);
+};
+
 const DEFAULT_PROPS = {
 	backURL: '/some/back/url',
 	exportPreviewAPIURL: '/o/export-import/v1.0/export-preview',
@@ -109,7 +120,7 @@ describe('NewExport', () => {
 		const dataSelectionGroup = screen.getByRole('group', {
 			name: 'data-selection',
 		});
-		const checkbox = within(dataSelectionGroup).getAllByRole('checkbox')[0];
+		const checkbox = screen.getByRole('checkbox', {name: 'Design'});
 
 		await userEvent.click(checkbox);
 		await userEvent.click(checkbox);
@@ -166,13 +177,7 @@ describe('NewExport', () => {
 
 		await userEvent.type(nameInput, 'test-file');
 
-		const dataSelectionGroup = screen.getByRole('group', {
-			name: 'data-selection',
-		});
-
-		await userEvent.click(
-			within(dataSelectionGroup).getAllByRole('checkbox')[0]
-		);
+		await userEvent.click(screen.getByRole('checkbox', {name: 'Design'}));
 
 		const exportButton = screen.getByRole('button', {name: /^export$/i});
 
@@ -455,6 +460,142 @@ describe('NewExport', () => {
 					},
 				])
 			);
+		});
+	});
+
+	it('submits the checked Look and Feel entries as request flags', async () => {
+		renderComponent({lookAndFeelEnabled: true});
+
+		await screen.findByText('loaded');
+
+		const nameInput = await screen.findByRole('textbox', {
+			name: /^name/i,
+		});
+		await userEvent.type(nameInput, 'test-file');
+
+		await expandSection('Site Builder');
+
+		await userEvent.click(screen.getByLabelText('theme-settings'));
+		await userEvent.click(screen.getByLabelText('site-pages-settings'));
+
+		fetch.mockResponseOnce(JSON.stringify({}));
+
+		await userEvent.click(screen.getByRole('button', {name: /^export$/i}));
+
+		await waitFor(() => {
+			const exportCall = fetch.mock.calls.find(([, init]) => {
+				const body = init?.body;
+
+				return (
+					typeof body === 'string' &&
+					body.includes('"requestPortletDataHandlers"')
+				);
+			});
+
+			expect(exportCall).toBeDefined();
+
+			const body = JSON.parse(exportCall![1]!.body as string);
+
+			expect(body.themeSettings).toBe(true);
+			expect(body.sitePagesSettings).toBe(true);
+			expect(body.logo).toBe(false);
+			expect(body.siteTemplateSettings).toBe(false);
+
+			const handlerNames = body.requestPortletDataHandlers.map(
+				(handler: {name: string}) => handler.name
+			);
+
+			expect(handlerNames).not.toContain('lookAndFeel');
+			expect(handlerNames).not.toContain('logo');
+			expect(handlerNames).not.toContain('THEME_REFERENCE');
+		});
+	});
+
+	it('checks every look and feel option when the Site Builder section is selected', async () => {
+		renderComponent({lookAndFeelEnabled: true});
+
+		await screen.findByText('loaded');
+
+		const nameInput = await screen.findByRole('textbox', {
+			name: /^name/i,
+		});
+		await userEvent.type(nameInput, 'test-file');
+
+		await userEvent.click(
+			screen.getByRole('checkbox', {name: 'Site Builder'})
+		);
+
+		fetch.mockResponseOnce(JSON.stringify({}));
+
+		await userEvent.click(screen.getByRole('button', {name: /^export$/i}));
+
+		await waitFor(() => {
+			const exportCall = fetch.mock.calls.find(([, init]) => {
+				const body = init?.body;
+
+				return (
+					typeof body === 'string' &&
+					body.includes('"requestPortletDataHandlers"')
+				);
+			});
+
+			expect(exportCall).toBeDefined();
+
+			const body = JSON.parse(exportCall![1]!.body as string);
+
+			expect(body.themeSettings).toBe(true);
+			expect(body.logo).toBe(true);
+			expect(body.sitePagesSettings).toBe(true);
+			expect(body.siteTemplateSettings).toBe(true);
+		});
+	});
+
+	it('submits the checked Comments and Ratings entries as request flags', async () => {
+		renderComponent({commentsAndRatingsEnabled: true});
+
+		await screen.findByText('loaded');
+
+		const nameInput = await screen.findByRole('textbox', {
+			name: /^name/i,
+		});
+		await userEvent.type(nameInput, 'test-file');
+
+		await userEvent.click(
+			screen.getByRole('checkbox', {name: 'Content & Data'})
+		);
+
+		await expandSection('Content & Data');
+
+		await userEvent.click(screen.getByLabelText('comments'));
+
+		fetch.mockResponseOnce(JSON.stringify({}));
+
+		await userEvent.click(screen.getByRole('button', {name: /^export$/i}));
+
+		await waitFor(() => {
+			const exportCall = fetch.mock.calls.find(([, init]) => {
+				const body = init?.body;
+
+				return (
+					typeof body === 'string' &&
+					body.includes('"requestPortletDataHandlers"')
+				);
+			});
+
+			expect(exportCall).toBeDefined();
+
+			const body = JSON.parse(exportCall![1]!.body as string);
+
+			expect(body.comments).toBe(true);
+			expect(body.ratings).toBe(false);
+
+			const handlerNames = body.requestPortletDataHandlers.map(
+				(handler: {name: string}) => handler.name
+			);
+
+			expect(handlerNames).not.toContain('commentsAndRatings');
+			expect(handlerNames).not.toContain('comments');
+			expect(handlerNames).not.toContain('COMMENTS');
 		});
 	});
 });

@@ -527,6 +527,13 @@ public class ObjectDefinitionDeployerImpl implements ObjectDefinitionDeployer {
 				).put(
 					"com.liferay.portlet.display-category",
 					() -> {
+						if (FeatureFlagManagerUtil.isEnabled(
+								objectDefinition.getCompanyId(), "LPD-69877") &&
+							!objectDefinition.isAllowStandaloneObjectEntry()) {
+
+							return "category.hidden";
+						}
+
 						if (objectDefinition.isPortlet()) {
 							return "category.object";
 						}
@@ -680,37 +687,39 @@ public class ObjectDefinitionDeployerImpl implements ObjectDefinitionDeployer {
 		// Register ObjectEntriesPanelApp after ObjectEntriesPortlet. See
 		// LPS-140379.
 
-		String panelCategoryKey = objectDefinition.getPanelCategoryKey();
+		if (objectDefinition.isPortlet()) {
+			String panelCategoryKey = objectDefinition.getPanelCategoryKey();
 
-		if (FeatureFlagManagerUtil.isEnabled(
-				objectDefinition.getCompanyId(), "LPD-69877") &&
-			!objectDefinition.isAllowStandaloneObjectEntry()) {
+			if (FeatureFlagManagerUtil.isEnabled(
+					objectDefinition.getCompanyId(), "LPD-69877") &&
+				!objectDefinition.isAllowStandaloneObjectEntry()) {
 
-			panelCategoryKey = StringPool.BLANK;
+				panelCategoryKey = StringPool.BLANK;
+			}
+
+			serviceRegistrations.add(
+				_bundleContext.registerService(
+					PanelApp.class,
+					new ObjectEntriesPanelApp(
+						objectDefinition,
+						() -> {
+							com.liferay.portal.kernel.model.Portlet portlet =
+								_portletLocalService.getPortletById(
+									objectDefinition.getCompanyId(),
+									objectDefinition.getPortletId());
+
+							portlet.setControlPanelEntryCategory(
+								objectDefinition.getPanelCategoryKey());
+
+							return portlet;
+						}),
+					HashMapDictionaryBuilder.<String, Object>put(
+						"panel.app.order:Integer",
+						objectDefinition.getPanelAppOrder()
+					).put(
+						"panel.category.key", panelCategoryKey
+					).build()));
 		}
-
-		serviceRegistrations.add(
-			_bundleContext.registerService(
-				PanelApp.class,
-				new ObjectEntriesPanelApp(
-					objectDefinition,
-					() -> {
-						com.liferay.portal.kernel.model.Portlet portlet =
-							_portletLocalService.getPortletById(
-								objectDefinition.getCompanyId(),
-								objectDefinition.getPortletId());
-
-						portlet.setControlPanelEntryCategory(
-							objectDefinition.getPanelCategoryKey());
-
-						return portlet;
-					}),
-				HashMapDictionaryBuilder.<String, Object>put(
-					"panel.app.order:Integer",
-					objectDefinition.getPanelAppOrder()
-				).put(
-					"panel.category.key", panelCategoryKey
-				).build()));
 
 		if (objectDefinition.isCMS() &&
 			Objects.equals(

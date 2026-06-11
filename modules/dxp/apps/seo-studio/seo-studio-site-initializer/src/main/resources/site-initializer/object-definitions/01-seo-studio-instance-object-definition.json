@@ -1,7 +1,7 @@
 {
 	"accountEntryRestricted": true,
 	"accountEntryRestrictedObjectFieldName": "r_accountToSEOStudioInstances_accountEntryId",
-	"className": "com.liferay.object.model.ObjectDefinition#SI01",
+	"className": "com.liferay.object.model.ObjectDefinition#S1I1",
 	"enableFormContainer": false,
 	"enableIndexSearch": true,
 	"externalReferenceCode": "L_SEO_STUDIO_INSTANCE",
@@ -62,6 +62,18 @@
 			"name": "clientSecret",
 			"system": true,
 			"type": "String"
+		},
+		{
+			"DBType": "Clob",
+			"businessType": "Encrypted",
+			"externalReferenceCode": "GOOGLE_PAGESPEED_API_KEY",
+			"indexed": false,
+			"label": {
+				"en_US": "Google PageSpeed API Key"
+			},
+			"name": "googlePageSpeedAPIKey",
+			"system": true,
+			"type": "Clob"
 		},
 		{
 			"DBType": "String",

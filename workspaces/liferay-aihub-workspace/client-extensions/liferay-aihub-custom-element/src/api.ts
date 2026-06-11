@@ -12,9 +12,17 @@ const AI_HUB_ENDPOINT = '/o/ai-hub/v1.0';
 let aiHubURL = '';
 let liferayDXPURL = '';
 
+let cellAuthorizationAvailable: boolean | null = null;
+
 export function setURLs(aiHub: string, liferayDXP: string) {
 	aiHubURL = aiHub;
 	liferayDXPURL = liferayDXP;
+}
+
+function isCellAuthorizationAvailable(): boolean {
+	return (
+		Boolean((window as any).Liferay) && cellAuthorizationAvailable !== false
+	);
 }
 
 async function postAuthorizationToken(): Promise<AuthorizationToken | null> {
@@ -30,6 +38,12 @@ async function postAuthorizationToken(): Promise<AuthorizationToken | null> {
 				method: 'POST',
 			}
 		);
+
+		if (response.status === 404) {
+			cellAuthorizationAvailable = false;
+
+			return null;
+		}
 
 		if (!response.ok) {
 			throw new Error(
@@ -51,11 +65,11 @@ async function postAuthorizationToken(): Promise<AuthorizationToken | null> {
 			throw new Error('Unable to find service URL.');
 		}
 
+		cellAuthorizationAvailable = true;
+
 		return data as AuthorizationToken;
 	}
-	catch (error) {
-		console.warn(error instanceof Error ? error.message : String(error));
-
+	catch {
 		return null;
 	}
 }
@@ -82,27 +96,26 @@ export async function getChatbotConfiguration(
 }
 
 export async function createEventSource(): Promise<EventSource | null> {
-	const headers = new Headers({Accept: 'text/event-stream'});
-
-	if ((window as any).Liferay) {
-		const authorizationToken = await postAuthorizationToken();
-
-		if (!authorizationToken) {
-			return null;
-		}
-
-		headers.set(
-			'Authorization',
-			`Bearer ${authorizationToken.accessToken}`
-		);
-	}
-
 	return new EventSource(`${aiHubURL}${AI_HUB_ENDPOINT}/chats/subscribe`, {
-		fetch: (input, init) =>
-			fetch(input as RequestInfo, {
+		fetch: async (input, init) => {
+			const headers = new Headers({Accept: 'text/event-stream'});
+
+			if (isCellAuthorizationAvailable()) {
+				const authorizationToken = await postAuthorizationToken();
+
+				if (authorizationToken?.accessToken) {
+					headers.set(
+						'Authorization',
+						`Bearer ${authorizationToken.accessToken}`
+					);
+				}
+			}
+
+			return fetch(input as RequestInfo, {
 				...init,
 				headers,
-			}),
+			});
+		},
 		withCredentials: true,
 	});
 }
@@ -117,23 +130,19 @@ export async function postChatMessage(
 		'Content-Type': 'application/json',
 	});
 
-	if ((window as any).Liferay) {
+	if (isCellAuthorizationAvailable()) {
 		const authorizationToken = await postAuthorizationToken();
 
-		if (!authorizationToken) {
-			throw new Error(
-				'Unable to obtain authorization token for chat message.'
+		if (authorizationToken) {
+			headers.set(
+				'Authorization',
+				`Bearer ${authorizationToken.accessToken}`
+			);
+			headers.set(
+				'Liferay-AI-Hub-Cell-On-Behalf-Of',
+				authorizationToken.userToken
 			);
 		}
-
-		headers.set(
-			'Authorization',
-			`Bearer ${authorizationToken.accessToken}`
-		);
-		headers.set(
-			'Liferay-AI-Hub-Cell-On-Behalf-Of',
-			authorizationToken.userToken
-		);
 	}
 
 	return fetch(
@@ -149,4 +158,43 @@ export async function postChatMessage(
 			method: 'POST',
 		}
 	);
+}
+
+export type ReportFeedbackReason =
+	| 'agentError'
+	| 'harmfulContent'
+	| 'incorrect'
+	| 'other'
+	| 'piiExposure';
+
+export type ReportFeedbackType = 'negative' | 'positive';
+
+export interface ReportFeedbackPayload {
+	agentDefinitionExternalReferenceCodes: string[];
+	chatbotExternalReferenceCode: string;
+	feedback: ReportFeedbackType;
+	reason?: ReportFeedbackReason;
+	surface: 'clickToChat';
+	userMessage?: string;
+}
+
+export async function postAIIssueReport(
+	payload: ReportFeedbackPayload
+): Promise<{id: string}> {
+	const response = await fetch(`${aiHubURL}/o/ai-hub/v1.0/reports`, {
+		body: JSON.stringify(payload),
+		headers: new Headers({
+			'Accept': 'application/json',
+			'Content-Type': 'application/json',
+		}),
+		method: 'POST',
+	});
+
+	if (!response.ok) {
+		throw new Error(
+			`Unable to send feedback (${response.status} ${response.statusText})`
+		);
+	}
+
+	return (await response.json()) as {id: string};
 }

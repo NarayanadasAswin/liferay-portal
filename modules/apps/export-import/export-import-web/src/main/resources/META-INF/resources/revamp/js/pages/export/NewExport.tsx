@@ -15,6 +15,7 @@ import {
 	Range,
 	normalizeDateFilter,
 } from '../../components/date_filter';
+import {ContentSelection} from '../../components/forms/content_selector/ContentSelector';
 import {FormikDebug} from '../../components/forms/formik';
 import {
 	ExportPreviewParams,
@@ -22,6 +23,7 @@ import {
 } from '../../services/getExportPreview';
 import {postExportProcess} from '../../services/postExportProcess';
 import {ExportPreview} from '../../types/exportImportPreview';
+import {toProcessRequestFlags} from '../../utils/contentSelection';
 import {toRequestPortletDataHandlers} from '../../utils/toRequestPortletDataHandlers';
 import DataSelection from './components/DataSelection';
 import {PageTreeModalConfiguration} from './components/PageTreeModal';
@@ -29,15 +31,19 @@ import Setup from './components/Setup';
 
 export function NewExport({
 	backURL,
+	commentsAndRatingsEnabled = false,
 	exportPreview,
 	exportPreviewAPIURL,
 	exportProcessAPIURL,
+	lookAndFeelEnabled = false,
 	pageTreeModalConfiguration,
 }: {
 	backURL: string;
+	commentsAndRatingsEnabled?: boolean;
 	exportPreview?: ExportPreview;
 	exportPreviewAPIURL: string;
 	exportProcessAPIURL: string;
+	lookAndFeelEnabled?: boolean;
 	pageTreeModalConfiguration: PageTreeModalConfiguration;
 }) {
 	const [preview, setPreview] = useState<ExportPreview | undefined>(
@@ -107,9 +113,14 @@ export function NewExport({
 				permissions: false,
 			}}
 			onSubmit={async (values) => {
+				const contentSelection = values.contentSelection as
+					| ContentSelection
+					| undefined;
+
 				const result = await postExportProcess({
 					exportProcessRequest: {
 						...normalizeDateFilter(values.dateFilter),
+						...toProcessRequestFlags(contentSelection),
 						deletions: !!values.deletions,
 						name: values.name,
 						permissions: !!values.permissions,
@@ -157,9 +168,11 @@ export function NewExport({
 					<Setup />
 
 					<DataSelection
+						commentsAndRatingsEnabled={commentsAndRatingsEnabled}
 						deletionCount={preview?.deletionCount}
 						itemsCount={preview?.additionCount}
 						loading={loading}
+						lookAndFeelEnabled={lookAndFeelEnabled}
 						onApplyFilter={handleApplyFilter}
 						pageTreeModalConfiguration={pageTreeModalConfiguration}
 						sections={sections}

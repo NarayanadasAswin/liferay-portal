@@ -59,28 +59,34 @@ public class AssetAnalyticsAttributesProviderTest {
 	@Test
 	@TestInfo("LPD-83537")
 	public void testBuildAttributes() {
-		_testBuildAttributesCMSVersion();
 		_testBuildAttributesForBlogsEntry();
 		_testBuildAttributesForDLFileEntry();
 		_testBuildAttributesForJournalArticle();
-		_testBuildAttributesTypeForObjectEntry();
+		_testBuildAttributesForObjectEntry();
 		_testBuildAttributesWithoutAssetEntry();
 		_testBuildAttributesWithoutAssetRenderer();
 		_testBuildAttributesWithoutField();
 		_testBuildAttributesWithoutLocale();
 	}
 
-	private void _assertCMSVersion(
+	private void _assertObjectDefinitionName(
 		AssetAnalyticsAttributesProvider assetAnalyticsAttributesProvider,
-		String expectedVersion) {
+		String expectedObjectDefinitionName) {
 
 		String attributes = assetAnalyticsAttributesProvider.buildAttributes(
 			AssetAnalyticsAttributesProvider.ACTION_VIEW,
 			AssetAnalyticsAttributesProvider.FIELD_CONTENT);
 
-		Assert.assertTrue(
-			attributes.contains(
-				"analytics-asset-cmsversion=\"" + expectedVersion + "\""));
+		if (expectedObjectDefinitionName == null) {
+			Assert.assertFalse(
+				attributes.contains("analytics-object-definition-name="));
+		}
+		else {
+			Assert.assertTrue(
+				attributes.contains(
+					"analytics-object-definition-name=\"" +
+						expectedObjectDefinitionName + "\""));
+		}
 	}
 
 	private void _assertType(
@@ -132,54 +138,6 @@ public class AssetAnalyticsAttributesProviderTest {
 		);
 
 		return assetRenderer;
-	}
-
-	private void _testBuildAttributesCMSVersion() {
-		String className = "com.liferay.object.model.ObjectDefinition#42";
-		long companyId = RandomTestUtil.randomLong();
-
-		AssetEntry assetEntry = _mockAssetEntry(
-			className, RandomTestUtil.randomLong(), companyId);
-
-		AssetAnalyticsAttributesProvider assetAnalyticsAttributesProvider =
-			new AssetAnalyticsAttributesProvider(assetEntry, null, null);
-
-		ObjectDefinition objectDefinition = Mockito.mock(
-			ObjectDefinition.class);
-
-		_objectDefinitionLocalServiceUtilMockedStatic.when(
-			() ->
-				ObjectDefinitionLocalServiceUtil.
-					fetchObjectDefinitionByClassName(companyId, className)
-		).thenReturn(
-			objectDefinition
-		);
-
-		Mockito.when(
-			objectDefinition.isCMS()
-		).thenReturn(
-			true
-		);
-
-		_assertCMSVersion(assetAnalyticsAttributesProvider, "2.0");
-
-		Mockito.when(
-			objectDefinition.isCMS()
-		).thenReturn(
-			false
-		);
-
-		_assertCMSVersion(assetAnalyticsAttributesProvider, "1.0");
-
-		_objectDefinitionLocalServiceUtilMockedStatic.when(
-			() ->
-				ObjectDefinitionLocalServiceUtil.
-					fetchObjectDefinitionByClassName(companyId, className)
-		).thenReturn(
-			null
-		);
-
-		_assertCMSVersion(assetAnalyticsAttributesProvider, "1.0");
 	}
 
 	private void _testBuildAttributesForBlogsEntry() {
@@ -260,8 +218,6 @@ public class AssetAnalyticsAttributesProviderTest {
 				"analytics-asset-action=\"" +
 					AssetAnalyticsAttributesProvider.ACTION_VIEW + "\""));
 		Assert.assertTrue(
-			attributes.contains("analytics-asset-cmsversion=\"1.0\""));
-		Assert.assertTrue(
 			attributes.contains(
 				"analytics-asset-field=\"" +
 					AssetAnalyticsAttributesProvider.FIELD_CONTENT + "\""));
@@ -279,7 +235,7 @@ public class AssetAnalyticsAttributesProviderTest {
 			attributes.contains("analytics-asset-type=\"web-content\""));
 	}
 
-	private void _testBuildAttributesTypeForObjectEntry() {
+	private void _testBuildAttributesForObjectEntry() {
 		String className = "com.liferay.object.model.ObjectDefinition#42";
 		long companyId = RandomTestUtil.randomLong();
 
@@ -306,7 +262,9 @@ public class AssetAnalyticsAttributesProviderTest {
 			"MyCMSType"
 		);
 
-		_assertType(assetAnalyticsAttributesProvider, "my-cms-type");
+		_assertObjectDefinitionName(
+			assetAnalyticsAttributesProvider, "my-cms-type");
+		_assertType(assetAnalyticsAttributesProvider, "object-entry");
 
 		Mockito.when(
 			objectDefinition.getName()
@@ -314,6 +272,7 @@ public class AssetAnalyticsAttributesProviderTest {
 			null
 		);
 
+		_assertObjectDefinitionName(assetAnalyticsAttributesProvider, null);
 		_assertType(assetAnalyticsAttributesProvider, "object-entry");
 	}
 

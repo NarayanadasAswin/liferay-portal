@@ -34,8 +34,12 @@ import com.liferay.object.service.ObjectRelationshipLocalService;
 import com.liferay.portal.kernel.model.Layout;
 import com.liferay.portal.kernel.model.ResourceConstants;
 import com.liferay.portal.kernel.model.ResourcePermission;
+import com.liferay.portal.kernel.model.Role;
+import com.liferay.portal.kernel.model.role.RoleConstants;
+import com.liferay.portal.kernel.security.permission.ActionKeys;
 import com.liferay.portal.kernel.service.LayoutLocalService;
 import com.liferay.portal.kernel.service.ResourcePermissionLocalService;
+import com.liferay.portal.kernel.service.RoleLocalService;
 import com.liferay.portal.kernel.service.ServiceContextThreadLocal;
 import com.liferay.portal.kernel.test.rule.AggregateTestRule;
 import com.liferay.portal.kernel.test.util.ServiceContextTestUtil;
@@ -145,7 +149,8 @@ public class AIHubSiteInitializerTest {
 		_assertAccountRolePortletResourcePermission(
 			"L_AI_HUB_AGENT_DEFINITION", "L_AI_HUB_AGENT_ADMINISTRATOR",
 			"ADD_OBJECT_ENTRY");
-		_assertLayoutExists("/account-management");
+		_assertLayoutExists("/account-management", "Account Management");
+		_assertLayoutExists("/guardrails", "Guardrails");
 		_assertLayoutUtilityPageEntryExists(
 			"L_AI_HUB_CREATE_ACCOUNT_UTILITY_PAGE",
 			LayoutUtilityPageEntryConstants.TYPE_CREATE_ACCOUNT);
@@ -163,6 +168,16 @@ public class AIHubSiteInitializerTest {
 		_assertListTypeDefinitionExists(
 			"L_AI_HUB_MODEL_ARMOR_TEMPLATE_RESPONSIBLE_AI_LEVELS", "high",
 			"lowAndAbove", "mediumAndAbove", "none");
+		_assertListTypeDefinitionUserRoleViewPermission(
+			"L_AI_HUB_CRAWLER_JOB_STATUSES");
+		_assertListTypeDefinitionUserRoleViewPermission(
+			"L_AI_HUB_INSTRUCTION_DEFINITION_SCOPES");
+		_assertListTypeDefinitionUserRoleViewPermission(
+			"L_AI_HUB_MODEL_ARMOR_TEMPLATE_CONFIDENCE_LEVELS");
+		_assertListTypeDefinitionUserRoleViewPermission(
+			"L_AI_HUB_MODEL_ARMOR_TEMPLATE_GUARDRAIL_TYPES");
+		_assertListTypeDefinitionUserRoleViewPermission(
+			"L_AI_HUB_MODEL_ARMOR_TEMPLATE_RESPONSIBLE_AI_LEVELS");
 		_assertNotificationTemplateExists(
 			"L_AI_HUB_ACCOUNT_INVITE_USER_EMAIL_NOTIFICATION_TEMPLATE");
 		_assertObjectDefinitionExists("L_AI_HUB_AGENT_DEFINITION");
@@ -266,24 +281,35 @@ public class AIHubSiteInitializerTest {
 			"L_AI_HUB_CONTENT_RETRIEVER",
 			ObjectRelationshipConstants.TYPE_ONE_TO_MANY);
 		_assertWorkflowDefinitionExists(
+			_ACCOUNT_EXTERNAL_REFERENCE_CODE_AI_HUB,
 			WorkflowDefinitionConstants.EXTERNAL_REFERENCE_CODE_CHANGE_TONE,
 			WorkflowDefinitionConstants.NAME_CHANGE_TONE);
 		_assertWorkflowDefinitionExists(
+			_ACCOUNT_EXTERNAL_REFERENCE_CODE_AI_HUB,
 			WorkflowDefinitionConstants.
 				EXTERNAL_REFERENCE_CODE_FIX_SPELLING_AND_GRAMMAR,
 			WorkflowDefinitionConstants.NAME_FIX_SPELLING_AND_GRAMMAR);
 		_assertWorkflowDefinitionExists(
+			_ACCOUNT_EXTERNAL_REFERENCE_CODE_AI_HUB,
 			WorkflowDefinitionConstants.EXTERNAL_REFERENCE_CODE_IMPROVE_WRITING,
 			WorkflowDefinitionConstants.NAME_IMPROVE_WRITING);
 		_assertWorkflowDefinitionExists(
+			_ACCOUNT_EXTERNAL_REFERENCE_CODE_AI_HUB,
 			WorkflowDefinitionConstants.EXTERNAL_REFERENCE_CODE_LIFERAY_SEARCH,
 			WorkflowDefinitionConstants.NAME_LIFERAY_SEARCH);
 		_assertWorkflowDefinitionExists(
+			_ACCOUNT_EXTERNAL_REFERENCE_CODE_AI_HUB,
 			WorkflowDefinitionConstants.EXTERNAL_REFERENCE_CODE_MAKE_LONGER,
 			WorkflowDefinitionConstants.NAME_MAKE_LONGER);
 		_assertWorkflowDefinitionExists(
+			_ACCOUNT_EXTERNAL_REFERENCE_CODE_AI_HUB,
 			WorkflowDefinitionConstants.EXTERNAL_REFERENCE_CODE_MAKE_SHORTER,
 			WorkflowDefinitionConstants.NAME_MAKE_SHORTER);
+		_assertWorkflowDefinitionExists(
+			_ACCOUNT_EXTERNAL_REFERENCE_CODE_SEO_STUDIO,
+			WorkflowDefinitionConstants.
+				EXTERNAL_REFERENCE_CODE_SEO_STUDIO_TITLE_GENERATOR,
+			WorkflowDefinitionConstants.NAME_SEO_STUDIO_TITLE_GENERATOR);
 	}
 
 	private void _assertAccountRoleExists(
@@ -349,11 +375,13 @@ public class AIHubSiteInitializerTest {
 		}
 	}
 
-	private void _assertLayoutExists(String friendlyURL) throws Exception {
+	private void _assertLayoutExists(String friendlyURL, String name)
+		throws Exception {
+
 		Layout layout = _layoutLocalService.fetchLayoutByFriendlyURL(
 			TestPropsValues.getGroupId(), false, friendlyURL);
 
-		Assert.assertNotNull(layout);
+		Assert.assertEquals(name, layout.getName());
 	}
 
 	private void _assertLayoutUtilityPageEntryExists(
@@ -387,6 +415,26 @@ public class AIHubSiteInitializerTest {
 
 			Assert.assertTrue(listTypeEntry.isSystem());
 		}
+	}
+
+	private void _assertListTypeDefinitionUserRoleViewPermission(
+			String externalReferenceCode)
+		throws Exception {
+
+		ListTypeDefinition listTypeDefinition =
+			_listTypeDefinitionLocalService.
+				fetchListTypeDefinitionByExternalReferenceCode(
+					externalReferenceCode, TestPropsValues.getCompanyId());
+		Role role = _roleLocalService.getRole(
+			TestPropsValues.getCompanyId(), RoleConstants.USER);
+
+		Assert.assertTrue(
+			_resourcePermissionLocalService.hasResourcePermission(
+				TestPropsValues.getCompanyId(),
+				ListTypeDefinition.class.getName(),
+				ResourceConstants.SCOPE_INDIVIDUAL,
+				String.valueOf(listTypeDefinition.getListTypeDefinitionId()),
+				role.getRoleId(), ActionKeys.VIEW));
 	}
 
 	private void _assertNotificationTemplateExists(String externalReferenceCode)
@@ -499,6 +547,7 @@ public class AIHubSiteInitializerTest {
 	}
 
 	private void _assertWorkflowDefinitionExists(
+			String accountEntryExternalReferenceCode,
 			String externalReferenceCode, String name)
 		throws Exception {
 
@@ -510,12 +559,19 @@ public class AIHubSiteInitializerTest {
 
 		AccountEntry accountEntry =
 			_accountEntryLocalService.getAccountEntryByExternalReferenceCode(
-				"L_AI_HUB", TestPropsValues.getCompanyId());
+				accountEntryExternalReferenceCode,
+				TestPropsValues.getCompanyId());
 
 		Assert.assertEquals(
 			accountEntry.getAccountEntryGroupId(),
 			workflowDefinition.getGroupId());
 	}
+
+	private static final String _ACCOUNT_EXTERNAL_REFERENCE_CODE_AI_HUB =
+		"L_AI_HUB";
+
+	private static final String _ACCOUNT_EXTERNAL_REFERENCE_CODE_SEO_STUDIO =
+		"L_SEO_STUDIO";
 
 	@Inject
 	private AccountEntryLocalService _accountEntryLocalService;
@@ -556,6 +612,9 @@ public class AIHubSiteInitializerTest {
 
 	@Inject
 	private ResourcePermissionLocalService _resourcePermissionLocalService;
+
+	@Inject
+	private RoleLocalService _roleLocalService;
 
 	@Inject
 	private SiteInitializerRegistry _siteInitializerRegistry;

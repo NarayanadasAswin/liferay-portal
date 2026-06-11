@@ -19,46 +19,61 @@ export interface AudiencesDefinition {
 }
 
 export interface Audience {
-	combinator: Combinator;
+	conjunction: Conjunction;
 	id: string;
-	retention: Retention;
+	retentionType: RetentionType;
 	rules: Rule[];
 }
 
-export type Combinator = 'and' | 'or';
+export type Conjunction = 'AND' | 'OR';
 
-export type Retention = 'BROWSER' | 'PAGE' | 'TAB';
+export type RetentionType = 'BROWSER' | 'PAGE' | 'TAB';
 
 export type Rule = LeafRule | RuleGroup;
 
 export interface LeafRule {
-	attr: Attribute;
-	op: Operator;
-	val: any;
+	attribute: Attribute;
+	operator: Operator;
+	value: any;
 }
 
 export interface RuleGroup {
-	combinator: Combinator;
+	conjunction: Conjunction;
 	rules: Rule[];
 }
 
 export type Attribute =
-	| 'browser_language'
 	| 'browser_name'
 	| 'browser_version'
-	| `cookie:${string}`
+	| 'cookies'
+	| `custom:${string}`
 	| 'hostname'
+	| 'language'
 	| 'local_date'
 	| 'local_hour'
 	| 'pathname'
 	| 'referrer'
-	| `search_param:${string}`
+	| `request_parameters`
 	| 'segments'
+	| 'timezone'
 	| 'url'
 	| 'user_agent';
-export type Operator = 'between' | 'eq' | 'include' | 'matches';
+export type Operator =
+	| 'eq'
+	| 'gt'
+	| 'gte'
+	| 'includes'
+	| 'lt'
+	| 'lte'
+	| 'not_eq'
+	| 'not_includes';
 
 // JavaScript API
+
+export interface CustomAttribute<T> {
+	name: string | undefined;
+	(): Promise<T> | T;
+}
 
 export interface Handler {
 	name: string | undefined;
@@ -66,7 +81,7 @@ export interface Handler {
 }
 
 export interface AudiencesAPI {
-	clear(retention?: Retention): void;
+	clear(retentionType?: RetentionType): void;
 	get(): Set<string>;
 	on(audienceId: string, handler: Handler): void;
 	runDetection(audiencesDefinitionURL: string): Promise<void>;

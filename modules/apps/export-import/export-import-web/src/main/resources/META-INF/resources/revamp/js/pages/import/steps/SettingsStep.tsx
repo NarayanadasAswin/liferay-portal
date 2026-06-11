@@ -8,13 +8,52 @@ import ClayLayout from '@clayui/layout';
 import React from 'react';
 
 import {FormikFieldRadioGroup} from '../../../components/forms/formik';
+import {
+	DATA_STRATEGIES,
+	DataStrategy,
+	USER_ID_STRATEGIES,
+} from '../../../types/exportImportProcess';
+import {SCOPES, Scope} from '../../../types/scope';
 
 export const SETTINGS_STEP_INITIAL_VALUES = {
-	dataStrategy: 'MIRROR',
-	userIdStrategy: 'CURRENT_USER_ID',
+	dataStrategy: DATA_STRATEGIES.MIRROR,
+	userIdStrategy: USER_ID_STRATEGIES.CURRENT_USER_ID,
 };
 
-export default function SettingsStep() {
+const DATA_STRATEGY_LABELS: Record<
+	DataStrategy,
+	{description: string; label: string}
+> = {
+	[DATA_STRATEGIES.MIRROR]: {
+		description: Liferay.Language.get('import-data-strategy-mirror-help'),
+		label: Liferay.Language.get('mirror'),
+	},
+	[DATA_STRATEGIES.MIRROR_OVERWRITE]: {
+		description: Liferay.Language.get(
+			'import-data-strategy-mirror-with-overwriting-help'
+		),
+		label: Liferay.Language.get('mirror-with-overwriting'),
+	},
+};
+
+const DATA_STRATEGY_OPTIONS: Record<Scope, DataStrategy[]> = {
+	[SCOPES.COMPANY]: [DATA_STRATEGIES.MIRROR],
+	[SCOPES.DEPOT]: [DATA_STRATEGIES.MIRROR, DATA_STRATEGIES.MIRROR_OVERWRITE],
+	[SCOPES.PORTLET]: [
+		DATA_STRATEGIES.MIRROR,
+		DATA_STRATEGIES.MIRROR_OVERWRITE,
+	],
+	[SCOPES.SITE]: [DATA_STRATEGIES.MIRROR, DATA_STRATEGIES.MIRROR_OVERWRITE],
+};
+
+export default function SettingsStep({scope}: {scope: Scope}) {
+	const dataStrategyOptions = (
+		DATA_STRATEGY_OPTIONS[scope] ?? DATA_STRATEGY_OPTIONS[SCOPES.SITE]
+	).map((value) => ({
+		...DATA_STRATEGY_LABELS[value],
+		value,
+	}));
+
 	return (
 		<>
 			<ClayLayout.Sheet>
@@ -35,7 +74,7 @@ export default function SettingsStep() {
 							label: Liferay.Language.get(
 								'use-the-original-author'
 							),
-							value: 'CURRENT_USER_ID',
+							value: USER_ID_STRATEGIES.CURRENT_USER_ID,
 						},
 						{
 							description: Liferay.Language.get(
@@ -44,7 +83,7 @@ export default function SettingsStep() {
 							label: Liferay.Language.get(
 								'use-the-current-user-as-author'
 							),
-							value: 'ALWAYS_CURRENT_USER_ID',
+							value: USER_ID_STRATEGIES.ALWAYS_CURRENT_USER_ID,
 						},
 					]}
 				/>
@@ -57,37 +96,51 @@ export default function SettingsStep() {
 					title={Liferay.Language.get('update-data')}
 				/>
 
-				<FormikFieldRadioGroup
-					aria-labelledby="dataStrategy-label"
-					name="dataStrategy"
-					options={[
-						{
-							description: Liferay.Language.get(
-								'import-data-strategy-mirror-help'
-							),
-							label: Liferay.Language.get('mirror'),
-							value: 'MIRROR',
-						},
-						{
-							description: Liferay.Language.get(
-								'import-data-strategy-mirror-with-overwriting-help'
-							),
-							label: Liferay.Language.get(
-								'mirror-with-overwriting'
-							),
-							value: 'MIRROR_OVERWRITE',
-						},
-						{
-							description: Liferay.Language.get(
-								'import-data-strategy-copy-as-new-help'
-							),
-							label: Liferay.Language.get('copy-as-new'),
-							value: 'COPY_AS_NEW',
-						},
-					]}
-				/>
+				{dataStrategyOptions.length === 1 ? (
+					<ReadOnlyOption
+						option={dataStrategyOptions[0]}
+						symbol="restore"
+					/>
+				) : (
+					<FormikFieldRadioGroup
+						aria-labelledby="dataStrategy-label"
+						name="dataStrategy"
+						options={dataStrategyOptions}
+					/>
+				)}
 			</ClayLayout.Sheet>
 		</>
+	);
+}
+
+function ReadOnlyOption({
+	option,
+	symbol,
+}: {
+	option: {description: string; label: string};
+	symbol: string;
+}) {
+	return (
+		<ClayLayout.ContentRow className="mb-2">
+			<ClayLayout.ContentCol expand={false}>
+				<span
+					aria-hidden="true"
+					className="inline-item inline-item-before invisible small text-secondary"
+				>
+					<ClayIcon className="mr-1" symbol={symbol} />
+				</span>
+			</ClayLayout.ContentCol>
+
+			<ClayLayout.ContentCol expand>
+				<span className="d-block font-weight-semi-bold text-dark">
+					{option.label}
+				</span>
+
+				<span className="d-block small text-secondary">
+					{option.description}
+				</span>
+			</ClayLayout.ContentCol>
+		</ClayLayout.ContentRow>
 	);
 }
 
