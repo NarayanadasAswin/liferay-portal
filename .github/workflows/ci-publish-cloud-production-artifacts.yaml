@@ -165,8 +165,9 @@ jobs:
                 uses: actions/checkout@v4
                 with:
                     fetch-depth: 1
-                    filter: blob:none
+                    filter: tree:0
                     show-progress: false
+                    sparse-checkout: cloud/helm
             -   name: Configure AWS credentials
                 uses: aws-actions/configure-aws-credentials@v5.1.0
                 with:
@@ -371,8 +372,9 @@ jobs:
                 uses: actions/checkout@v4
                 with:
                     fetch-depth: 1
-                    filter: blob:none
+                    filter: tree:0
                     show-progress: false
+                    sparse-checkout: .github
             -   name: Tag the release
                 run: |
                     set -o errexit
@@ -386,9 +388,9 @@ jobs:
 
                         local release_git_tag
 
-                        release_git_tag=$(echo "${GITHUB_REF_NAME}" | tr '/' '-')
+                        release_git_tag="release-$(date --utc +%F)"
 
-                        git tag --annotate "${release_git_tag}" --message "Release ${release_git_tag}"
+                        git tag --annotate "${release_git_tag}" --message "Release ${release_git_tag} from ${GITHUB_REF_NAME}"
 
                         git push origin "${release_git_tag}"
                     }

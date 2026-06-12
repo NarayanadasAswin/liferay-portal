@@ -11,6 +11,7 @@ import React from 'react';
 
 import './AgentDefinitionForm.scss';
 import Toolbar from '../components/ToolBar';
+import AIProviderPanel from './AIProviderPanel';
 import DataSourcesPanel from './DataSourcesPanel';
 import DetailsPanel from './DetailsPanel';
 import GuardrailsPanel from './GuardrailsPanel';
@@ -39,10 +40,10 @@ export default function AgentDefinitionForm({
 	const {
 		contentRetrievers,
 		errors,
+		guardrails,
 		handleBlur,
 		handleSubmit,
 		isSubmitting,
-		modelArmorTemplates,
 		setField,
 		setFieldTouched,
 		touched,
@@ -130,9 +131,11 @@ export default function AgentDefinitionForm({
 							/>
 
 							<GuardrailsPanel
-								modelArmorTemplates={modelArmorTemplates}
+								guardrails={guardrails}
 								readOnly={readOnly}
 							/>
+
+							<AIProviderPanel model={values.model} />
 						</ClayLayout.Col>
 					</ClayLayout.Row>
 				</ClayForm>

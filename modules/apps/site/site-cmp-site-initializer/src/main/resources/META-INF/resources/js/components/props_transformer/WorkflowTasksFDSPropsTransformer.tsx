@@ -12,6 +12,10 @@ import {addOnClickToCreationMenuItems} from '@liferay/site-cms-site-initializer'
 import React from 'react';
 
 import {styleActions} from '../../utils/actionStyles';
+import {
+	installCMPTabPersistence,
+	registerTabFDS,
+} from '../../utils/cmpTabPersistence';
 import {WORKFLOW_TASK_ACTION_LINK_ID} from '../../utils/constants';
 import {openCMPModal} from '../../utils/openCMPModal';
 import {TaskAction, WorkflowTaskItemData} from '../../utils/types';
@@ -39,6 +43,9 @@ export default function WorkflowTasksFDSPropsTransformer({
 		default: false,
 		initialPaginationDelta: 20,
 	}));
+
+	registerTabFDS(id, 2);
+	installCMPTabPersistence();
 
 	return {
 		...otherProps,

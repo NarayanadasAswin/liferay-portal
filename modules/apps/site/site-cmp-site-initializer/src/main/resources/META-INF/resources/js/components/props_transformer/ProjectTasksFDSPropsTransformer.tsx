@@ -19,6 +19,10 @@ import {sub} from 'frontend-js-web';
 import React from 'react';
 
 import {styleActions, styleBulkActions} from '../../utils/actionStyles';
+import {
+	installCMPTabPersistence,
+	registerTabFDS,
+} from '../../utils/cmpTabPersistence';
 import {openCMPModal} from '../../utils/openCMPModal';
 import {ProjectTaskItemData, TaskAction} from '../../utils/types';
 import StateLabel from '../StateLabel';
@@ -55,6 +59,9 @@ export default function ProjectTasksFDSPropsTransformer({
 		default: false,
 		initialPaginationDelta: 20,
 	}));
+
+	registerTabFDS(id, 1);
+	installCMPTabPersistence();
 
 	const calendarView: IView = {
 		component: CalendarView,

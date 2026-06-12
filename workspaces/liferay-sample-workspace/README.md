@@ -30,9 +30,17 @@ For `liferay-sample-etc-cron` and `liferay-sample-etc-spring-boot` the third typ
 
 ### List of Client Extensions
 
+- *liferay-sample-audiences-custom-attributes*
+
+	Add custom attributes to detect a visitor's audiences.
+
 - *liferay-sample-batch*
 
 	...
+
+- *liferay-sample-commerce-checkout-step*
+
+	Add a checkout step to the commerce checkout widget.
 
 - *liferay-sample-commerce-payment-integration*
 
