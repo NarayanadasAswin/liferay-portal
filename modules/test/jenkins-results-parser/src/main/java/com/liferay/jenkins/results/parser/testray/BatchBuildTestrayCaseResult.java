@@ -19,6 +19,9 @@ import com.liferay.jenkins.results.parser.job.property.JobPropertyFactory;
 import com.liferay.jenkins.results.parser.test.clazz.TestClass;
 import com.liferay.jenkins.results.parser.test.clazz.TestClassMethod;
 import com.liferay.jenkins.results.parser.test.clazz.group.AxisTestClassGroup;
+import com.liferay.jenkins.results.parser.test.clazz.group.FunctionalAxisTestClassGroup;
+import com.liferay.jenkins.results.parser.test.clazz.group.JUnitAxisTestClassGroup;
+import com.liferay.jenkins.results.parser.test.clazz.group.PlaywrightAxisTestClassGroup;
 
 import java.io.File;
 import java.io.IOException;
@@ -250,56 +253,24 @@ public class BatchBuildTestrayCaseResult
 
 		testrayAttachments.add(_getGradlePluginsAttachment());
 		testrayAttachments.add(_getJenkinsConsoleTestrayAttachment());
-		testrayAttachments.add(getTopLevelBuildDatabaseTestrayAttachment());
-		testrayAttachments.add(getTopLevelBuildReportTestrayAttachment());
-		testrayAttachments.add(getTopLevelJenkinsConsoleTestrayAttachment());
-		testrayAttachments.add(getTopLevelJenkinsReportTestrayAttachment());
-		testrayAttachments.add(getTopLevelJobSummaryTestrayAttachment());
-		testrayAttachments.add(_getWarningsTestrayAttachment());
+		testrayAttachments.add(getParentTestrayCaseResultTestrayAttachment());
+		testrayAttachments.add(getWarningsTestrayAttachment());
+
+		AxisTestClassGroup axisTestClassGroup = getAxisTestClassGroup();
+
+		if (axisTestClassGroup instanceof FunctionalAxisTestClassGroup ||
+			axisTestClassGroup instanceof JUnitAxisTestClassGroup) {
+
+			testrayAttachments.addAll(getLiferayLogTestrayAttachments());
+			testrayAttachments.addAll(getLiferayOSGiLogTestrayAttachments());
+		}
+		else if (axisTestClassGroup instanceof PlaywrightAxisTestClassGroup) {
+			testrayAttachments.addAll(getLiferayLogTestrayAttachments());
+		}
 
 		testrayAttachments.removeAll(Collections.singleton(null));
 
 		return testrayAttachments;
-	}
-
-	@Override
-	public TestrayCase getTestrayCase() {
-		TestrayCase testrayCase = super.getTestrayCase();
-
-		if (testrayCase != null) {
-			return testrayCase;
-		}
-
-		String name = getName();
-
-		if (JenkinsResultsParserUtil.isNullOrEmpty(name)) {
-			return null;
-		}
-
-		String type = getType();
-
-		if (JenkinsResultsParserUtil.isNullOrEmpty(type)) {
-			return null;
-		}
-
-		TestrayServer testrayServer = getTestrayServer();
-
-		TestrayCaseType testrayCaseType =
-			testrayServer.getTestrayCaseTypeByName(type);
-
-		if (testrayCaseType == null) {
-			return null;
-		}
-
-		TestrayBuild testrayBuild = getTestrayBuild();
-
-		TestrayProject testrayProject = testrayBuild.getTestrayProject();
-
-		testrayCase = testrayProject.getTestrayCase(name, testrayCaseType);
-
-		setTestrayCase(testrayCase);
-
-		return testrayCase;
 	}
 
 	@Override
@@ -346,7 +317,7 @@ public class BatchBuildTestrayCaseResult
 
 	@Override
 	public String[] getWarnings() {
-		TestrayAttachment testrayAttachment = _getWarningsTestrayAttachment();
+		TestrayAttachment testrayAttachment = getWarningsTestrayAttachment();
 
 		if (testrayAttachment == null) {
 			return null;
@@ -643,6 +614,11 @@ public class BatchBuildTestrayCaseResult
 		return _topLevelStandaloneBuildTestrayCaseResult;
 	}
 
+	protected TestrayAttachment getWarningsTestrayAttachment() {
+		return getTestrayAttachment(
+			getBuildReport(), "Warnings", getAxisName() + "/warnings.html.gz");
+	}
+
 	@Override
 	protected void initBuildReport() {
 		TopLevelBuildReport topLevelBuildReport = getTopLevelBuildReport();
@@ -830,11 +806,6 @@ public class BatchBuildTestrayCaseResult
 		}
 
 		return testrayAttachments;
-	}
-
-	private TestrayAttachment _getWarningsTestrayAttachment() {
-		return getTestrayAttachment(
-			getBuildReport(), "Warnings", getAxisName() + "/warnings.html.gz");
 	}
 
 	private String _upperCaseFirstLetterOfEachWord(String string) {

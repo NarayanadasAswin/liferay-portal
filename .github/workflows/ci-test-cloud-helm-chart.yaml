@@ -4,6 +4,9 @@ defaults:
 jobs:
     test-cloud-helm-chart:
         if: ${{github.repository == 'cloudnative-team/liferay-portal'}}
+        permissions:
+            checks: write
+            contents: read
         runs-on: ubuntu-latest
         steps:
             -   name: Checkout code
@@ -16,42 +19,25 @@ jobs:
                 uses: bmuschko/setup-kubeconform@v1
                 with:
                     kubeconform-version: 0.7.0
-            -   name: Update Helm dependencies
-                run: helm dependency update --skip-refresh
-                working-directory: ./cloud/helm/${{matrix.chart}}
-            -   name: Lint Helm chart
-                run: helm lint .
-                working-directory: ./cloud/helm/${{matrix.chart}}
-            -   name: Run Helm chart tests
-                run: helm unittest .
-                working-directory: ./cloud/helm/${{matrix.chart}}
-            -   name: Run Bash tests
-                run: |
-                    set -o errexit
-
-                    function main {
-                        local test
-
-                        for test in scripts/tests/*-test.sh tests/*_test.sh
-                        do
-                            if [ -f "${test}" ]
-                            then
-                                bash "${test}"
-                            fi
-                        done
-                    }
-
-                    main
-                working-directory: ./cloud/helm/${{matrix.chart}}
-            -   name: Render and validate Helm chart
-                run: |
-                    set -o pipefail
-
-                    helm template liferay . | kubeconform --strict --summary \
-                        -schema-location default \
-                        -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
-                        -skip ClusterProviderConfig,LiferayInfrastructure
-                working-directory: ./cloud/helm/${{matrix.chart}}
+            -   name: Lint chart
+                run: helm lint "cloud/helm/${{matrix.chart}}"
+            -   name: Render and validate manifests
+                run: cloud/scripts/tests/render_helm_manifests.sh
+            -   name: Run unit tests
+                run: cloud/scripts/tests/run_helm_tests.sh
+            -   if: ${{!cancelled() && hashFiles(format('cloud/scripts/tests/test-reports/helm-unittest-{0}.xml', matrix.chart)) != ''}}
+                name: Upload test reports
+                uses: actions/upload-artifact@v4
+                with:
+                    name: helm-test-reports-${{matrix.chart}}
+                    path: cloud/scripts/tests/test-reports/helm-unittest-${{matrix.chart}}.xml
+            -   if: ${{!cancelled() && hashFiles(format('cloud/scripts/tests/test-reports/helm-unittest-{0}.xml', matrix.chart)) != ''}}
+                name: Publish test report
+                uses: dorny/test-reporter@v2
+                with:
+                    name: Helm unit tests (${{matrix.chart}})
+                    path: cloud/scripts/tests/test-reports/helm-unittest-${{matrix.chart}}.xml
+                    reporter: java-junit
         strategy:
             fail-fast: false
             matrix:
@@ -67,7 +53,9 @@ jobs:
 on:
     pull_request:
         paths:
+            -   .github/workflows/ci-test-cloud-helm-chart.yaml
             -   cloud/helm/**
+            -   cloud/scripts/tests/**
     push:
         branches:
             -   master

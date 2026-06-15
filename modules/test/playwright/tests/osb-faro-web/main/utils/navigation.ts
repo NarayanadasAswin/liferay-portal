@@ -10,11 +10,7 @@ import {waitForLoading} from './loading';
 
 export enum ACPage {
 	apisTokensPage = 'apis/tokens',
-	assetBlogsPage = 'assets/blogs',
-	assetDocumentsAndMediaPage = 'assets/documents-and-media',
-	assetFormsPage = 'assets/forms',
 	assetPage = 'assets',
-	assetWebContentPage = 'assets/web-content',
 	dataSourcePage = 'data-source?field=name&page=1&sortOrder=DESC',
 	dataPrivacyRequestLogPage = 'data-privacy/request-log',
 	dataPrivacySupressedUsersPage = 'data-privacy/suppressed-users',
@@ -22,6 +18,7 @@ export enum ACPage {
 	definitionsEventAttributesGlobalPage = 'definitions/event-attributes/global',
 	definitionsEventsCustomPage = 'definitions/events/custom',
 	definitionsEventsBlockListPage = 'definitions/events/block-list',
+	definitionsEventsDefaultPage = 'definitions/events/default',
 	definitionsSearchPage = 'definitions/search',
 	eventAnalysisPage = 'event-analysis',
 	eventAttributesPage = 'definitions/event-attributes/global',

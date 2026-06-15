@@ -290,19 +290,6 @@ public class LayoutSetLocalServiceImpl extends LayoutSetLocalServiceBaseImpl {
 				layoutSetPrototypeUuid = layoutSet.getLayoutSetPrototypeUuid();
 			}
 
-			if (!layoutSetPrototypeUuid.equals(
-					layoutSet.getLayoutSetPrototypeUuid())) {
-
-				UnicodeProperties unicodeProperties =
-					layoutSet.getSettingsProperties();
-
-				unicodeProperties.remove(Sites.LAST_MERGE_TIME);
-				unicodeProperties.remove(Sites.LAST_RESET_TIME);
-				unicodeProperties.remove(Sites.LAST_MERGE_VERSION);
-
-				layoutSet.setSettingsProperties(unicodeProperties);
-			}
-
 			layoutSet.setLayoutSetPrototypeUuid(layoutSetPrototypeUuid);
 
 			if (Validator.isNull(layoutSetPrototypeUuid)) {
@@ -333,6 +320,16 @@ public class LayoutSetLocalServiceImpl extends LayoutSetLocalServiceBaseImpl {
 				layoutSetPrototypeLinkEnabled);
 
 			_layoutSetBranchPersistence.update(layoutSetBranch);
+		}
+
+		String previousLayoutSetPrototypeUuid =
+			layoutSet.getLayoutSetPrototypeUuid();
+
+		if (!layoutSetPrototypeLinkEnabled ||
+			Validator.isNotNull(previousLayoutSetPrototypeUuid) ||
+			Validator.isNull(layoutSetPrototypeUuid)) {
+
+			return;
 		}
 
 		try {

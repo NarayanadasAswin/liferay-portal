@@ -94,7 +94,9 @@ export default function PortletDataControl({
 		description,
 		indeterminate: !!value && !selected,
 		label: control.label,
-		labelClassName: topLevel ? 'font-weight-semi-bold' : '',
+		labelClassName: topLevel
+			? 'font-weight-semi-bold'
+			: 'font-weight-normal',
 		onToggle: () =>
 			onChange(selected ? undefined : getInitialSelection(control)),
 		selected,
@@ -185,6 +187,7 @@ function PortletDataHandlerPanel({
 											rowProps.label
 										)
 							}
+							className="font-weight-semi-bold"
 							displayType="link"
 							size="sm"
 						>

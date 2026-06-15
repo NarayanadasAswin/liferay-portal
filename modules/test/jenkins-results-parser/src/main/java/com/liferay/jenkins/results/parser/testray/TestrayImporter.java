@@ -266,8 +266,8 @@ public class TestrayImporter {
 				getTestrayProductVersion(testBaseDir);
 
 			if ((testrayBuildID != null) && testrayBuildID.matches("\\d+")) {
-				testrayBuild = testrayRoutine.getTestrayBuildByID(
-					Long.parseLong(testrayBuildID));
+				testrayBuild = TestrayFactory.newTestrayBuild(
+					testrayRoutine, Long.parseLong(testrayBuildID));
 			}
 
 			String testrayBuildName = Environment.get("TESTRAY_BUILD_NAME");
@@ -286,8 +286,8 @@ public class TestrayImporter {
 			if ((testrayBuild == null) && (testrayBuildID != null) &&
 				testrayBuildID.matches("\\d+")) {
 
-				testrayBuild = testrayRoutine.getTestrayBuildByID(
-					Long.parseLong(testrayBuildID));
+				testrayBuild = TestrayFactory.newTestrayBuild(
+					testrayRoutine, Long.parseLong(testrayBuildID));
 			}
 
 			testrayBuildName = _getBuildParameter("TESTRAY_BUILD_NAME");
@@ -310,8 +310,8 @@ public class TestrayImporter {
 				if ((testrayBuildID != null) &&
 					testrayBuildID.matches("\\d+")) {
 
-					testrayBuild = testrayRoutine.getTestrayBuildByID(
-						Long.parseLong(testrayBuildID));
+					testrayBuild = TestrayFactory.newTestrayBuild(
+						testrayRoutine, Long.parseLong(testrayBuildID));
 				}
 			}
 
@@ -993,23 +993,27 @@ public class TestrayImporter {
 				testBaseDir = axisTestClassGroup.getTestBaseDir();
 			}
 
-			_recordAppServerTestrayCaseResult(
-				job, PersistentResource.Type.ASAH_BUNDLE, testBaseDir);
-			_recordAppServerTestrayCaseResult(
-				job, PersistentResource.Type.FARO_BUNDLE, testBaseDir);
-			_recordAppServerTestrayCaseResult(
-				job, PersistentResource.Type.PORTAL_BUNDLE, testBaseDir);
-			_recordTopLevelTestrayCaseResult(job, testBaseDir);
+			TestrayCaseResult topLevelTestrayCaseResult =
+				_recordTopLevelTestrayCaseResult(job, testBaseDir);
 
-			for (final AxisTestClassGroup axisTestClassGroup :
-					axisTestClassGroups) {
+			_recordAppServerTestrayCaseResult(
+				job, PersistentResource.Type.ASAH_BUNDLE, testBaseDir,
+				topLevelTestrayCaseResult);
+			_recordAppServerTestrayCaseResult(
+				job, PersistentResource.Type.FARO_BUNDLE, testBaseDir,
+				topLevelTestrayCaseResult);
+			_recordAppServerTestrayCaseResult(
+				job, PersistentResource.Type.PORTAL_BUNDLE, testBaseDir,
+				topLevelTestrayCaseResult);
 
+			for (AxisTestClassGroup axisTestClassGroup : axisTestClassGroups) {
 				callables.add(
 					new Callable<Void>() {
 
 						@Override
 						public Void call() throws Exception {
-							_recordAxisTestClassGroup(axisTestClassGroup);
+							_recordAxisTestClassGroup(
+								axisTestClassGroup, topLevelTestrayCaseResult);
 
 							return null;
 						}
@@ -1400,7 +1404,7 @@ public class TestrayImporter {
 
 	private TestrayCaseResult _recordAppServerTestrayCaseResult(
 		Job job, PersistentResource.Type persistentResourceType,
-		File testBaseDir) {
+		File testBaseDir, TestrayCaseResult topLevelTestrayCaseResult) {
 
 		TestrayBuild testrayBuild = getTestrayBuild(testBaseDir);
 
@@ -1417,6 +1421,9 @@ public class TestrayImporter {
 			return null;
 		}
 
+		appServerBundleStandaloneBuildTestrayCaseResult.
+			setParentTestrayCaseResult(topLevelTestrayCaseResult);
+
 		appServerBundleStandaloneBuildTestrayCaseResult.recordTestrayCaseResult(
 			job);
 
@@ -1424,7 +1431,8 @@ public class TestrayImporter {
 	}
 
 	private void _recordAxisTestClassGroup(
-		AxisTestClassGroup axisTestClassGroup) {
+		AxisTestClassGroup axisTestClassGroup,
+		TestrayCaseResult topLevelTestrayCaseResult) {
 
 		Job job = axisTestClassGroup.getJob();
 
@@ -1487,6 +1495,9 @@ public class TestrayImporter {
 			TestrayFactory.newBuildTestrayCaseResult(
 				axisTestClassGroup, testrayBuild, _topLevelBuildReport);
 
+		buildTestrayCaseResult.setParentTestrayCaseResult(
+			topLevelTestrayCaseResult);
+
 		buildTestrayCaseResult.setTestrayRun(testrayRun);
 
 		testrayCaseResults.add(buildTestrayCaseResult);
@@ -1504,6 +1515,8 @@ public class TestrayImporter {
 			if (!JenkinsResultsParserUtil.isNullOrEmpty(
 					portalLogBatchBuildTestrayCaseResult.getErrors())) {
 
+				portalLogBatchBuildTestrayCaseResult.setParentTestrayCaseResult(
+					buildTestrayCaseResult);
 				portalLogBatchBuildTestrayCaseResult.setTestrayRun(testrayRun);
 
 				testrayCaseResults.add(portalLogBatchBuildTestrayCaseResult);
@@ -1515,6 +1528,8 @@ public class TestrayImporter {
 						axisTestClassGroup, testClass, testrayBuild,
 						_topLevelBuildReport);
 
+				testClassTestrayCaseResult.setParentTestrayCaseResult(
+					buildTestrayCaseResult);
 				testClassTestrayCaseResult.setTestrayRun(testrayRun);
 
 				testrayCaseResults.add(testClassTestrayCaseResult);
@@ -1530,6 +1545,8 @@ public class TestrayImporter {
 							axisTestClassGroup, testClass, testClassMethod,
 							testrayBuild, _topLevelBuildReport);
 
+					testClassMethodTestrayCaseResult.setParentTestrayCaseResult(
+						buildTestrayCaseResult);
 					testClassMethodTestrayCaseResult.setTestrayRun(testrayRun);
 
 					testrayCaseResults.add(testClassMethodTestrayCaseResult);

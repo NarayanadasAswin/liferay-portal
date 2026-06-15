@@ -56,6 +56,21 @@ public class TestrayBuild implements Comparable<TestrayBuild> {
 		"dateModified", "dueStatus { key name }", "errors", "id", "startDate"
 	};
 
+	public static long getID(URL testrayBuildURL) {
+		if (testrayBuildURL == null) {
+			return 0;
+		}
+
+		Matcher matcher = _testrayBuildURLPattern.matcher(
+			String.valueOf(testrayBuildURL));
+
+		if (!matcher.find()) {
+			return 0;
+		}
+
+		return Long.parseLong(matcher.group("buildID"));
+	}
+
 	public int compareTo(TestrayBuild testrayBuild) {
 		if (testrayBuild == null) {
 			throw new NullPointerException("Testray build is null");
@@ -481,6 +496,18 @@ public class TestrayBuild implements Comparable<TestrayBuild> {
 	protected TestrayBuild(TestrayServer testrayServer, JSONObject jsonObject) {
 		_testrayServer = testrayServer;
 		_jsonObject = jsonObject;
+
+		JSONObject projectJSONObject = jsonObject.getJSONObject(
+			"projectToBuilds");
+
+		_testrayProject = testrayServer.getTestrayProjectByID(
+			projectJSONObject.getLong("id"));
+
+		JSONObject routineJSONObject = jsonObject.getJSONObject(
+			"routineToBuilds");
+
+		_testrayRoutine = _testrayProject.getTestrayRoutineByID(
+			routineJSONObject.getLong("id"));
 	}
 
 	protected TestrayBuild(URL url) {
@@ -601,7 +628,7 @@ public class TestrayBuild implements Comparable<TestrayBuild> {
 	private Matcher _testrayAttachmentURLMatcher;
 	private TestrayProductVersion _testrayProductVersion;
 	private TestrayProject _testrayProject;
-	private TestrayRoutine _testrayRoutine;
+	private final TestrayRoutine _testrayRoutine;
 	private List<TestrayRun> _testrayRuns;
 	private final TestrayServer _testrayServer;
 	private TopLevelBuildReport _topLevelBuildReport;
