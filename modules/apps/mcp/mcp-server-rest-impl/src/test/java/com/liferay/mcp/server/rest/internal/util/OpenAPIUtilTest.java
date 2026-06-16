@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.liferay.mcp.server.rest.dto.v1_0.Tool;
 import com.liferay.mcp.server.rest.dto.v1_0.ToolSummary;
+import com.liferay.petra.string.StringBundler;
 import com.liferay.portal.kernel.json.JSONFactoryUtil;
 import com.liferay.portal.kernel.json.JSONObject;
 import com.liferay.portal.kernel.json.JSONUtil;
@@ -93,6 +94,11 @@ public class OpenAPIUtilTest {
 				"itemId", "123"
 			),
 			"patchItem");
+		_testGetOptions(
+			"{}", "application/json", Http.Method.POST,
+			"http://localhost/test/v1.0/items",
+			JSONUtil.put("body", JSONFactoryUtil.createJSONObject()),
+			"postItem");
 
 		String fileContent = RandomTestUtil.randomString();
 		String fileName = RandomTestUtil.randomString();
@@ -165,6 +171,20 @@ public class OpenAPIUtilTest {
 		Assert.assertEquals("true", parts.get("boolean"));
 		Assert.assertEquals("1", parts.get("integer"));
 		Assert.assertEquals(fileContent, parts.get("string"));
+
+		AssertUtils.assertFailure(
+			IllegalArgumentException.class,
+			StringBundler.concat(
+				"The \"postItem\" tool requires the request payload nested ",
+				"under a \"body\" property. Pass any path or query parameters ",
+				"as siblings of \"body\" rather than flattening the payload ",
+				"into the input map."),
+			() -> OpenAPIUtil.getOptions(
+				"http://localhost/test",
+				JSONUtil.put(
+					RandomTestUtil.randomString(),
+					RandomTestUtil.randomString()),
+				_openAPIJSONObject, "postItem"));
 	}
 
 	@Test
@@ -179,9 +199,6 @@ public class OpenAPIUtilTest {
 			() -> OpenAPIUtil.getTool(
 				JSONFactoryUtil.createJSONObject(),
 				RandomTestUtil.randomString()));
-		AssertUtils.assertFailure(
-			IllegalArgumentException.class, "Request body has no \"content\"",
-			() -> _getInputSchema(_openAPIJSONObject, "postNoContent"));
 		AssertUtils.assertFailure(
 			IllegalArgumentException.class, "Request body has no content",
 			() -> _getInputSchema(_openAPIJSONObject, "postEmptyContent"));
@@ -204,9 +221,18 @@ public class OpenAPIUtilTest {
 			"POST /v1.0/binaries", "post_test_v1.0_binaries.json",
 			"postBinary");
 		_testGetTool(
+			"POST /v1.0/described", "post_test_v1.0_described.json",
+			"postDescribed");
+		_testGetTool(
 			"POST /v1.0/items", "post_test_v1.0_items.json", "postItem");
 		_testGetTool(
+			"POST /v1.0/no-content", "post_test_v1.0_no-content.json",
+			"postNoContent");
+		_testGetTool(
 			"POST /v1.0/parents", "post_test_v1.0_parents.json", "postParent");
+		_testGetTool(
+			"POST /v1.0/undescribed", "post_test_v1.0_undescribed.json",
+			"postUndescribed");
 		_testGetTool(
 			"POST /v1.0/uploads", "post_test_v1.0_uploads.json", "postUpload");
 		_testGetTool(
@@ -219,33 +245,37 @@ public class OpenAPIUtilTest {
 		List<ToolSummary> toolSummaries = OpenAPIUtil.getToolSummaries(
 			_openAPIJSONObject);
 
-		Assert.assertEquals(toolSummaries.toString(), 12, toolSummaries.size());
+		Assert.assertEquals(toolSummaries.toString(), 14, toolSummaries.size());
 		_assertToolSummary(
-			toolSummaries.get(0), "This is the description", "getItem");
+			"POST /v1.0/described", "postDescribed", toolSummaries.get(0));
 		_assertToolSummary(
-			toolSummaries.get(1), "PATCH /v1.0/items/{itemId}", "patchItem");
+			"POST /v1.0/undescribed", "postUndescribed", toolSummaries.get(1));
 		_assertToolSummary(
-			toolSummaries.get(2), "PUT /v1.0/items/{itemId}", "putItem");
+			"This is the description", "getItem", toolSummaries.get(2));
 		_assertToolSummary(
-			toolSummaries.get(3), "POST /v1.0/binaries", "postBinary");
+			"PATCH /v1.0/items/{itemId}", "patchItem", toolSummaries.get(3));
 		_assertToolSummary(
-			toolSummaries.get(4), "POST /v1.0/empty-content",
-			"postEmptyContent");
+			"PUT /v1.0/items/{itemId}", "putItem", toolSummaries.get(4));
 		_assertToolSummary(
-			toolSummaries.get(5), "POST /v1.0/no-content", "postNoContent");
+			"POST /v1.0/binaries", "postBinary", toolSummaries.get(5));
 		_assertToolSummary(
-			toolSummaries.get(6), "POST /v1.0/parents", "postParent");
+			"POST /v1.0/empty-content", "postEmptyContent",
+			toolSummaries.get(6));
 		_assertToolSummary(
-			toolSummaries.get(7), "POST /v1.0/uploads", "postUpload");
+			"POST /v1.0/no-content", "postNoContent", toolSummaries.get(7));
 		_assertToolSummary(
-			toolSummaries.get(8),
-			"This is the summary. This is the description", "getItems");
+			"POST /v1.0/parents", "postParent", toolSummaries.get(8));
 		_assertToolSummary(
-			toolSummaries.get(9), "POST /v1.0/items", "postItem");
+			"POST /v1.0/uploads", "postUpload", toolSummaries.get(9));
 		_assertToolSummary(
-			toolSummaries.get(10), "POST /v1.0/no-schema", "postNoSchema");
+			"This is the summary. This is the description", "getItems",
+			toolSummaries.get(10));
 		_assertToolSummary(
-			toolSummaries.get(11), "This is the summary", "getItemsPage");
+			"POST /v1.0/items", "postItem", toolSummaries.get(11));
+		_assertToolSummary(
+			"POST /v1.0/no-schema", "postNoSchema", toolSummaries.get(12));
+		_assertToolSummary(
+			"This is the summary", "getItemsPage", toolSummaries.get(13));
 
 		AssertUtils.assertFailure(
 			IllegalArgumentException.class,
@@ -264,8 +294,8 @@ public class OpenAPIUtilTest {
 	}
 
 	private void _assertToolSummary(
-		ToolSummary toolSummary, String expectedDescription,
-		String expectedName) {
+		String expectedDescription, String expectedName,
+		ToolSummary toolSummary) {
 
 		Assert.assertEquals(expectedDescription, toolSummary.getDescription());
 		Assert.assertEquals(expectedName, toolSummary.getName());
@@ -301,6 +331,8 @@ public class OpenAPIUtilTest {
 		else {
 			Assert.assertEquals(expectedBody, body.getContent());
 			Assert.assertEquals(expectedContentType, body.getContentType());
+			Assert.assertEquals(
+				expectedContentType, options.getHeader("Content-Type"));
 		}
 
 		Assert.assertNull(options.getFileParts());

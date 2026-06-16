@@ -6,19 +6,21 @@
 package com.liferay.site.cmp.site.initializer.internal.frontend.data.set.view.table.test;
 
 import com.liferay.arquillian.extension.junit.bridge.junit.Arquillian;
+import com.liferay.frontend.data.set.view.table.FDSTableSchemaField;
 import com.liferay.portal.kernel.test.rule.AggregateTestRule;
 import com.liferay.portal.test.rule.FeatureFlag;
 import com.liferay.portal.test.rule.FeatureFlags;
 import com.liferay.portal.test.rule.LiferayIntegrationTestRule;
 import com.liferay.portal.test.rule.PermissionCheckerMethodTestRule;
 
+import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
 /**
- * @author Nícolas Moura
+ * @author Jhosseph Gonzalez
  */
 @FeatureFlags(
 	featureFlags = {@FeatureFlag("LPD-17564"), @FeatureFlag("LPD-58677")}
@@ -48,9 +50,14 @@ public class WorkflowTaskSectionTableFDSViewTest
 		assertFDSTableSchemaField(
 			null, "dueDateTableCellRenderer", "due-date", "dueDate");
 		assertFDSTableSchemaField(
-			null, "workflowStateTableCellRenderer", "state-status", "state");
+			null, "workflowStateTableCellRenderer", "status", "state");
 		assertFDSTableSchemaField(
 			null, "dateTime", "last-activity-date", "dateModified");
+
+		FDSTableSchemaField fdsTableSchemaField = fdsTableSchemaFieldsMap.get(
+			"dateModified");
+
+		Assert.assertTrue(fdsTableSchemaField.isSortable());
 	}
 
 	@Override

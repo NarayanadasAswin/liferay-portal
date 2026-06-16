@@ -134,11 +134,11 @@ public class JenkinsResultsParserUtil {
 	public static boolean debug;
 
 	public static void addRedactToken(String token) {
-		if (_forbiddenRedactTokens.contains(token)) {
+		if (isNullOrEmpty(token) || _forbiddenRedactTokens.contains(token)) {
 			return;
 		}
 
-		_redactTokens.add(token);
+		_redactTokens.addAll(_getRedactTokenVariants(token));
 	}
 
 	public static void append(File file, String content) throws IOException {
@@ -2668,6 +2668,16 @@ public class JenkinsResultsParserUtil {
 		_jenkinsProperties = new SecureProperties(properties);
 
 		return (Properties)_jenkinsProperties;
+	}
+
+	public static File getJenkinsRepositoryDir() {
+		String cacheDirPath = Environment.get("CACHE_DIR");
+
+		if (cacheDirPath == null) {
+			cacheDirPath = "/opt/dev/projects/github";
+		}
+
+		return new File(cacheDirPath, JENKINS_REPOSITORY_NAME);
 	}
 
 	public static String getJenkinsTempMapURL() {
@@ -6698,17 +6708,13 @@ public class JenkinsResultsParserUtil {
 			return _cacheURL;
 		}
 
-		String cacheDirPath = Environment.get("CACHE_DIR");
+		File jenkinsRepositoryDir = getJenkinsRepositoryDir();
 
-		if (cacheDirPath == null) {
-			cacheDirPath = "/opt/dev/projects/github";
-		}
+		File cacheDir = jenkinsRepositoryDir.getParentFile();
 
-		File cacheDir = new File(cacheDirPath);
+		if (cacheDir.exists() && jenkinsRepositoryDir.exists()) {
+			String cacheDirPath = cacheDir.getPath();
 
-		File cacheRepositoryDir = new File(cacheDir, JENKINS_REPOSITORY_NAME);
-
-		if (cacheDir.exists() && cacheRepositoryDir.exists()) {
 			System.out.println("Using " + cacheDirPath + " for cached files");
 
 			_cacheURL = "file://" + cacheDirPath;
@@ -7242,6 +7248,30 @@ public class JenkinsResultsParserUtil {
 		return "github.message.redact.token[" + index + "]";
 	}
 
+	private static Set<String> _getRedactTokenVariants(String token) {
+		Set<String> redactTokenVariants = new HashSet<>();
+
+		redactTokenVariants.add(token);
+
+		String quotedToken = JSONObject.quote(token);
+
+		redactTokenVariants.add(
+			quotedToken.substring(1, quotedToken.length() - 1));
+
+		try {
+			String urlEncodedToken = URLEncoder.encode(
+				token, StandardCharsets.UTF_8.name());
+
+			redactTokenVariants.add(urlEncodedToken);
+			redactTokenVariants.add(urlEncodedToken.replace("+", "%20"));
+		}
+		catch (UnsupportedEncodingException unsupportedEncodingException) {
+			throw new RuntimeException(unsupportedEncodingException);
+		}
+
+		return redactTokenVariants;
+	}
+
 	private static String _getRyncPath(String hostName, String filePath) {
 		if (hostName == null) {
 			return filePath;
@@ -7273,13 +7303,7 @@ public class JenkinsResultsParserUtil {
 				continue;
 			}
 
-			if (!redactToken.isEmpty()) {
-				_redactTokens.add(redactToken);
-
-				if (redactToken.contains("\\")) {
-					_redactTokens.add(redactToken.replace("\\", "\\\\"));
-				}
-			}
+			addRedactToken(redactToken);
 		}
 	}
 
