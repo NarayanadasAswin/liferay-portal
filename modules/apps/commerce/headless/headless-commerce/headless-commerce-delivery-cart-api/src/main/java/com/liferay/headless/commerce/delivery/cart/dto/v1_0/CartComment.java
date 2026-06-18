@@ -41,6 +41,9 @@ import java.util.function.Supplier;
 	description = "Note attached to a cart. Restricted comments are visible only to staff with the manage-comments permission on the parent cart; unrestricted comments are buyer-visible.",
 	value = "CartComment"
 )
+@io.swagger.v3.oas.annotations.media.Schema(
+	description = "Note attached to a cart. Restricted comments are visible only to staff with the manage-comments permission on the parent cart; unrestricted comments are buyer-visible."
+)
 @JsonFilter("Liferay.Vulcan")
 @XmlRootElement(name = "CartComment")
 public class CartComment implements Serializable {
@@ -370,6 +373,56 @@ public class CartComment implements Serializable {
 	private Supplier<Date> _modifiedDateSupplier;
 
 	@io.swagger.v3.oas.annotations.media.Schema(
+		description = "External reference code of the parent cart. Read-only.",
+		example = "AB-34098-789-N"
+	)
+	public String getOrderExternalReferenceCode() {
+		if (_orderExternalReferenceCodeSupplier != null) {
+			orderExternalReferenceCode =
+				_orderExternalReferenceCodeSupplier.get();
+
+			_orderExternalReferenceCodeSupplier = null;
+		}
+
+		return orderExternalReferenceCode;
+	}
+
+	public void setOrderExternalReferenceCode(
+		String orderExternalReferenceCode) {
+
+		this.orderExternalReferenceCode = orderExternalReferenceCode;
+
+		_orderExternalReferenceCodeSupplier = null;
+	}
+
+	@JsonIgnore
+	public void setOrderExternalReferenceCode(
+		UnsafeSupplier<String, Exception>
+			orderExternalReferenceCodeUnsafeSupplier) {
+
+		_orderExternalReferenceCodeSupplier = () -> {
+			try {
+				return orderExternalReferenceCodeUnsafeSupplier.get();
+			}
+			catch (RuntimeException runtimeException) {
+				throw runtimeException;
+			}
+			catch (Exception exception) {
+				throw new RuntimeException(exception);
+			}
+		};
+	}
+
+	@GraphQLField(
+		description = "External reference code of the parent cart. Read-only."
+	)
+	@JsonProperty(access = JsonProperty.Access.READ_ONLY)
+	protected String orderExternalReferenceCode;
+
+	@JsonIgnore
+	private Supplier<String> _orderExternalReferenceCodeSupplier;
+
+	@io.swagger.v3.oas.annotations.media.Schema(
 		description = "Reference to the parent cart (FK identifier). Read-only.",
 		example = "10130"
 	)
@@ -595,6 +648,22 @@ public class CartComment implements Serializable {
 			sb.append("\"");
 		}
 
+		String orderExternalReferenceCode = getOrderExternalReferenceCode();
+
+		if (orderExternalReferenceCode != null) {
+			if (sb.length() > 1) {
+				sb.append(", ");
+			}
+
+			sb.append("\"orderExternalReferenceCode\": ");
+
+			sb.append("\"");
+
+			sb.append(_escape(orderExternalReferenceCode));
+
+			sb.append("\"");
+		}
+
 		Long orderId = getOrderId();
 
 		if (orderId != null) {
@@ -720,4 +789,4 @@ public class CartComment implements Serializable {
 	private Map<String, Serializable> _extendedProperties;
 
 }
-// LIFERAY-REST-BUILDER-HASH:568376026
+// LIFERAY-REST-BUILDER-HASH:-1757303924

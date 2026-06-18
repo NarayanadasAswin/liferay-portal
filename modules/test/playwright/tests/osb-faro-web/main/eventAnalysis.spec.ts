@@ -16,7 +16,9 @@ import {pagesAdminPagesTest} from '../../../fixtures/pagesAdminPagesTest';
 import dragAndDropElement from '../../../utils/dragAndDropElement';
 import getRandomString from '../../../utils/getRandomString';
 import {selectAndExpectToHaveValue} from '../../../utils/selectAndExpectToHaveValue';
+import {waitForAlert} from '../../../utils/waitForAlert';
 import {pagesPagesTest} from '../../layout-admin-web/main/fixtures/pagesPagesTest';
+import {faroConfig} from './faro.config';
 import {
 	addAttributeFilter,
 	addBooleanFilter,
@@ -33,6 +35,7 @@ import {
 	navigateToACPageViaURL,
 	navigateToACSettingsViaURL,
 } from './utils/navigation';
+import {signInToAnalyticsCloud} from './utils/signInToAnalyticsCloud';
 import {changeTimeFilter} from './utils/time-filter';
 import {
 	selectPaginationItemsPerPage,
@@ -3494,5 +3497,530 @@ test(
 
 			await expect(page.getByRole('cell', {name: 'Sort'})).toHaveCount(3);
 		}
+	}
+);
+
+test(
+	'Vote and comment events appear as default events in Event Analysis',
+	{
+		tag: '@LRAC-11541',
+	},
+	async ({analyticsChannel: channel, page, project}) => {
+		const defaultEventNames = ['VOTE', 'posted'];
+
+		// VOTE (ratings) and posted (comments) are default events that ship
+		// hidden, so show them before checking the Event Analysis picker
+
+		await navigateToACSettingsViaURL({
+			acPage: ACPage.definitionsEventsDefaultPage,
+			page,
+			projectID: project.groupId,
+		});
+
+		try {
+			for (const defaultEventName of defaultEventNames) {
+				await page
+					.getByPlaceholder('Search')
+					.first()
+					.fill(defaultEventName);
+
+				await page.keyboard.press('Enter');
+
+				const row = page.getByRole('row', {name: defaultEventName});
+
+				await row.hover();
+
+				await row.getByRole('button', {name: 'Set to Show'}).click();
+
+				await waitForAlert(
+					page,
+					`Success:${defaultEventName} has been set to show.`,
+					{autoClose: false}
+				);
+			}
+
+			await navigateToACPageViaURL({
+				acPage: ACPage.eventAnalysisPage,
+				channelID: channel.id,
+				page,
+				projectID: project.groupId,
+			});
+
+			await page.getByRole('link', {name: 'Create Analysis'}).click();
+
+			await setEventAnalysisName({
+				eventAnalysisName: `Event Analysis ${getRandomString()}`,
+				page,
+			});
+
+			await page.locator('.event-section-root').getByLabel('Add').click();
+
+			// They appear under the Default tab
+
+			await page
+				.locator('.card-tab')
+				.filter({hasText: 'Default'})
+				.first()
+				.click();
+
+			for (const defaultEventName of defaultEventNames) {
+				await expect(
+					page.getByRole('menuitem', {
+						exact: true,
+						name: defaultEventName,
+					})
+				).toBeVisible();
+			}
+
+			// They are not custom events
+
+			await page
+				.locator('.card-tab')
+				.filter({hasText: 'Custom'})
+				.first()
+				.click();
+
+			for (const defaultEventName of defaultEventNames) {
+				await expect(
+					page.getByRole('menuitem', {
+						exact: true,
+						name: defaultEventName,
+					})
+				).toHaveCount(0);
+			}
+		}
+		finally {
+
+			// Restore the hidden state on the shared project
+
+			await navigateToACSettingsViaURL({
+				acPage: ACPage.definitionsEventsDefaultPage,
+				page,
+				projectID: project.groupId,
+			});
+
+			for (const defaultEventName of defaultEventNames) {
+				await page
+					.getByPlaceholder('Search')
+					.first()
+					.fill(defaultEventName);
+
+				await page.keyboard.press('Enter');
+
+				const row = page.getByRole('row', {name: defaultEventName});
+
+				await row.hover();
+
+				await row.getByRole('button', {name: 'Set to Hide'}).click();
+
+				await page
+					.locator('.confirmation-modal-root')
+					.getByRole('button', {exact: true, name: 'Hide'})
+					.click();
+
+				await waitForAlert(
+					page,
+					`Success:${defaultEventName} set to hide.`,
+					{autoClose: false}
+				);
+			}
+		}
+	}
+);
+
+test(
+	'A member can save an analysis and open one saved by another user',
+	{tag: '@LRAC-10569'},
+	async ({analyticsChannel: channel, apiHelpers, page, project}) => {
+
+		// Seed a custom event with a string and a boolean attribute
+
+		await apiHelpers.jsonWebServicesOSBAsah.createEvents([
+			{
+				applicationId: 'CustomEvent',
+				canonicalUrl: 'https://www.liferay.com',
+				channelId: channel.id,
+				eventDate: new Date().toISOString(),
+				eventId: 'customEvent',
+				properties: [
+					{name: 'category', value: 'wetsuit'},
+					{name: 'like', value: 'true'},
+				],
+				title: 'Liferay',
+				userId: '1',
+			},
+		]);
+
+		await apiHelpers.jsonWebServicesOSBAsah.createEventDefinition([
+			{
+				applicationId: 'CustomEvent',
+				displayName: 'customEvent',
+				eventAttributeDefinitions: [
+					{
+						dataType: 'STRING',
+						displayName: 'category',
+						name: 'category',
+						type: 'LOCAL',
+					},
+					{
+						dataType: 'BOOLEAN',
+						displayName: 'like',
+						name: 'like',
+						type: 'LOCAL',
+					},
+				],
+				name: 'customEvent',
+				type: 'CUSTOM',
+			},
+		]);
+
+		// As the admin, save an analysis carrying a breakdown and a filter
+
+		await navigateToACPageViaURL({
+			acPage: ACPage.eventAnalysisPage,
+			channelID: channel.id,
+			page,
+			projectID: project.groupId,
+		});
+
+		await page.getByRole('link', {name: 'Create Analysis'}).click();
+
+		await setEventAnalysisName({eventAnalysisName: 'Admin Analysis', page});
+
+		await addCustomEvent({customEventName: 'customEvent', page});
+
+		await addBreakdown({breakdownName: 'category', page, tab: 'Event'});
+
+		await addBooleanFilter({attributeName: 'like', page, value: 'true'});
+
+		await changeTimeFilter({page, timeFilterPeriod: 'Last 24 hours'});
+
+		await page
+			.locator('.event-analysis-toolbar-right-content')
+			.getByRole('button', {name: 'Save Analysis'})
+			.click();
+
+		// Sign in as a member (non-admin) user
+
+		await signInToAnalyticsCloud(page, 'corbin.murakami@faro.io');
+
+		try {
+
+			// The member can create and save their own analysis
+
+			await createAndSaveEventAnalysis({
+				channelId: channel.id,
+				eventName: 'customEvent',
+				name: 'Member Analysis',
+				page,
+				projectId: project.groupId,
+			});
+
+			// The member can open the analysis the admin saved
+
+			await navigateToACPageViaURL({
+				acPage: ACPage.eventAnalysisPage,
+				channelID: channel.id,
+				page,
+				projectID: project.groupId,
+			});
+
+			await page.getByRole('link', {name: 'Admin Analysis'}).click();
+
+			// The admin's breakdown, filter and result all render for the member
+
+			await expect(
+				page
+					.locator('.attribute-breakdown-section-root')
+					.getByText('category')
+			).toBeVisible();
+
+			await expect(
+				page.locator('.attribute-filter-section-root').getByText('like')
+			).toBeVisible();
+
+			await expect(
+				page.getByRole('cell').getByText('wetsuit')
+			).toBeVisible();
+		}
+		finally {
+			await signInToAnalyticsCloud(page, faroConfig.user.login);
+		}
+	}
+);
+
+test(
+	'A hidden custom event is removed from the Event Analysis event picker',
+	{tag: '@LRAC-10228'},
+	async ({analyticsChannel: channel, apiHelpers, page, project}) => {
+		const eventName = 'hidden' + getRandomString();
+
+		await apiHelpers.jsonWebServicesOSBAsah.createEvents([
+			{
+				applicationId: 'CustomEvent',
+				canonicalUrl: 'https://www.liferay.com',
+				channelId: channel.id,
+				eventDate: new Date().toISOString(),
+				eventId: eventName,
+				title: 'Liferay',
+				userId: '1',
+			},
+		]);
+
+		await apiHelpers.jsonWebServicesOSBAsah.createEventDefinition([
+			{
+				applicationId: 'CustomEvent',
+				displayName: eventName,
+				name: eventName,
+				type: 'CUSTOM',
+			},
+		]);
+
+		const customEvent = page.getByRole('menuitem', {
+			exact: true,
+			name: eventName,
+		});
+
+		async function openCustomEventPicker() {
+			await navigateToACPageViaURL({
+				acPage: ACPage.eventAnalysisPage,
+				channelID: channel.id,
+				page,
+				projectID: project.groupId,
+			});
+
+			await page.getByRole('link', {name: 'Create Analysis'}).click();
+
+			await page.getByLabel('Add').click();
+
+			await page
+				.locator('.card-tab')
+				.filter({hasText: 'Custom'})
+				.first()
+				.click();
+		}
+
+		// The custom event is offered in the event picker
+
+		await openCustomEventPicker();
+
+		await expect(customEvent).toBeVisible();
+
+		// Hide the custom event from the settings list
+
+		await navigateToACSettingsViaURL({
+			acPage: ACPage.definitionsEventsCustomPage,
+			page,
+			projectID: project.groupId,
+		});
+
+		await page.getByPlaceholder('Search').fill(eventName);
+
+		await page.keyboard.press('Enter');
+
+		await page.getByRole('row', {name: eventName}).hover();
+
+		await page
+			.getByRole('row', {name: eventName})
+			.getByRole('button', {name: 'Set to Hide'})
+			.click();
+
+		await page
+			.locator('.confirmation-modal-root')
+			.getByRole('button', {exact: true, name: 'Hide'})
+			.click();
+
+		await page.getByRole('row', {name: eventName}).hover();
+
+		await expect(
+			page
+				.getByRole('row', {name: eventName})
+				.getByRole('button', {name: 'Set to Show'})
+		).toBeVisible();
+
+		// The hidden custom event is no longer offered in the picker
+
+		await openCustomEventPicker();
+
+		await expect(customEvent).toHaveCount(0);
+	}
+);
+
+test(
+	'Custom events are listed in alphabetical order in the Event Analysis picker',
+	{tag: '@LRAC-10311'},
+	async ({analyticsChannel: channel, apiHelpers, page, project}) => {
+		const token = getRandomString();
+
+		// Seed in an order that differs from the alphabetical order
+
+		const names = [`m${token}`, `a${token}`, `z${token}`];
+
+		for (const name of names) {
+			await apiHelpers.jsonWebServicesOSBAsah.createEvents([
+				{
+					applicationId: 'CustomEvent',
+					canonicalUrl: 'https://www.liferay.com',
+					channelId: channel.id,
+					eventDate: new Date().toISOString(),
+					eventId: name,
+					title: 'Liferay',
+					userId: '1',
+				},
+			]);
+
+			await apiHelpers.jsonWebServicesOSBAsah.createEventDefinition([
+				{
+					applicationId: 'CustomEvent',
+					displayName: name,
+					name,
+					type: 'CUSTOM',
+				},
+			]);
+		}
+
+		await navigateToACPageViaURL({
+			acPage: ACPage.eventAnalysisPage,
+			channelID: channel.id,
+			page,
+			projectID: project.groupId,
+		});
+
+		await page.getByRole('link', {name: 'Create Analysis'}).click();
+
+		await page.getByLabel('Add').click();
+
+		await page
+			.locator('.card-tab')
+			.filter({hasText: 'Custom'})
+			.first()
+			.click();
+
+		// The three seeded events render alphabetically regardless of seed order
+
+		const seededMenuItems = page
+			.getByRole('menuitem')
+			.filter({hasText: token});
+
+		await expect(seededMenuItems).toHaveText([
+			`a${token}`,
+			`m${token}`,
+			`z${token}`,
+		]);
+	}
+);
+
+test(
+	'Reordering the breakdowns re-sorts the Event Analysis result rows',
+	{tag: '@LRAC-10272'},
+	async ({analyticsChannel: channel, apiHelpers, page, project}) => {
+		const token = getRandomString();
+
+		const eventId = 'reorder' + token;
+		const pageAttribute = 'page' + token;
+		const colorAttribute = 'color' + token;
+
+		// Counts give clean percentages (total 10) and group totals with no
+		// ties, so the row order is deterministic for both breakdown orders
+
+		const countsByCombo: Record<string, number> = {
+			'P1|C1': 4,
+			'P1|C2': 3,
+			'P2|C1': 2,
+			'P2|C2': 1,
+		};
+
+		const events = [];
+
+		let userId = 1;
+
+		for (const [combo, count] of Object.entries(countsByCombo)) {
+			const [pageValue, colorValue] = combo.split('|');
+
+			for (let i = 0; i < count; i++) {
+				events.push({
+					applicationId: 'CustomEvent',
+					canonicalUrl: 'https://www.liferay.com',
+					channelId: channel.id,
+					eventDate: new Date().toISOString(),
+					eventId,
+					properties: [
+						{name: pageAttribute, value: pageValue},
+						{name: colorAttribute, value: colorValue},
+					],
+					title: 'Liferay',
+					userId: String(userId++),
+				});
+			}
+		}
+
+		await apiHelpers.jsonWebServicesOSBAsah.createEvents(events);
+
+		await apiHelpers.jsonWebServicesOSBAsah.createEventDefinition([
+			{
+				applicationId: 'CustomEvent',
+				displayName: eventId,
+				eventAttributeDefinitions: [pageAttribute, colorAttribute].map(
+					(name) => ({
+						dataType: 'STRING',
+						displayName: name,
+						name,
+						type: 'LOCAL',
+					})
+				),
+				name: eventId,
+				type: 'CUSTOM',
+			},
+		]);
+
+		await navigateToACPageViaURL({
+			acPage: ACPage.eventAnalysisPage,
+			channelID: channel.id,
+			page,
+			projectID: project.groupId,
+		});
+
+		await page.getByRole('link', {name: 'Create Analysis'}).click();
+
+		await setEventAnalysisName({
+			eventAnalysisName: `Event Analysis ${getRandomString()}`,
+			page,
+		});
+
+		await addCustomEvent({customEventName: eventId, page});
+
+		await addBreakdown({breakdownName: pageAttribute, page, tab: 'Event'});
+
+		await addBreakdown({breakdownName: colorAttribute, page, tab: 'Event'});
+
+		await changeTimeFilter({page, timeFilterPeriod: 'Last 24 hours'});
+
+		const percentSequence = async () =>
+			(await page.getByRole('cell').allInnerTexts())
+				.map((text) => text.trim())
+				.filter((text) => /^\d+%$/.test(text));
+
+		// Grouped by page then color (page totals P1=7, P2=3)
+
+		await expect
+			.poll(percentSequence)
+			.toEqual(['40%', '30%', '20%', '10%']);
+
+		// Move the color breakdown ahead of the page breakdown
+
+		const breakdownChips = page.locator(
+			'.attribute-breakdown-section-root .attribute-chip-container'
+		);
+
+		await dragAndDropElement({
+			dragTarget: breakdownChips.nth(1).locator('.drag-handle'),
+			dropTarget: breakdownChips.nth(0),
+		});
+
+		// Grouped by color then page (color totals C1=6, C2=4): the rows re-sort
+
+		await expect
+			.poll(percentSequence)
+			.toEqual(['40%', '20%', '30%', '10%']);
 	}
 );

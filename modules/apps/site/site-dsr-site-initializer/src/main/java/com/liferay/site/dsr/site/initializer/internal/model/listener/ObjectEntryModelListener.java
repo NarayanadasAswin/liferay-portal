@@ -46,6 +46,7 @@ import com.liferay.portal.kernel.model.ModelListener;
 import com.liferay.portal.kernel.model.Role;
 import com.liferay.portal.kernel.model.User;
 import com.liferay.portal.kernel.model.role.RoleConstants;
+import com.liferay.portal.kernel.repository.model.FileEntry;
 import com.liferay.portal.kernel.repository.model.Folder;
 import com.liferay.portal.kernel.service.ClassNameLocalService;
 import com.liferay.portal.kernel.service.CompanyLocalService;
@@ -62,6 +63,7 @@ import com.liferay.portal.kernel.util.GetterUtil;
 import com.liferay.portal.kernel.util.HashMapBuilder;
 import com.liferay.portal.kernel.util.ListUtil;
 import com.liferay.portal.kernel.util.LocaleUtil;
+import com.liferay.portal.kernel.util.MapUtil;
 import com.liferay.portal.kernel.util.StringUtil;
 import com.liferay.portal.kernel.util.Validator;
 import com.liferay.portal.liveusers.LiveUsers;
@@ -75,7 +77,9 @@ import com.liferay.sites.kernel.util.Sites;
 import java.io.File;
 import java.io.Serializable;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
@@ -114,12 +118,21 @@ public class ObjectEntryModelListener extends BaseModelListener<ObjectEntry> {
 		}
 	}
 
+	@Override
+	public void onAfterUpdate(
+			ObjectEntry originalObjectEntry, ObjectEntry objectEntry)
+		throws ModelListenerException {
+
+		try {
+			_onAfterUpdate(originalObjectEntry, objectEntry);
+		}
+		catch (Exception exception) {
+			throw new ModelListenerException(exception);
+		}
+	}
+
 	private void _copyFileEntries(long[] fileEntryIds, Group group)
 		throws Exception {
-
-		if (ArrayUtil.isEmpty(fileEntryIds)) {
-			return;
-		}
 
 		long folderId = 0;
 
@@ -145,7 +158,23 @@ public class ObjectEntryModelListener extends BaseModelListener<ObjectEntry> {
 			folderId = dlFolder.getFolderId();
 		}
 
+		Map<String, Long> sourceFileEntries = new HashMap<>();
+
 		for (long fileEntryId : fileEntryIds) {
+			FileEntry fileEntry = _dlAppService.getFileEntry(fileEntryId);
+
+			sourceFileEntries.put(fileEntry.getTitle(), fileEntryId);
+		}
+
+		for (FileEntry fileEntry :
+				_dlAppService.getFileEntries(group.getGroupId(), folderId)) {
+
+			if (sourceFileEntries.remove(fileEntry.getTitle()) == null) {
+				_dlAppService.deleteFileEntry(fileEntry.getFileEntryId());
+			}
+		}
+
+		for (long fileEntryId : sourceFileEntries.values()) {
 			_dlAppService.copyFileEntry(
 				fileEntryId, folderId, group.getGroupId(),
 				DLFileEntryTypeConstants.FILE_ENTRY_TYPE_ID_BASIC_DOCUMENT,
@@ -233,10 +262,12 @@ public class ObjectEntryModelListener extends BaseModelListener<ObjectEntry> {
 				_layoutServiceContextHelper.getServiceContextAutoCloseable(
 					company, user)) {
 
-			_copyFileEntries(fileEntryIds, group);
-
 			_importLayouts(parameterMap, false, sourceGroup, group, user);
 			_importLayouts(parameterMap, true, sourceGroup, group, user);
+
+			// Copy file entries after importing layouts
+
+			_copyFileEntries(fileEntryIds, group);
 
 			_updateFragmentEntryLink(group);
 		}
@@ -479,6 +510,63 @@ public class ObjectEntryModelListener extends BaseModelListener<ObjectEntry> {
 		if (group != null) {
 			_groupLocalService.deleteGroup(group);
 		}
+	}
+
+	private void _onAfterUpdate(
+			ObjectEntry originalObjectEntry, ObjectEntry objectEntry)
+		throws Exception {
+
+		ObjectDefinition objectDefinition = objectEntry.getObjectDefinition();
+
+		if (!Objects.equals(
+				objectDefinition.getExternalReferenceCode(), "L_DSR_ROOM") ||
+			(Objects.equals(
+				MapUtil.getString(originalObjectEntry.getValues(), "name"),
+				MapUtil.getString(objectEntry.getValues(), "name")) &&
+			 Objects.equals(
+				 MapUtil.getString(
+					 originalObjectEntry.getValues(), "friendlyURL"),
+				 MapUtil.getString(objectEntry.getValues(), "friendlyURL")))) {
+
+			return;
+		}
+
+		Group group = _groupLocalService.fetchGroup(
+			objectEntry.getCompanyId(),
+			_classNameLocalService.getClassNameId(
+				objectDefinition.getClassName()),
+			objectEntry.getObjectEntryId());
+
+		if (group == null) {
+			return;
+		}
+
+		String name = MapUtil.getString(objectEntry.getValues(), "name");
+
+		String friendlyURL = _getFriendlyURL(
+			MapUtil.getString(objectEntry.getValues(), "friendlyURL", name));
+
+		Map<Locale, String> nameMap = group.getNameMap();
+
+		if (Objects.equals(friendlyURL, group.getFriendlyURL()) &&
+			Objects.equals(name, nameMap.get(LocaleUtil.getDefault()))) {
+
+			return;
+		}
+
+		nameMap.put(LocaleUtil.getDefault(), name);
+
+		ServiceContext serviceContext = new ServiceContext();
+
+		serviceContext.setCompanyId(objectEntry.getCompanyId());
+		serviceContext.setUserId(objectEntry.getUserId());
+
+		_groupLocalService.updateGroup(
+			group.getGroupId(), group.getParentGroupId(), nameMap,
+			group.getDescriptionMap(), group.getType(), group.getTypeSettings(),
+			group.isManualMembership(), group.getMembershipRestriction(),
+			friendlyURL, group.isInheritContent(), group.isActive(),
+			serviceContext);
 	}
 
 	private void _patchAnalyticsChannel(

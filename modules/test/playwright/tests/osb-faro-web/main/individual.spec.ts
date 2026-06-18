@@ -7,8 +7,7 @@ import {expect, mergeTests} from '@playwright/test';
 
 import {apiHelpersTest} from '../../../fixtures/apiHelpersTest';
 import {featureFlagsTest} from '../../../fixtures/featureFlagsTest';
-import {isolatedChannelTest} from '../../../fixtures/isolatedChannelTest';
-import {isolatedSiteTest} from '../../../fixtures/isolatedSiteTest';
+import {isolatedDXPSyncedChannelTest} from '../../../fixtures/isolatedDXPSyncedChannelTest';
 import {loginAnalyticsCloudTest} from '../../../fixtures/loginAnalyticsCloudTest';
 import {loginTest} from '../../../fixtures/loginTest';
 import getRandomString from '../../../utils/getRandomString';
@@ -17,18 +16,20 @@ import getFragmentDefinition from '../../layout-content-page-editor-web/main/uti
 import getPageDefinition from '../../layout-content-page-editor-web/main/utils/getPageDefinition';
 import {
 	addBreakdownByAttribute,
+	goToDistributionTabAndSelectAttribute,
 	viewBreakdownRechartsData,
 } from './utils/distribution';
 import {createIndividuals, generateIndividual} from './utils/individuals';
 import {ACPage, navigateToACPageViaURL} from './utils/navigation';
+import {changeTimeFilter} from './utils/time-filter';
+import {viewPaginationResults} from './utils/utils';
 
 export const test = mergeTests(
 	apiHelpersTest,
 	featureFlagsTest({
 		'LPS-178052': {enabled: true},
 	}),
-	isolatedChannelTest,
-	isolatedSiteTest,
+	isolatedDXPSyncedChannelTest,
 	loginAnalyticsCloudTest(),
 	loginTest()
 );
@@ -58,12 +59,23 @@ test(
 	{
 		tag: '@Legacy',
 	},
-	async ({analyticsChannel: channel, apiHelpers, page, project}) => {
+	async ({
+		analyticsChannel: channel,
+		apiHelpers,
+		dxpSyncedAnalyticsChannel,
+		page,
+		project,
+	}) => {
+		const {dataSourceId} = dxpSyncedAnalyticsChannel;
+
 		const individualName = 'ac';
 		const individuals = [
-			generateIndividual({
-				name: individualName,
-			}),
+			{
+				...generateIndividual({
+					name: individualName,
+				}),
+				dataSourceId,
+			},
 		];
 
 		await test.step('Create new Individual', async () => {
@@ -79,6 +91,7 @@ test(
 				applicationId: 'Page',
 				canonicalUrl: 'https://www.liferay.com',
 				channelId: channel.id,
+				dataSourceId,
 				eventDate: date.toISOString(),
 				eventId: 'pageViewed',
 				title: 'Liferay',
@@ -135,12 +148,23 @@ test(
 	{
 		tag: '@Legacy',
 	},
-	async ({analyticsChannel: channel, apiHelpers, page, project}) => {
+	async ({
+		analyticsChannel: channel,
+		apiHelpers,
+		dxpSyncedAnalyticsChannel,
+		page,
+		project,
+	}) => {
+		const {dataSourceId} = dxpSyncedAnalyticsChannel;
+
 		const individualName = 'ac';
 		const individuals = [
-			generateIndividual({
-				name: individualName,
-			}),
+			{
+				...generateIndividual({
+					name: individualName,
+				}),
+				dataSourceId,
+			},
 		];
 
 		await test.step('Create new Individual', async () => {
@@ -156,6 +180,7 @@ test(
 				applicationId: 'Page',
 				canonicalUrl: 'https://www.liferay.com',
 				channelId: channel.id,
+				dataSourceId,
 				eventDate: date.toISOString(),
 				eventId: 'pageViewed',
 				title: 'Liferay',
@@ -213,7 +238,15 @@ test(
 	{
 		tag: '@LRAC-8911',
 	},
-	async ({analyticsChannel: channel, apiHelpers, page, project}) => {
+	async ({
+		analyticsChannel: channel,
+		apiHelpers,
+		dxpSyncedAnalyticsChannel,
+		page,
+		project,
+	}) => {
+		const {dataSourceId} = dxpSyncedAnalyticsChannel;
+
 		const individualId = getRandomString();
 		const individualName = 'enriched' + getRandomString();
 
@@ -229,6 +262,7 @@ test(
 					applicationId: 'Page',
 					canonicalUrl: 'https://www.liferay.com',
 					channelId: channel.id,
+					dataSourceId,
 					eventDate: date.toISOString(),
 					eventId: 'pageViewed',
 					title: 'My Page',
@@ -263,7 +297,9 @@ test(
 		await test.step('Create a known individual record for the anonymous identity', async () => {
 			await createIndividuals({
 				apiHelpers,
-				individuals: [{id: individualId, name: individualName}],
+				individuals: [
+					{dataSourceId, id: individualId, name: individualName},
+				],
 			});
 
 			await apiHelpers.jsonWebServicesOSBAsah.createEvents([
@@ -271,6 +307,7 @@ test(
 					applicationId: 'Page',
 					canonicalUrl: 'https://www.liferay.com',
 					channelId: channel.id,
+					dataSourceId,
 					eventDate: new Date().toISOString(),
 					eventId: 'pageViewed',
 					title: 'My Page',
@@ -321,3 +358,153 @@ test(
 		}
 	}
 );
+
+test(
+	'Distribution chart member count matches the details sidebar',
+	{
+		tag: '@LRAC-11825',
+	},
+	async ({
+		analyticsChannel: channel,
+		apiHelpers,
+		dxpSyncedAnalyticsChannel,
+		page,
+		project,
+	}) => {
+		const {dataSourceId} = dxpSyncedAnalyticsChannel;
+
+		const runId = getRandomString();
+
+		// Two individuals share the givenName "user1"; a third has a distinct one
+
+		const individuals = [
+			{
+				...generateIndividual({name: 'user1a' + runId}),
+				dataSourceId,
+				firstName: 'user1',
+			},
+			{
+				...generateIndividual({name: 'user1b' + runId}),
+				dataSourceId,
+				firstName: 'user1',
+			},
+			{
+				...generateIndividual({name: 'single' + runId}),
+				dataSourceId,
+				firstName: 'single',
+			},
+		];
+
+		await createIndividuals({apiHelpers, individuals});
+
+		const date = new Date();
+
+		await apiHelpers.jsonWebServicesOSBAsah.createEvents(
+			individuals.map((individual) => ({
+				applicationId: 'Page',
+				canonicalUrl: 'https://www.liferay.com',
+				channelId: channel.id,
+				dataSourceId,
+				eventDate: date.toISOString(),
+				eventId: 'pageViewed',
+				title: 'My Page',
+				userId: individual.id,
+			}))
+		);
+
+		await apiHelpers.jsonWebServicesOSBAsah.createSessions(
+			individuals.map((individual) => ({
+				channelId: channel.id,
+				id: individual.id,
+				sessionEnd: date.toISOString(),
+				sessionStart: date.toISOString(),
+				userId: individual.id,
+			}))
+		);
+
+		await navigateToACPageViaURL({
+			acPage: ACPage.individualPage,
+			channelID: channel.id,
+			page,
+			projectID: project.groupId,
+		});
+
+		await goToDistributionTabAndSelectAttribute({
+			attributeName: 'givenName',
+			page,
+		});
+
+		// The "user1" bar groups two individuals; clicking it lists both
+
+		await page.locator('.recharts-bar-rectangle').first().click();
+
+		await viewPaginationResults({
+			page,
+			paginationResults: 'Showing 1 to 2 of 2 entries.',
+		});
+
+		// The "single" bar groups a single individual
+
+		await page.locator('.recharts-bar-rectangle').nth(1).click();
+
+		await viewPaginationResults({
+			page,
+			paginationResults: 'Showing 1 to 1 of 1 entry.',
+		});
+	}
+);
+
+test('Active Individuals card is empty for a custom range with no activity', async ({
+	analyticsChannel: channel,
+	apiHelpers,
+	dxpSyncedAnalyticsChannel,
+	page,
+	project,
+}) => {
+	const {dataSourceId} = dxpSyncedAnalyticsChannel;
+
+	const individual = {
+		...generateIndividual({name: 'empty' + getRandomString()}),
+		dataSourceId,
+	};
+
+	const date = new Date();
+
+	await createIndividuals({apiHelpers, individuals: [individual]});
+
+	await apiHelpers.jsonWebServicesOSBAsah.createEvents([
+		{
+			applicationId: 'Page',
+			canonicalUrl: 'https://www.liferay.com',
+			channelId: channel.id,
+			dataSourceId,
+			eventDate: date.toISOString(),
+			eventId: 'pageViewed',
+			title: 'My Page',
+			userId: individual.id,
+		},
+	]);
+
+	await navigateToACPageViaURL({
+		acPage: ACPage.individualPage,
+		channelID: channel.id,
+		page,
+		projectID: project.groupId,
+	});
+
+	// Pick a custom range in the previous month, which holds no seeded activity
+
+	await changeTimeFilter({page, timeFilterPeriod: 'Custom Range'});
+
+	await page.getByTestId('previous-month').first().click();
+
+	await page.getByRole('button', {exact: true, name: '10'}).first().click();
+
+	await page.getByRole('button', {exact: true, name: '15'}).first().click();
+
+	// The Active Individuals card shows its empty state instead of a chart
+
+	await expect(
+		page.getByText('There is no data for active individuals.')
+	).toBeVisible();
+});

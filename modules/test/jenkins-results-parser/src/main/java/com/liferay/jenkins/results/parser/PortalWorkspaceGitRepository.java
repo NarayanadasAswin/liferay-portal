@@ -12,6 +12,7 @@ import java.io.File;
 import java.io.IOException;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -129,6 +130,51 @@ public class PortalWorkspaceGitRepository extends BaseWorkspaceGitRepository {
 	public String getPortalPrivateRepositoryDirName() {
 		return JenkinsResultsParserUtil.getGitDirectoryName(
 			"liferay-portal-ee", getUpstreamBranchName() + "-private");
+	}
+
+	public void setUpPortalProfile() {
+		String setupProfileDXPBranchNamesString = null;
+
+		try {
+			setupProfileDXPBranchNamesString =
+				JenkinsResultsParserUtil.getBuildProperty(
+					"portal.setup.profile.dxp.branch.names");
+
+			if (JenkinsResultsParserUtil.isNullOrEmpty(
+					setupProfileDXPBranchNamesString)) {
+
+				return;
+			}
+		}
+		catch (IOException ioException) {
+			return;
+		}
+
+		List<String> setupProfileDXPBranchNames = Arrays.asList(
+			setupProfileDXPBranchNamesString.split(","));
+
+		if (!setupProfileDXPBranchNames.contains(getUpstreamBranchName())) {
+			return;
+		}
+
+		Retryable<Object> retryable = new Retryable<Object>(true, 2, 5, true) {
+
+			@Override
+			public Object execute() {
+				try {
+					AntUtil.callTarget(
+						getDirectory(), "build.xml", "setup-profile-dxp");
+				}
+				catch (AntException antException) {
+					throw new RuntimeException(antException);
+				}
+
+				return null;
+			}
+
+		};
+
+		retryable.executeWithRetries();
 	}
 
 	public void setUpTCKHome() {

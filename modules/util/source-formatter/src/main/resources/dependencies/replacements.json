@@ -5531,6 +5531,27 @@
 	},
 	{
 		"classNames": [
+			"ParamAndPropertyAncestorTagImpl"
+		],
+		"classStructurePattern": true,
+		"issueKey": "LPD-61579",
+		"methodsToFormat": [
+			{
+				"from": "regex:FileAvailabilityUtil\\.isAvailable\\(servletContext, (?<page>[^)]+)\\)",
+				"to": "FileAvailabilityUtil.isAvailable(getServletContext(), ${page})"
+			},
+			{
+				"from": "servletContext = ServletContextUtil.getServletContext()",
+				"to": "setServletContext(ServletContextUtil.getServletContext())"
+			},
+			{
+				"from": "setAttributes(request)",
+				"to": "setAttributes(getRequest())"
+			}
+		]
+	},
+	{
+		"classNames": [
 			"JournalArticleLocalService",
 			"JournalArticleLocalServiceUtil",
 			"JournalArticleService",
@@ -5747,6 +5768,27 @@
 			"com.liferay.petra.string.StringPool"
 		],
 		"to": "updateStructure(StringPool.BLANK, param#0#, param#1#, param#6#.getScopeGroupId(), param#2#, DDMStructureLocalServiceUtil.getStructure(param#1#).getClassNameId(), DDMStructureLocalServiceUtil.getStructure(param#1#).getStructureKey(), param#3#, param#4#, param#5#, param#6#)"
+	},
+	{
+		"classNames": [
+			"Language",
+			"LanguageUtil"
+		],
+		"from": "get(PageContext paramName, String paramName)",
+		"hasMessage": true,
+		"issueKey": "LPD-70233",
+		"validExtensions": [
+			"java"
+		]
+	},
+	{
+		"from": "regex:(?<class>Language(?:Util)?)\\.(?<method>format|get)\\(pageContext,",
+		"issueKey": "LPD-70233",
+		"to": "${class}.${method}(request,",
+		"validExtensions": [
+			"jsp",
+			"jspf"
+		]
 	},
 	{
 		"classNames": [

@@ -4,5 +4,9 @@
  */
 
 module.exports = {
-	main: './src/main/resources/META-INF/resources/index.ts',
+	main: './src/main/resources/META-INF/resources/main/index.ts',
+	submodules: {
+		'custom-attributes':
+			'./src/main/resources/META-INF/resources/custom-attributes/index.ts',
+	},
 };
