@@ -93,6 +93,8 @@ cd <module-root> && yarn test
 cd <module-root> && yarn test <test-file-path>
 ```
 
+Read `.claude/rules/jest-testing.md` before creating a frontend unit test.
+
 #### Integration Tests
 
 Integration tests are the default for anything that touches services, persistence, or the portal runtime.

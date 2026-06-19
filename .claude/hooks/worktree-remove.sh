@@ -24,9 +24,10 @@ function main {
 		local tomcat_dir
 
 		if bundles_dir="$(_find_app_server_parent_dir "${worktree_path}")" &&
+		   [[ ${bundles_dir} == "${worktree_path}/"* ]] &&
 		   tomcat_dir="$(_find_tomcat_dir "${bundles_dir}")"
 		then
-			pkill --full --signal=KILL "catalina.base=${tomcat_dir}" >/dev/null 2>&1 || true
+			pkill -KILL -f "catalina.base=${tomcat_dir}" >/dev/null 2>&1 || true
 		fi
 	fi
 

@@ -13,6 +13,7 @@ import com.liferay.ai.hub.internal.langchain4j.observability.api.listener.Output
 import com.liferay.ai.hub.internal.mcp.tool.provider.MCPToolProviderUtil;
 import com.liferay.ai.hub.internal.model.VertexAiGeminiUtil;
 import com.liferay.ai.hub.internal.workflow.kaleo.runtime.node.util.GuardrailsUtil;
+import com.liferay.ai.hub.internal.workflow.kaleo.runtime.node.util.KaleoNodeSettingUtil;
 import com.liferay.ai.hub.internal.workflow.kaleo.runtime.node.util.MessageUtil;
 import com.liferay.ai.hub.internal.workflow.kaleo.runtime.node.util.PromptUtil;
 import com.liferay.ai.hub.internal.workflow.kaleo.runtime.node.util.QuotaUtil;
@@ -24,9 +25,7 @@ import com.liferay.ai.hub.rest.resource.v1_0.util.SseUtil;
 import com.liferay.object.constants.ObjectDefinitionConstants;
 import com.liferay.object.rest.manager.v1_0.ObjectEntryManager;
 import com.liferay.portal.kernel.exception.PortalException;
-import com.liferay.portal.kernel.json.JSONArray;
 import com.liferay.portal.kernel.json.JSONFactory;
-import com.liferay.portal.kernel.json.JSONObject;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.security.auth.CompanyInheritableThreadLocalCallable;
@@ -41,13 +40,11 @@ import com.liferay.portal.vulcan.dto.converter.DTOConverterRegistry;
 import com.liferay.portal.workflow.kaleo.definition.NodeType;
 import com.liferay.portal.workflow.kaleo.model.KaleoInstanceToken;
 import com.liferay.portal.workflow.kaleo.model.KaleoNode;
-import com.liferay.portal.workflow.kaleo.model.KaleoNodeSetting;
 import com.liferay.portal.workflow.kaleo.model.KaleoTransition;
 import com.liferay.portal.workflow.kaleo.runtime.ExecutionContext;
 import com.liferay.portal.workflow.kaleo.runtime.graph.PathElement;
 import com.liferay.portal.workflow.kaleo.runtime.node.BaseNodeExecutor;
 import com.liferay.portal.workflow.kaleo.runtime.node.NodeExecutor;
-import com.liferay.portal.workflow.kaleo.service.KaleoNodeSettingLocalService;
 
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.guardrail.InputGuardrail;
@@ -59,7 +56,6 @@ import dev.langchain4j.model.vertexai.gemini.VertexAiGeminiStreamingChatModel;
 import java.io.Serializable;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -96,17 +92,6 @@ public class LLMNodeExecutor extends BaseNodeExecutor {
 		KaleoInstanceToken kaleoInstanceToken =
 			executionContext.getKaleoInstanceToken();
 
-		Map<String, String> kaleoNodeSettingValues = new HashMap<>();
-
-		List<KaleoNodeSetting> kaleoNodeSettings =
-			_kaleoNodeSettingLocalService.getKaleoNodeSettings(
-				currentKaleoNode.getKaleoNodeId());
-
-		for (KaleoNodeSetting kaleoNodeSetting : kaleoNodeSettings) {
-			kaleoNodeSettingValues.put(
-				kaleoNodeSetting.getName(), kaleoNodeSetting.getValue());
-		}
-
 		ServiceContext serviceContext = executionContext.getServiceContext();
 
 		Map<String, Serializable> workflowContext =
@@ -120,12 +105,14 @@ public class LLMNodeExecutor extends BaseNodeExecutor {
 			return;
 		}
 
+		AtomicReference<ChatResponse> chatResponseAtomicReference =
+			new AtomicReference<>();
+		Map<String, String> kaleoNodeSettingValues =
+			KaleoNodeSettingUtil.getKaleoNodeSettingValuesMap(
+				currentKaleoNode.getKaleoNodeId());
 		VertexAiGeminiStreamingChatModel vertexAiGeminiStreamingChatModel =
 			VertexAiGeminiUtil.createVertexAiGeminiStreamingChatModel(
 				_quotaManager, serviceContext);
-
-		AtomicReference<ChatResponse> chatResponseAtomicReference =
-			new AtomicReference<>();
 
 		String prompt = PromptUtil.composePrompt(
 			kaleoInstanceToken.getCompanyId(), _dtoConverterRegistry,
@@ -254,14 +241,8 @@ public class LLMNodeExecutor extends BaseNodeExecutor {
 		Map<String, Serializable> workflowContext =
 			executionContext.getWorkflowContext();
 
-		JSONArray jsonArray = VariablesUtil.getVariablesJSONArray(
-			"outputVariables", kaleoNodeSettingValues);
-
-		if ((jsonArray != null) && (jsonArray.length() > 0)) {
-			JSONObject jsonObject = jsonArray.getJSONObject(0);
-
-			workflowContext.put(jsonObject.getString("name"), aiMessage.text());
-		}
+		VariablesUtil.applyOutputVariable(
+			kaleoNodeSettingValues, aiMessage.text(), workflowContext);
 
 		workflowContext.put("output", aiMessage.text());
 
@@ -309,9 +290,6 @@ public class LLMNodeExecutor extends BaseNodeExecutor {
 
 	@Reference
 	private JSONFactory _jsonFactory;
-
-	@Reference
-	private KaleoNodeSettingLocalService _kaleoNodeSettingLocalService;
 
 	@Reference
 	private ModelArmorHandler _modelArmorHandler;

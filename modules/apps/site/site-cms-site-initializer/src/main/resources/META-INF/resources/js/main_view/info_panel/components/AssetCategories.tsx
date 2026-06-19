@@ -3,11 +3,13 @@
  * SPDX-License-Identifier: LGPL-2.1-or-later OR LicenseRef-Liferay-DXP-EULA-2.0.0-2023-06
  */
 
+import ClayForm from '@clayui/form';
 import Label from '@clayui/label';
 import ClayPanel from '@clayui/panel';
 import {ItemSelector} from '@liferay/frontend-js-item-selector-web';
-import React, {useCallback, useMemo, useState} from 'react';
+import React, {useCallback, useId, useMemo, useState} from 'react';
 
+import ErrorFeedback from '../../../common/components/forms/ErrorFeedback';
 import {
 	IAssetObjectEntry,
 	IGroupedTaxonomies,
@@ -20,7 +22,7 @@ import type {EntryCategorizationDTO} from '../services/ObjectEntryService';
 const AssetCategories = ({
 	cmsGroupId,
 	collapsable = true,
-	hasError = false,
+	errorMessage,
 	hasUpdatePermission,
 	inputSize,
 	objectEntry,
@@ -28,13 +30,15 @@ const AssetCategories = ({
 }: {
 	cmsGroupId: number | string;
 	collapsable?: boolean;
-	hasError?: boolean;
+	errorMessage?: string;
 	hasUpdatePermission?: boolean;
 	inputSize?: CategorizationInputSize;
 	objectEntry: IAssetObjectEntry | EntryCategorizationDTO;
 	updateObjectEntry: (object: EntryCategorizationDTO) => void | Promise<void>;
 }) => {
 	const [value, setValue] = useState('');
+
+	const feedbackId = useId();
 
 	const apiURL = useMemo(() => {
 		const {
@@ -172,9 +176,14 @@ const AssetCategories = ({
 			showCollapseIcon={collapsable}
 		>
 			<ClayPanel.Body>
-				<div className={hasError ? 'form-group has-error' : undefined}>
+				<div
+					className={
+						errorMessage ? 'form-group has-error' : undefined
+					}
+				>
 					<ItemSelector<any>
 						apiURL={apiURL}
+						aria-describedby={errorMessage ? feedbackId : undefined}
 						disabled={!hasUpdatePermission}
 						estimateSize={49}
 						items={selectedCategories}
@@ -220,6 +229,12 @@ const AssetCategories = ({
 							</ItemSelector.Item>
 						)}
 					</ItemSelector>
+
+					{errorMessage && (
+						<ClayForm.FeedbackGroup id={feedbackId} role="alert">
+							<ErrorFeedback message={errorMessage} />
+						</ClayForm.FeedbackGroup>
+					)}
 				</div>
 
 				{groupedTaxonomies.taxonomyVocabularies &&
