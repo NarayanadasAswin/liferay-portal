@@ -2329,8 +2329,9 @@ public class ObjectEntryLocalServiceImpl
 				_objectDefinitionPersistence.findByPrimaryKey(
 					node.getPrimaryKey());
 
-			Indexer<ObjectEntry> indexer = IndexerRegistryUtil.getIndexer(
-				objectDefinition.getClassName());
+			Indexer<ObjectEntry> indexer =
+				IndexerRegistryUtil.nullSafeGetIndexer(
+					objectDefinition.getClassName());
 
 			_performActions(
 				objectDefinition.getObjectDefinitionId(),
@@ -2458,7 +2459,10 @@ public class ObjectEntryLocalServiceImpl
 				userId, objectDefinition, objectEntry);
 		}
 
-		if (objectDefinition.isRootNode()) {
+		if (objectDefinition.isRootNode() &&
+			(status != WorkflowConstants.STATUS_IN_TRASH) &&
+			!originalObjectEntry.isInTrash()) {
+
 			_updateRootDescendantNodeObjectEntryStatus(
 				userId, objectEntry, serviceContext);
 		}
