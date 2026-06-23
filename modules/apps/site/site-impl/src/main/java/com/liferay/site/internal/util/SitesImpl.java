@@ -395,103 +395,18 @@ public class SitesImpl implements Sites {
 
 	@Override
 	public void mergeLayoutPrototypeLayout(Layout layout) throws Exception {
-		String layoutSetPrototypeLayoutERC =
-			layout.getLayoutSetPrototypeLayoutERC();
-
-		if (Validator.isNull(layoutSetPrototypeLayoutERC)) {
-			doMergeLayoutPrototypeLayout(layout);
-
-			return;
-		}
-
-		LayoutSet layoutSet = layout.getLayoutSet();
-
-		long layoutSetPrototypeId = layoutSet.getLayoutSetPrototypeId();
-
-		if (layoutSetPrototypeId > 0) {
-			Group layoutSetPrototypeGroup =
-				_groupLocalService.getLayoutSetPrototypeGroup(
-					layout.getCompanyId(), layoutSetPrototypeId);
-
-			Layout sourcePrototypeLayout =
-				_layoutLocalService.fetchLayoutByExternalReferenceCode(
-					layoutSetPrototypeLayoutERC,
-					layoutSetPrototypeGroup.getGroupId());
-
-			if (sourcePrototypeLayout != null) {
-				doMergeLayoutPrototypeLayout(sourcePrototypeLayout);
-			}
-		}
-
-		doMergeLayoutPrototypeLayout(layout);
-	}
-
-	@Override
-	public void mergeLayoutSetPrototypeLayouts(Group group, LayoutSet layoutSet)
-		throws Exception {
-
-		if (MergeLayoutPrototypesThreadLocal.isSkipMerge()) {
-			return;
-		}
-
-		MergeLayoutPrototypesThreadLocal.setSkipMerge(true);
-
-		layoutSet = _layoutSetLocalService.fetchLayoutSet(
-			layoutSet.getLayoutSetId());
-
-		if (!isLayoutSetMergeable(group, layoutSet)) {
-			return;
-		}
-
-		LayoutSetPrototype layoutSetPrototype =
-			_layoutSetPrototypeLocalService.
-				getLayoutSetPrototypeByUuidAndCompanyId(
-					layoutSet.getLayoutSetPrototypeUuid(),
-					layoutSet.getCompanyId());
-
-		mergeLayoutSetPrototypeLayoutsInBackground(
-			layoutSetPrototype, layoutSet);
-	}
-
-	@Override
-	public void updateLayoutSetPrototypesLinks(
-			Group group, long publicLayoutSetPrototypeId,
-			long privateLayoutSetPrototypeId,
-			boolean publicLayoutSetPrototypeLinkEnabled,
-			boolean privateLayoutSetPrototypeLinkEnabled)
-		throws Exception {
-
-		updateLayoutSetPrototypeLink(
-			group.getGroupId(), true, privateLayoutSetPrototypeId,
-			privateLayoutSetPrototypeLinkEnabled);
-		updateLayoutSetPrototypeLink(
-			group.getGroupId(), false, publicLayoutSetPrototypeId,
-			publicLayoutSetPrototypeLinkEnabled);
-	}
-
-	protected void deleteUnreferencedPortlets(
-			List<String> targetLayoutPortletIds, Layout targetLayout,
-			Layout sourceLayout)
-		throws Exception {
-
-		LayoutTypePortlet sourceLayoutType =
-			(LayoutTypePortlet)sourceLayout.getLayoutType();
-
-		List<String> unreferencedPortletIds = new ArrayList<>(
-			targetLayoutPortletIds);
-
-		unreferencedPortletIds.removeAll(sourceLayoutType.getPortletIds());
-
-		_portletLocalService.deletePortlets(
-			targetLayout.getCompanyId(),
-			unreferencedPortletIds.toArray(new String[0]),
-			targetLayout.getPlid());
-	}
-
-	protected void doMergeLayoutPrototypeLayout(Layout layout)
-		throws Exception {
-
 		if (!layout.isPortletLayoutPageTemplateEntryLinkActive()) {
+			return;
+		}
+
+		if (Validator.isNotNull(layout.getLayoutSetPrototypeLayoutERC())) {
+			if (_log.isDebugEnabled()) {
+				_log.debug(
+					"Merge not performed because the layout is linked to a " +
+						"layout set prototype with external reference code " +
+							layout.getLayoutSetPrototypeLayoutERC());
+			}
+
 			return;
 		}
 
@@ -610,6 +525,71 @@ public class SitesImpl implements Sites {
 
 			_releaseLock(Layout.class.getName(), layout.getPlid(), owner);
 		}
+	}
+
+	@Override
+	public void mergeLayoutSetPrototypeLayouts(Group group, LayoutSet layoutSet)
+		throws Exception {
+
+		if (ExportImportThreadLocal.isExportInProcess() ||
+			ExportImportThreadLocal.isImportInProcess() ||
+			ExportImportThreadLocal.isStagingInProcess()) {
+
+			throw new IllegalStateException(
+				"The site template merge cannot start while an export, " +
+					"import, or staging process is in progress");
+		}
+
+		layoutSet = _layoutSetLocalService.fetchLayoutSet(
+			layoutSet.getLayoutSetId());
+
+		if (!isLayoutSetMergeable(group, layoutSet)) {
+			return;
+		}
+
+		LayoutSetPrototype layoutSetPrototype =
+			_layoutSetPrototypeLocalService.
+				getLayoutSetPrototypeByUuidAndCompanyId(
+					layoutSet.getLayoutSetPrototypeUuid(),
+					layoutSet.getCompanyId());
+
+		mergeLayoutSetPrototypeLayoutsInBackground(
+			layoutSetPrototype, layoutSet);
+	}
+
+	@Override
+	public void updateLayoutSetPrototypesLinks(
+			Group group, long publicLayoutSetPrototypeId,
+			long privateLayoutSetPrototypeId,
+			boolean publicLayoutSetPrototypeLinkEnabled,
+			boolean privateLayoutSetPrototypeLinkEnabled)
+		throws Exception {
+
+		updateLayoutSetPrototypeLink(
+			group.getGroupId(), true, privateLayoutSetPrototypeId,
+			privateLayoutSetPrototypeLinkEnabled);
+		updateLayoutSetPrototypeLink(
+			group.getGroupId(), false, publicLayoutSetPrototypeId,
+			publicLayoutSetPrototypeLinkEnabled);
+	}
+
+	protected void deleteUnreferencedPortlets(
+			List<String> targetLayoutPortletIds, Layout targetLayout,
+			Layout sourceLayout)
+		throws Exception {
+
+		List<String> unreferencedPortletIds = new ArrayList<>(
+			targetLayoutPortletIds);
+
+		LayoutTypePortlet sourceLayoutType =
+			(LayoutTypePortlet)sourceLayout.getLayoutType();
+
+		unreferencedPortletIds.removeAll(sourceLayoutType.getPortletIds());
+
+		_portletLocalService.deletePortlets(
+			targetLayout.getCompanyId(),
+			unreferencedPortletIds.toArray(new String[0]),
+			targetLayout.getPlid());
 	}
 
 	protected File exportLayoutSetPrototype(
@@ -945,13 +925,6 @@ public class SitesImpl implements Sites {
 	protected void mergeLayoutSetPrototypeLayoutsInBackground(
 			LayoutSetPrototype layoutSetPrototype, LayoutSet layoutSet)
 		throws PortalException {
-
-		if (ExportImportThreadLocal.isExportInProcess() ||
-			ExportImportThreadLocal.isImportInProcess() ||
-			ExportImportThreadLocal.isStagingInProcess()) {
-
-			return;
-		}
 
 		if (isLayoutSetPrototypeMergeBackgroundTaskExists(
 				layoutSetPrototype, layoutSet)) {
