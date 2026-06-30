@@ -106,6 +106,7 @@ import org.skyscreamer.jsonassert.JSONCompareMode;
 
 /**
  * @author Feliphe Marinho
+ * @author Iliyan Peychev
  */
 @FeatureFlags(
 	featureFlags = {
@@ -295,7 +296,9 @@ public class AgentInstanceResourceTest
 		_testPostAgentInstance();
 		_testPostAgentInstanceWithTypeAIDecisionNodeWithToolWorkflowDefinition();
 		_testPostAgentInstanceWithTypeAIDecisionNodeWorkflowDefinition();
+		_testPostAgentInstanceWithTypeAutoCategorize();
 		_testPostAgentInstanceWithTypeFixSpellingAndGrammarWithInstruction();
+		_testPostAgentInstanceWithTypeGenerateTags();
 		_testPostAgentInstanceWithTypeLLMNodeWithRAGWorkflowDefinition();
 		_testPostAgentInstanceWithTypeLLMNodeWithRAGWorkflowDefinitionWithRestrictedUser();
 		_testPostAgentInstanceWithTypeLLMNodeWithToolWorkflowDefinition();
@@ -384,6 +387,19 @@ public class AgentInstanceResourceTest
 		}
 	}
 
+	private String _createCandidateCategories(String... names)
+		throws Exception {
+
+		return String.valueOf(
+			JSONUtil.toJSONArray(
+				names,
+				name -> JSONUtil.put(
+					"id", RandomTestUtil.randomLong()
+				).put(
+					"name", name
+				)));
+	}
+
 	private JSONObject _postAgentInstance(
 			String agentDefinitionExternalReferenceCode, String inputText,
 			String inputVariable, String sseEventSinkKey)
@@ -432,6 +448,54 @@ public class AgentInstanceResourceTest
 			agentDefinitionExternalReferenceCode, inputText, inputVariable,
 			instructionDefinitionScope, TokenTestUtil.postToken(),
 			sseEventSinkKey);
+	}
+
+	private String _postAndAwaitAgentInstance(
+			String agentDefinitionExternalReferenceCode, JSONObject jsonObject)
+		throws Exception {
+
+		CountDownLatch countDownLatch = new CountDownLatch(4);
+
+		List<String> lines = new ArrayList<>();
+
+		JSONObject tokenJSONObject = TokenTestUtil.postToken();
+
+		HTTPTestUtil.invokeToJSONObject(
+			JSONUtil.put(
+				"agentDefinitionExternalReferenceCode",
+				agentDefinitionExternalReferenceCode
+			).put(
+				"context", jsonObject
+			).put(
+				"sseEventSinkKey",
+				SseEventSourceTestUtil.open(
+					List.of(countDownLatch), lines, "agent-instances/subscribe")
+			).toString(),
+			"ai-hub/v1.0/agent-instances",
+			HashMapBuilder.put(
+				"Authorization",
+				"Bearer " + tokenJSONObject.getString("accessToken")
+			).put(
+				"Liferay-AI-Hub-Cell-On-Behalf-Of",
+				tokenJSONObject.getString("userToken")
+			).build(),
+			Http.Method.POST);
+
+		Assert.assertTrue(countDownLatch.await(30, TimeUnit.SECONDS));
+
+		Assert.assertEquals(lines.toString(), 4, lines.size());
+
+		String line = lines.get(2);
+
+		Assert.assertTrue(
+			line, line.contains(agentDefinitionExternalReferenceCode));
+
+		JSONObject outputJSONObject = _jsonFactory.createJSONObject(
+			StringUtil.removeSubstring(lines.get(3), "data: "));
+
+		SseUtil.closeAll();
+
+		return outputJSONObject.getString("data");
 	}
 
 	private void _testPostAgentInstance() throws Exception {
@@ -540,6 +604,74 @@ public class AgentInstanceResourceTest
 
 				return null;
 			});
+	}
+
+	private void _testPostAgentInstanceWithTypeAutoCategorize()
+		throws Exception {
+
+		// Abstains
+
+		String data = _postAndAwaitAgentInstance(
+			"L_AUTO_CATEGORIZE",
+			JSONUtil.put(
+				"candidateCategories",
+				_createCandidateCategories(
+					"Astrophysics", "Marine Biology", "Medieval History")
+			).put(
+				"content",
+				"How to change a flat tire on a bicycle in five quick steps."
+			).put(
+				"count", "3"
+			));
+
+		Assert.assertFalse(data, data.contains("Astrophysics"));
+		Assert.assertFalse(data, data.contains("Marine Biology"));
+		Assert.assertFalse(data, data.contains("Medieval History"));
+		Assert.assertTrue(data, data.contains("suggestions"));
+		Assert.assertEquals(data, 0, StringUtil.count(data, "confidence"));
+
+		// Default count
+
+		data = _postAndAwaitAgentInstance(
+			"L_AUTO_CATEGORIZE",
+			JSONUtil.put(
+				"candidateCategories",
+				_createCandidateCategories(
+					"Cooking", "Health", "Science", "Sports", "Technology",
+					"Travel")
+			).put(
+				"content",
+				"A balanced diet and regular exercise improve your health, " +
+					"while new wearable technology helps athletes track " +
+						"their training during every sport."
+			));
+
+		_assertContains(
+			data, "Health", "Sports", "Technology", "confidence",
+			"suggestions");
+
+		Assert.assertTrue(data, StringUtil.count(data, "confidence") <= 3);
+
+		// Matches
+
+		data = _postAndAwaitAgentInstance(
+			"L_AUTO_CATEGORIZE",
+			JSONUtil.put(
+				"candidateCategories",
+				_createCandidateCategories(
+					"Cooking", "Sports", "Technology", "Travel")
+			).put(
+				"content",
+				"Our new smartphone ships with a faster processor, a larger " +
+					"display, and an upgraded camera powered by machine " +
+						"learning."
+			).put(
+				"count", "2"
+			));
+
+		_assertContains(data, "Technology", "confidence", "suggestions");
+
+		Assert.assertTrue(data, StringUtil.count(data, "confidence") <= 2);
 	}
 
 	private void _testPostAgentInstanceWithTypeFixSpellingAndGrammarWithInstruction()
@@ -659,6 +791,63 @@ public class AgentInstanceResourceTest
 			});
 
 		SseUtil.closeAll();
+	}
+
+	private void _testPostAgentInstanceWithTypeGenerateTags() throws Exception {
+
+		// Propose new tags
+
+		String data = _postAndAwaitAgentInstance(
+			"L_GENERATE_TAGS",
+			JSONUtil.put(
+				"content",
+				"This guide covers training a new puppy, choosing the right " +
+					"leash, and scheduling veterinary checkups for your dog."
+			).put(
+				"count", "5"
+			).put(
+				"existingTags",
+				JSONUtil.putAll(
+					"cooking", "gardening", "home improvement"
+				).toString()
+			));
+
+		_assertContains(data, "confidence", "isNew", "suggestions", "true");
+
+		String lowerCaseData = StringUtil.toLowerCase(data);
+
+		Assert.assertFalse(data, lowerCaseData.contains("gardening"));
+		Assert.assertFalse(data, lowerCaseData.contains("home improvement"));
+
+		Assert.assertTrue(data, StringUtil.count(data, "confidence") <= 5);
+
+		// Reuse existing tags
+
+		data = _postAndAwaitAgentInstance(
+			"L_GENERATE_TAGS",
+			JSONUtil.put(
+				"content",
+				"This article explains how neural networks are trained for " +
+					"machine learning tasks and why data science teams rely " +
+						"on them for prediction."
+			).put(
+				"count", "5"
+			).put(
+				"existingTags",
+				JSONUtil.putAll(
+					"data science", "machine learning", "neural networks"
+				).toString()
+			));
+
+		_assertContains(data, "confidence", "false", "isNew", "suggestions");
+
+		lowerCaseData = StringUtil.toLowerCase(data);
+
+		Assert.assertTrue(data, lowerCaseData.contains("data science"));
+		Assert.assertTrue(data, lowerCaseData.contains("machine learning"));
+		Assert.assertTrue(data, lowerCaseData.contains("neural networks"));
+
+		Assert.assertTrue(data, StringUtil.count(data, "confidence") <= 5);
 	}
 
 	private void _testPostAgentInstanceWithTypeLLMNodeWithRAGWorkflowDefinition()

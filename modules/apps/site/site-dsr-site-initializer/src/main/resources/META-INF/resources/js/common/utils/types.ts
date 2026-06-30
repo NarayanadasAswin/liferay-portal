@@ -53,6 +53,7 @@ export interface IFrequencyChartProps {
 export interface IInvitedMember {
 	emailAddress: string;
 	id: number;
+	membershipExpirationDate?: string;
 	ownerId?: number;
 	roleKey?: string;
 }
@@ -152,6 +153,7 @@ export interface IRoomObjectEntry {
 }
 
 export interface IRoomShareProps {
+	canAssignAllRoles?: boolean;
 	closeModal?: () => void;
 	roomId: number;
 }
@@ -201,6 +203,7 @@ export interface IUserAccount {
 	id: number;
 	image?: string;
 	isInvitedMember?: boolean;
+	membershipExpirationDate?: string;
 	name: string;
 	ownerId?: number;
 	roleKey?: string;

@@ -16,6 +16,7 @@ import io.fabric8.kubernetes.client.dsl.PrettyLoggable;
 import io.fabric8.kubernetes.client.dsl.ScalableResource;
 import io.fabric8.kubernetes.client.utils.Serialization;
 
+import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 
 import java.io.IOException;
@@ -35,29 +36,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class KubernetesJobService {
 
-	public KubernetesJobService(
-		@Value("${liferay.ai.hub.crawler.elasticsearch.host}") String
-			elasticsearchHost,
-		@Value("${liferay.ai.hub.crawler.elasticsearch.port}") int
-			elasticsearchPort,
-		@Value("${liferay.ai.hub.crawler.k8s.image.name}") String imageName,
-		@Value("${liferay.ai.hub.crawler.k8s.namespace}") String namespace) {
-
-		_elasticsearchHost = elasticsearchHost;
-		_elasticsearchPort = elasticsearchPort;
-		_imageName = imageName;
-		_namespace = namespace;
-
-		_jobTemplate = _loadJobTemplate();
-	}
-
-	@PreDestroy
-	public void close() {
-		_kubernetesClient.close();
-	}
-
 	public Job createJob(long accountEntryId, String indexName, String url) {
-		URI uri;
+		URI uri = null;
 
 		try {
 			uri = URI.create(url);
@@ -75,7 +55,7 @@ public class KubernetesJobService {
 			_namespace
 		).resource(
 			new JobBuilder(
-				_jobTemplate
+				_job
 			).editMetadata(
 			).addToLabels(
 				"account-entry-id", String.valueOf(accountEntryId)
@@ -132,6 +112,26 @@ public class KubernetesJobService {
 		return prettyLoggable.getLog();
 	}
 
+	@PostConstruct
+	public void postConstruct() {
+		Class<?> clazz = getClass();
+
+		try (InputStream inputStream = clazz.getResourceAsStream(
+				"dependencies/crawler-job.yaml")) {
+
+			_job = Serialization.unmarshal(inputStream, Job.class);
+		}
+		catch (IOException ioException) {
+			throw new IllegalStateException(
+				"Unable to load \"crawler-job.yaml\"", ioException);
+		}
+	}
+
+	@PreDestroy
+	public void preDestroy() {
+		_kubernetesClient.close();
+	}
+
 	private EnvVar _createEnvVar(String name, String value) {
 		return new EnvVarBuilder(
 		).withName(
@@ -152,28 +152,24 @@ public class KubernetesJobService {
 		);
 	}
 
-	private Job _loadJobTemplate() {
-		try (InputStream inputStream = getClass().getResourceAsStream(
-				"/crawler-job-template.yaml")) {
-
-			return Serialization.unmarshal(inputStream, Job.class);
-		}
-		catch (IOException ioException) {
-			throw new IllegalStateException(
-				"Unable to load \"/crawler-job-template.yaml\"", ioException);
-		}
-	}
-
 	private static final Log _log = LogFactory.getLog(
 		KubernetesJobService.class);
 
-	private final String _elasticsearchHost;
-	private final int _elasticsearchPort;
-	private final String _imageName;
-	private final Job _jobTemplate;
+	@Value("${liferay.ai.hub.crawler.elasticsearch.host}")
+	private String _elasticsearchHost;
+
+	@Value("${liferay.ai.hub.crawler.elasticsearch.port}")
+	private int _elasticsearchPort;
+
+	@Value("${liferay.ai.hub.crawler.k8s.image.name}")
+	private String _imageName;
+
+	private Job _job;
 	private final KubernetesClient _kubernetesClient =
 		new KubernetesClientBuilder(
 		).build();
-	private final String _namespace;
+
+	@Value("${liferay.ai.hub.crawler.k8s.namespace}")
+	private String _namespace;
 
 }

@@ -137,7 +137,7 @@ test(
 
 test(
 	'Can create, edit and delete User Views',
-	{tag: '@LPD-10683'},
+	{tag: ['@LPD-10683', '@LPD-74823']},
 	async ({dataSetFragmentPage, dataSetManagerApiHelpers, layout, page}) => {
 		let userViewsActionsDropdown: Locator;
 		let userViewsDropdown: Locator;
@@ -308,6 +308,55 @@ test(
 			page.keyboard.press('Escape');
 		});
 
+		await test.step('Cannot save a view with a blank or duplicate name', async () => {
+			await dataSetFragmentPage.userViewsActionsButton.click();
+
+			await userViewsActionsDropdown
+				.filter({has: page.getByRole('menu')})
+				.waitFor();
+
+			await userViewsActionsDropdown
+				.getByRole('menuitem', {name: 'Save View As...'})
+				.click();
+
+			await expect(
+				dataSetFragmentPage.userViewsSaveModal
+			).toBeInViewport();
+
+			const nameInput =
+				dataSetFragmentPage.userViewsSaveModal.getByLabel(
+					'NameRequired'
+				);
+			const saveButton = dataSetFragmentPage.userViewsSaveModal.getByRole(
+				'button',
+				{name: 'Save'}
+			);
+
+			await nameInput.fill('   ');
+
+			await expect(saveButton).toBeDisabled();
+
+			await nameInput.fill(userView1Name.toUpperCase());
+
+			await expect(saveButton).toBeEnabled();
+
+			await saveButton.click();
+
+			await expect(
+				dataSetFragmentPage.userViewsSaveModal.getByText(
+					'A view with this name already exists.'
+				)
+			).toBeVisible();
+
+			await dataSetFragmentPage.userViewsSaveModal
+				.getByRole('button', {name: 'Cancel'})
+				.click();
+
+			await expect(
+				dataSetFragmentPage.userViewsSaveModal
+			).not.toBeInViewport();
+		});
+
 		await test.step('Confirm that changes in an user view does not affect Default View', async () => {
 			await expect(
 				dataSetFragmentPage.userViewsSelectorButton
@@ -390,6 +439,16 @@ test(
 
 			await expect(dataSetFragmentPage.cardsWrapper).toBeInViewport();
 
+			await dataSetFragmentPage.changeVisualizationMode('Table');
+
+			await dataSetFragmentPage.table.container.waitFor({
+				state: 'visible',
+			});
+
+			await expect(
+				dataSetFragmentPage.userViewsSelectorButton
+			).toHaveText(`${userView1Name}${userView1Name} Updated`);
+
 			await dataSetFragmentPage.userViewsActionsButton.click();
 
 			await userViewsActionsDropdown
@@ -418,10 +477,12 @@ test(
 				.click();
 
 			await waitForAlert(page, 'Success:View was renamed successfully.');
+		});
 
+		await test.step('Renaming a view keeps its unsaved changes mark', async () => {
 			await expect(
 				dataSetFragmentPage.userViewsSelectorButton
-			).toHaveText(userView2Name);
+			).toHaveText(`${userView2Name}${userView2Name} Updated`);
 		});
 
 		await test.step('Can delete a user view', async () => {

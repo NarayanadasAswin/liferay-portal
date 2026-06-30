@@ -1369,6 +1369,191 @@ test(
 );
 
 test(
+	'A new individuals attribute breakdown can be deleted',
+	{
+		tag: '@LRAC-8658',
+	},
+	async ({
+		analyticsChannel: channel,
+		apiHelpers,
+		dxpSyncedAnalyticsChannel,
+		page,
+		project,
+	}) => {
+		const {dataSourceId} = dxpSyncedAnalyticsChannel;
+
+		const individual = {
+			...generateIndividual({name: 'bd' + getRandomString()}),
+			dataSourceId,
+		};
+
+		const date = new Date();
+
+		await createIndividuals({apiHelpers, individuals: [individual]});
+
+		await apiHelpers.jsonWebServicesOSBAsah.createEvents([
+			{
+				applicationId: 'Page',
+				canonicalUrl: 'https://www.liferay.com',
+				channelId: channel.id,
+				dataSourceId,
+				eventDate: date.toISOString(),
+				eventId: 'pageViewed',
+				title: 'pageViewed',
+				userId: individual.id,
+			},
+		]);
+
+		await navigateToACPageViaURL({
+			acPage: ACPage.individualPage,
+			channelID: channel.id,
+			page,
+			projectID: project.groupId,
+		});
+
+		// Add a breakdown by email, then delete it
+
+		const attributeValue = getRandomString();
+
+		await addBreakdownByAttribute({
+			attributeName: 'email',
+			attributeValue,
+			page,
+		});
+
+		await page.getByText(attributeValue).hover();
+
+		await page.getByRole('button', {name: 'Close'}).click();
+
+		await expect(page.locator('.tab-item')).toHaveCount(0);
+	}
+);
+
+test(
+	'Individuals attribute breakdowns can be switched between tabs',
+	{
+		tag: '@LRAC-9000',
+	},
+	async ({
+		analyticsChannel: channel,
+		apiHelpers,
+		dxpSyncedAnalyticsChannel,
+		page,
+		project,
+	}) => {
+		const {dataSourceId} = dxpSyncedAnalyticsChannel;
+
+		const individual = {
+			...generateIndividual({name: 'det' + getRandomString()}),
+			dataSourceId,
+			jobTitle: 'lawyer',
+		};
+
+		const date = new Date();
+
+		await createIndividuals({apiHelpers, individuals: [individual]});
+
+		await apiHelpers.jsonWebServicesOSBAsah.createEvents([
+			{
+				applicationId: 'Page',
+				canonicalUrl: 'https://www.liferay.com',
+				channelId: channel.id,
+				dataSourceId,
+				emailAddressHashed: createHash('sha256')
+					.update(`${individual.name}@liferay.com`)
+					.digest('hex'),
+				eventDate: date.toISOString(),
+				eventId: 'pageViewed',
+				sessionId: individual.id,
+				title: 'pageViewed',
+				userId: individual.id,
+			},
+		]);
+
+		await apiHelpers.jsonWebServicesOSBAsah.createSessions([
+			{
+				channelId: channel.id,
+				id: individual.id,
+				sessionEnd: date.toISOString(),
+				sessionStart: date.toISOString(),
+				userId: individual.id,
+			},
+		]);
+
+		await apiHelpers.jsonWebServicesOSBAsah.createIdentityActivitiesSummary(
+			[
+				{
+					activitiesCount: 1,
+					channelId: channel.id,
+					dataSourceId,
+					eventId: 'pageViewed',
+					firstActivityDate: date.toISOString(),
+					identityId: individual.id,
+					individualId: individual.id,
+					lastActivityDate: date.toISOString(),
+				},
+			]
+		);
+
+		await runNanites({
+			apiHelpers,
+			naniteNames: [Nanites.UpdateMembershipsNanite],
+			page,
+		});
+
+		await navigateToACPageViaURL({
+			acPage: ACPage.individualPage,
+			channelID: channel.id,
+			page,
+			projectID: project.groupId,
+		});
+
+		await changeTimeFilter({page, timeFilterPeriod: 'Last 24 hours'});
+
+		// Add two breakdowns and switch between their tabs
+
+		const emailValue = getRandomString();
+		const familyNameValue = getRandomString();
+
+		try {
+			await addBreakdownByAttribute({
+				attributeName: 'email',
+				attributeValue: emailValue,
+				page,
+			});
+
+			await addBreakdownByAttribute({
+				attributeName: 'familyName',
+				attributeValue: familyNameValue,
+				page,
+			});
+
+			await page.getByText(emailValue).click();
+
+			await expect(
+				page
+					.locator('.recharts-cartesian-axis-tick')
+					.getByText(`${individual.name}@liferay.com`)
+			).toBeVisible();
+
+			await page.getByText(familyNameValue).click();
+
+			await expect(
+				page.locator('.recharts-cartesian-axis-tick').getByText('Smith')
+			).toBeVisible();
+		}
+		finally {
+			for (const breakdownName of [emailValue, familyNameValue]) {
+				await apiHelpers.jsonWebServicesOSBFaro.deleteDistributionTab(
+					breakdownName.toLowerCase(),
+					project.groupId
+				);
+			}
+		}
+	}
+);
+
+test(
 	'A selected individual activity point can clear its date selection',
 	{
 		tag: '@LRAC-8916',

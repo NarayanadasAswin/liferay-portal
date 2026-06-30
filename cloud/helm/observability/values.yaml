@@ -419,6 +419,7 @@ alloy:
             port: http
     scrapeInterval: 1m
 aws:
+    ampWorkspaceID: ""
     ampWorkspaceURL: ""
     region: ""
 centralHub:
@@ -460,6 +461,8 @@ fullnameOverride: ""
 gcp:
     projectId: ""
 grafana:
+    admin:
+        existingSecret: grafana-admin-credentials
     datasources: {}
     grafana.ini:
         analytics:

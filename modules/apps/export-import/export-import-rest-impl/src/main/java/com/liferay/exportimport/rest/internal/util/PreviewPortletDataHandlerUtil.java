@@ -22,6 +22,7 @@ import com.liferay.exportimport.rest.dto.v1_0.PreviewPortletDataHandlerSection;
 import com.liferay.exportimport.rest.dto.v1_0.PreviewPortletDataHandlerSetting;
 import com.liferay.petra.function.UnsafeFunction;
 import com.liferay.petra.function.transform.TransformUtil;
+import com.liferay.petra.string.StringPool;
 import com.liferay.portal.kernel.language.LanguageUtil;
 import com.liferay.portal.kernel.model.Portlet;
 import com.liferay.portal.kernel.util.ArrayUtil;
@@ -37,12 +38,47 @@ import java.util.Map;
  */
 public class PreviewPortletDataHandlerUtil {
 
+	public static void addConfigurationPreviewPortletDataHandler(
+		Locale locale, Portlet portlet,
+		PortletDataHandlerControl[] portletDataHandlerControls,
+		Map<String, List<PreviewPortletDataHandler>>
+			previewPortletDataHandlersMap) {
+
+		if (ArrayUtil.isEmpty(portletDataHandlerControls)) {
+			return;
+		}
+
+		List<PreviewPortletDataHandler> previewPortletDataHandlers =
+			previewPortletDataHandlersMap.computeIfAbsent(
+				ExportImportConstants.SECTION_KEY_CONFIGURATION,
+				key -> new ArrayList<>());
+
+		previewPortletDataHandlers.add(
+			new PreviewPortletDataHandler() {
+				{
+					setAdditionCount(() -> 0L);
+					setDeletionCount(() -> 0L);
+					setLabel(() -> PortalUtil.getPortletTitle(portlet, locale));
+					setName(
+						() ->
+							PortletDataHandlerKeys.PORTLET_CONFIGURATION +
+								StringPool.UNDERLINE +
+									portlet.getRootPortletId());
+					setPreviewPortletDataHandlerControls(
+						() -> _toPreviewPortletDataHandlerControls(
+							locale, portletDataHandlerControls,
+							portlet.getRootPortletId()));
+				}
+			});
+	}
+
 	public static void addPreviewPortletDataHandler(
 			long companyId, Locale locale, ManifestSummary manifestSummary,
 			Portlet portlet, PortletDataHandler portletDataHandler,
 			UnsafeFunction
 				<PortletDataHandler, PortletDataHandlerControl[], Exception>
 					portletDataHandlerControlsUnsafeFunction,
+			boolean portletScoped,
 			Map<String, List<PreviewPortletDataHandler>>
 				previewPortletDataHandlersMap)
 		throws Exception {
@@ -65,6 +101,10 @@ public class PreviewPortletDataHandlerUtil {
 		}
 
 		String sectionKey = portletDataHandler.getSectionKey();
+
+		if (portletScoped) {
+			sectionKey = ExportImportConstants.SECTION_KEY_CONTENT;
+		}
 
 		if (sectionKey == null) {
 			sectionKey = ExportImportConstants.SECTION_KEY_OTHER;
@@ -163,21 +203,6 @@ public class PreviewPortletDataHandlerUtil {
 			PreviewPortletDataHandlerSection.class);
 	}
 
-	private static PreviewPortletDataHandlerControl[] _toNestedControls(
-		Locale locale, ManifestSummary manifestSummary,
-		PortletDataHandlerControl[] portletDataHandlerControls) {
-
-		if (ArrayUtil.isEmpty(portletDataHandlerControls)) {
-			return null;
-		}
-
-		return TransformUtil.transform(
-			portletDataHandlerControls,
-			portletDataHandlerControl -> _toPreviewPortletDataHandlerControl(
-				locale, manifestSummary, portletDataHandlerControl),
-			PreviewPortletDataHandlerControl.class);
-	}
-
 	private static PreviewPortletDataHandler _toPreviewPortletDataHandler(
 		long modelAdditionCount, Locale locale, ManifestSummary manifestSummary,
 		long modelDeletionCount, Portlet portlet,
@@ -205,7 +230,7 @@ public class PreviewPortletDataHandlerUtil {
 						PortletDataHandlerKeys.PORTLET_DATA + "_" +
 							portlet.getPortletId());
 				setPreviewPortletDataHandlerControls(
-					() -> _toNestedControls(
+					() -> _toPreviewPortletDataHandlerControls(
 						locale, manifestSummary,
 						sourcePortletDataHandlerControls));
 				setTag(() -> portletDataHandler.getTag(locale));
@@ -235,7 +260,7 @@ public class PreviewPortletDataHandlerUtil {
 								portletDataHandlerBoolean.getNamespace(),
 								portletDataHandlerBoolean.getName()));
 						setPreviewPortletDataHandlerControls(
-							() -> _toNestedControls(
+							() -> _toPreviewPortletDataHandlerControls(
 								locale, manifestSummary,
 								portletDataHandlerBoolean.
 									getChildrenPortletDataHandlerControls()));
@@ -277,7 +302,7 @@ public class PreviewPortletDataHandlerUtil {
 							portletDataHandlerBoolean.getNamespace(),
 							portletDataHandlerBoolean.getName()));
 					setPreviewPortletDataHandlerControls(
-						() -> _toNestedControls(
+						() -> _toPreviewPortletDataHandlerControls(
 							locale, manifestSummary,
 							portletDataHandlerBoolean.
 								getChildrenPortletDataHandlerControls()));
@@ -319,6 +344,50 @@ public class PreviewPortletDataHandlerUtil {
 		}
 
 		return null;
+	}
+
+	private static PreviewPortletDataHandlerControl[]
+		_toPreviewPortletDataHandlerControls(
+			Locale locale, ManifestSummary manifestSummary,
+			PortletDataHandlerControl[] portletDataHandlerControls) {
+
+		if (ArrayUtil.isEmpty(portletDataHandlerControls)) {
+			return null;
+		}
+
+		return TransformUtil.transform(
+			portletDataHandlerControls,
+			portletDataHandlerControl -> _toPreviewPortletDataHandlerControl(
+				locale, manifestSummary, portletDataHandlerControl),
+			PreviewPortletDataHandlerControl.class);
+	}
+
+	private static PreviewPortletDataHandlerControl[]
+		_toPreviewPortletDataHandlerControls(
+			Locale locale,
+			PortletDataHandlerControl[] portletDataHandlerControls,
+			String rootPortletId) {
+
+		return TransformUtil.transform(
+			portletDataHandlerControls,
+			portletDataHandlerControl ->
+				new PreviewPortletDataHandlerSetting() {
+					{
+						setDefaultState(() -> true);
+						setDisabled(portletDataHandlerControl::isDisabled);
+						setLabel(
+							() -> LanguageUtil.get(
+								locale, portletDataHandlerControl.getLabel()));
+						setName(
+							() ->
+								portletDataHandlerControl.getName() +
+									StringPool.UNDERLINE + rootPortletId);
+						setType(
+							() ->
+								PreviewPortletDataHandlerControl.Type.SETTING);
+					}
+				},
+			PreviewPortletDataHandlerControl.class);
 	}
 
 }

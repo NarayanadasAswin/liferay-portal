@@ -3889,6 +3889,45 @@ public class ObjectEntryLocalServiceImpl
 		);
 	}
 
+	private long[] _filterAssetCategoryIds(
+		long[] assetCategoryIds, ObjectEntry objectEntry) {
+
+		return ArrayUtil.filter(
+			assetCategoryIds,
+			assetCategoryId -> {
+				AssetCategory assetCategory =
+					_assetCategoryLocalService.fetchAssetCategory(
+						assetCategoryId);
+
+				if (assetCategory == null) {
+					return false;
+				}
+
+				List<AssetVocabularyGroupRel> assetVocabularyGroupRels =
+					_assetVocabularyGroupRelLocalService.
+						getAssetVocabularyGroupRelsByVocabularyId(
+							assetCategory.getVocabularyId());
+
+				if (ListUtil.isEmpty(assetVocabularyGroupRels)) {
+					return true;
+				}
+
+				for (AssetVocabularyGroupRel assetVocabularyGroupRel :
+						assetVocabularyGroupRels) {
+
+					if ((assetVocabularyGroupRel.getGroupId() ==
+							GroupConstants.ANY_PARENT_GROUP_ID) ||
+						(assetVocabularyGroupRel.getGroupId() ==
+							objectEntry.getGroupId())) {
+
+						return true;
+					}
+				}
+
+				return false;
+			});
+	}
+
 	private DSLQuery _getAccountEntriesDSLQuery(long companyId, long userId)
 		throws PortalException {
 
@@ -6926,8 +6965,9 @@ public class ObjectEntryLocalServiceImpl
 				userId, objectEntry.getNonzeroGroupId(),
 				objectEntry.getCreateDate(), objectEntry.getModifiedDate(),
 				objectDefinition.getClassName(), objectEntry.getObjectEntryId(),
-				objectEntry.getUuid(), 0, assetCategoryIds, assetTagNames, true,
-				objectEntry.isApproved(), null, null,
+				objectEntry.getUuid(), 0,
+				_filterAssetCategoryIds(assetCategoryIds, objectEntry),
+				assetTagNames, true, objectEntry.isApproved(), null, null,
 				objectEntry.getPublishDate(), objectEntry.getExpirationDate(),
 				mimeType, title, String.valueOf(objectEntry.getObjectEntryId()),
 				null, null, null, 0, 0, priority, serviceContext);

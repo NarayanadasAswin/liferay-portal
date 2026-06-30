@@ -42,12 +42,19 @@ public class DataCleanupPreupgradeProcessSuite {
 		}
 
 		try (LoggingTimer loggingTimer = new LoggingTimer()) {
-			DataCleanupConcurrentExecutor dataCleanupConcurrentExecutor =
-				new DataCleanupConcurrentExecutor();
+			DataCleanupPreupgradeProcessUtil.enableCache();
 
-			dataCleanupConcurrentExecutor._execute(
-				_getLayeredDataCleanupPreupgradeProcesses(),
-				this::_runDataCleanupPreupgradeProcess);
+			try {
+				DataCleanupConcurrentExecutor dataCleanupConcurrentExecutor =
+					new DataCleanupConcurrentExecutor();
+
+				dataCleanupConcurrentExecutor._execute(
+					_getLayeredDataCleanupPreupgradeProcesses(),
+					this::_runDataCleanupPreupgradeProcess);
+			}
+			finally {
+				DataCleanupPreupgradeProcessUtil.disableCache();
+			}
 		}
 	}
 

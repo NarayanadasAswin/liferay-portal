@@ -1081,7 +1081,7 @@ test(
 		await editDigitalSalesRoomPage.contributorRoleButton.click();
 
 		await expect(
-			digitalSalesRoomUsersPage.roleText(email, 'Contributor')
+			digitalSalesRoomUsersPage.roleText(email, 'Content Contributor')
 		).toBeVisible();
 
 		await performUserSwitch(page, 'test');
@@ -1364,5 +1364,263 @@ test(
 				editDigitalSalesRoomPage.documentCard('liferay')
 			).toBeVisible();
 		});
+	}
+);
+
+test(
+	'The room collaborator can manage pages and documents, add room comments, and share the room',
+	{tag: '@LPD-92366'},
+	async ({
+		apiHelpers,
+		digitalSalesRoomUsersPage,
+		digitalSalesRoomsPage,
+		editDigitalSalesRoomPage,
+		page,
+	}) => {
+		const account = await apiHelpers.headlessAdminUser.postAccount({
+			type: 'business',
+		});
+
+		const collaborator =
+			await apiHelpers.headlessAdminUser.postUserAccount();
+		const member = await apiHelpers.headlessAdminUser.postUserAccount();
+
+		userData[collaborator.alternateName] = {
+			name: collaborator.givenName,
+			password: 'test',
+			surname: collaborator.familyName,
+		};
+
+		const roomName = `A${getRandomInt()}`;
+
+		await digitalSalesRoomsPage.goToRoomsPage();
+
+		await expect(
+			digitalSalesRoomsPage.digitalSalesRoomsTable.searchInput
+		).toBeVisible();
+
+		await digitalSalesRoomsPage.digitalSalesRoomsTable.newButton.click();
+		await editDigitalSalesRoomPage.addDigitalSalesRoom({
+			accountName: account.name,
+			roomName,
+		});
+
+		await digitalSalesRoomsPage.goToRoomsPage();
+		await digitalSalesRoomsPage.clickRowActionsMenuItem(
+			roomName,
+			digitalSalesRoomsPage.shareMenuItem
+		);
+
+		await expect(
+			digitalSalesRoomUsersPage.userEmailAddressesInput
+		).toBeVisible();
+
+		await digitalSalesRoomUsersPage.userEmailAddressesInput.fill(
+			collaborator.emailAddress
+		);
+		await digitalSalesRoomUsersPage.userEmailAddressesInput.press('Enter');
+		await editDigitalSalesRoomPage.roleKeyButton.click();
+
+		await expect(
+			editDigitalSalesRoomPage.roomCollaboratorRoleInputButton
+		).toBeVisible();
+
+		await editDigitalSalesRoomPage.roomCollaboratorRoleInputButton.click();
+		await digitalSalesRoomUsersPage.inviteButton.click();
+
+		await waitForAlert(page, 'Success:User was invited successfully.');
+
+		await performUserSwitch(page, collaborator.alternateName);
+
+		await page.goto(`/web/${roomName}/onboarding?p_l_mode=edit`);
+
+		await expect(editDigitalSalesRoomPage.pageEditor).toBeVisible();
+
+		await page.goto(`/web/${roomName}`);
+
+		await digitalSalesRoomUsersPage.shareButton.click();
+		await digitalSalesRoomUsersPage.userEmailAddressesInput.fill(
+			member.emailAddress
+		);
+		await digitalSalesRoomUsersPage.userEmailAddressesInput.press('Enter');
+		await editDigitalSalesRoomPage.roleKeyButton.click();
+
+		await expect(
+			editDigitalSalesRoomPage.contributorRoleInputButton
+		).toBeVisible();
+		await expect(
+			editDigitalSalesRoomPage.viewerRoleInputButton
+		).toBeVisible();
+		await expect(
+			editDigitalSalesRoomPage.roomCollaboratorRoleInputButton
+		).not.toBeVisible();
+
+		await editDigitalSalesRoomPage.viewerRoleInputButton.click();
+		await digitalSalesRoomUsersPage.inviteButton.click();
+
+		await waitForAlert(page, 'Success:User was invited successfully.');
+
+		await expect(
+			digitalSalesRoomUsersPage.roleText(member.name, 'Viewer')
+		).toBeVisible();
+
+		await digitalSalesRoomUsersPage.roleDropdown(member.name).click();
+		await editDigitalSalesRoomPage.contributorRoleButton.click();
+
+		await expect(
+			digitalSalesRoomUsersPage.roleText(
+				member.name,
+				'Content Contributor'
+			)
+		).toBeVisible();
+
+		await page.goto(`/web/${roomName}`);
+
+		const comment = getRandomString();
+
+		await editDigitalSalesRoomPage.addDigitalSalesRoomComment(comment);
+
+		await expect(page.getByText(comment)).toBeVisible();
+
+		await editDigitalSalesRoomPage.uploadDocument(
+			path.join(__dirname, 'dependencies', 'liferay.png')
+		);
+
+		await expect(
+			editDigitalSalesRoomPage.noDocumentsMessage
+		).not.toBeVisible();
+
+		await performUserSwitch(page, 'test');
+	}
+);
+
+test(
+	'Set, update, and remove the access expiration for internal and invited users',
+	{tag: '@LPD-92369'},
+	async ({
+		apiHelpers,
+		digitalSalesRoomUsersPage,
+		digitalSalesRoomsPage,
+		editDigitalSalesRoomPage,
+		page,
+	}) => {
+		const accountName = `B${getRandomInt()}`;
+		const invitedEmail = `invited-${getRandomInt()}@liferay.com`;
+		const roomName = `A${getRandomInt()}`;
+
+		const userAccount =
+			await apiHelpers.headlessAdminUser.postUserAccount();
+
+		await apiHelpers.headlessAdminUser.postAccount({
+			name: accountName,
+			type: 'business',
+		});
+
+		await test.step('Create the room', async () => {
+			await digitalSalesRoomsPage.goToRoomsPage();
+
+			await expect(
+				digitalSalesRoomsPage.digitalSalesRoomsTable.searchInput
+			).toBeVisible();
+
+			await digitalSalesRoomsPage.digitalSalesRoomsTable.newButton.click();
+
+			await editDigitalSalesRoomPage.addDigitalSalesRoom({
+				accountName,
+				roomName,
+			});
+		});
+
+		await test.step('Open the share view', async () => {
+			await digitalSalesRoomsPage.goToRoomsPage();
+
+			await expect(
+				digitalSalesRoomsPage.digitalSalesRoomsTable.cell(
+					roomName,
+					false
+				)
+			).toBeVisible();
+
+			await digitalSalesRoomsPage.clickRowActionsMenuItem(
+				roomName,
+				digitalSalesRoomsPage.shareMenuItem
+			);
+
+			await expect(
+				digitalSalesRoomUsersPage.userEmailAddressesInput
+			).toBeVisible();
+		});
+
+		const verifyExpirationLifecycle = async (
+			emailAddress: string,
+			rowText: string
+		) => {
+			await test.step('Add the user with an access expiration date', async () => {
+				await digitalSalesRoomUsersPage.userEmailAddressesInput.fill(
+					emailAddress
+				);
+				await digitalSalesRoomUsersPage.userEmailAddressesInput.press(
+					'Enter'
+				);
+				await digitalSalesRoomUsersPage.inviteExpirationDateInput.fill(
+					'2030-07-15'
+				);
+				await digitalSalesRoomUsersPage.inviteButton.click();
+
+				await waitForAlert(
+					page,
+					'Success:User was invited successfully.'
+				);
+
+				await expect(
+					digitalSalesRoomUsersPage.expirationLabel(rowText)
+				).toContainText('Jul 15, 2030');
+			});
+
+			await test.step('Update the access expiration date', async () => {
+				await digitalSalesRoomUsersPage
+					.editExpirationButton(rowText)
+					.click();
+				await digitalSalesRoomUsersPage
+					.rowExpirationDateInput(rowText)
+					.fill('2031-08-20');
+				await digitalSalesRoomUsersPage
+					.confirmExpirationButton(rowText)
+					.click();
+
+				await waitForAlert(page);
+
+				await expect(
+					digitalSalesRoomUsersPage.expirationLabel(rowText)
+				).toContainText('Aug 20, 2031');
+			});
+
+			await test.step('Remove the access expiration date', async () => {
+				await digitalSalesRoomUsersPage
+					.editExpirationButton(rowText)
+					.click();
+				await digitalSalesRoomUsersPage
+					.rowExpirationDateInput(rowText)
+					.fill('');
+				await digitalSalesRoomUsersPage
+					.confirmExpirationButton(rowText)
+					.click();
+
+				await waitForAlert(page);
+
+				await expect(
+					digitalSalesRoomUsersPage.userRow(rowText)
+				).toContainText('No Expiration');
+			});
+		};
+
+		await test.step('Manage the access expiration for an internal member', () =>
+			verifyExpirationLifecycle(
+				userAccount.emailAddress,
+				userAccount.alternateName
+			));
+
+		await test.step('Manage the access expiration for a pending invitation', () =>
+			verifyExpirationLifecycle(invitedEmail, invitedEmail));
 	}
 );

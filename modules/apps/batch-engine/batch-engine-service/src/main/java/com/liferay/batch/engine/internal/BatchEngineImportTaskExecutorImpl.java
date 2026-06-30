@@ -29,6 +29,7 @@ import com.liferay.batch.engine.internal.task.progress.BatchEngineTaskProgressFa
 import com.liferay.batch.engine.internal.util.ErrorMessageUtil;
 import com.liferay.batch.engine.internal.util.ItemIndexThreadLocal;
 import com.liferay.batch.engine.internal.util.ZipInputStreamUtil;
+import com.liferay.batch.engine.language.LanguageKeyResolver;
 import com.liferay.batch.engine.model.BatchEngineImportTask;
 import com.liferay.batch.engine.service.BatchEngineImportTaskErrorLocalService;
 import com.liferay.batch.engine.service.BatchEngineImportTaskErrorLocalServiceUtil;
@@ -228,7 +229,7 @@ public class BatchEngineImportTaskExecutorImpl
 
 		try {
 			TransactionInvokerUtil.invoke(
-				_transactionConfig,
+				_requiresNewTransactionConfig,
 				() -> {
 					String errorMessage = ErrorMessageUtil.getErrorMessage(
 						exception, batchEngineImportTask.getUserId());
@@ -532,8 +533,13 @@ public class BatchEngineImportTaskExecutorImpl
 
 		try {
 			if (LazyReferencingThreadLocal.isEnabled()) {
+
+				// A nested savepoint shares the enclosing transaction's
+				// connection; a REQUIRES_NEW transaction would deadlock on
+				// the row locks held by the outer import transaction
+
 				TransactionInvokerUtil.invoke(
-					_transactionConfig, importItemCallable);
+					_nestedTransactionConfig, importItemCallable);
 			}
 			else {
 				importItemCallable.call();
@@ -607,6 +613,9 @@ public class BatchEngineImportTaskExecutorImpl
 			return null;
 		}
 
+		_languageKeyResolver.expand(
+			batchEngineImportTask.getCompanyId(), fieldNameValueMap);
+
 		if (!_batchEngineContentProcessors.isEmpty() &&
 			ExportImportThreadLocal.isImportInProcess()) {
 
@@ -657,7 +666,10 @@ public class BatchEngineImportTaskExecutorImpl
 	private static final Log _log = LogFactoryUtil.getLog(
 		BatchEngineImportTaskExecutorImpl.class);
 
-	private static final TransactionConfig _transactionConfig =
+	private static final TransactionConfig _nestedTransactionConfig =
+		TransactionConfig.Factory.create(
+			Propagation.NESTED, new Class<?>[] {Exception.class});
+	private static final TransactionConfig _requiresNewTransactionConfig =
 		TransactionConfig.Factory.create(
 			Propagation.REQUIRES_NEW, new Class<?>[] {Exception.class});
 
@@ -699,6 +711,9 @@ public class BatchEngineImportTaskExecutorImpl
 	private ItemClassRegistry _itemClassRegistry;
 
 	private ServiceTrackerList<ItemReaderPostAction> _itemReaderPostActions;
+
+	@Reference
+	private LanguageKeyResolver _languageKeyResolver;
 
 	@Reference
 	private UserLocalService _userLocalService;

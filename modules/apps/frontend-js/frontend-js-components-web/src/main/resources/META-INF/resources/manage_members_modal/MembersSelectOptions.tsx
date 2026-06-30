@@ -3,20 +3,18 @@
  * SPDX-License-Identifier: LGPL-2.1-or-later OR LicenseRef-Liferay-DXP-EULA-2.0.0-2023-06
  */
 
-import './MembersSelectOptions.scss';
-
 import ClayForm, {ClayInput, ClaySelectWithOption} from '@clayui/form';
 import classNames from 'classnames';
 import React, {useId} from 'react';
 
-import {SelectOptions} from './types';
+import {MemberType} from './types';
 
 export interface MembersSelectOptionsProps {
 	children: React.ReactNode;
 	className?: string;
 	label?: string;
-	onSelectChange?: (value: SelectOptions) => void;
-	selectValue: SelectOptions;
+	onSelectChange?: (value: MemberType) => void;
+	selectValue: MemberType;
 }
 
 export function MembersSelectOptions({
@@ -44,18 +42,16 @@ export function MembersSelectOptions({
 						className="font-weight-semi-bold form-control form-control-select-secondary rounded-left"
 						id={selectId}
 						onChange={(event) => {
-							onSelectChange?.(
-								event.target.value as SelectOptions
-							);
+							onSelectChange?.(event.target.value as MemberType);
 						}}
 						options={[
 							{
 								label: Liferay.Language.get('users'),
-								value: SelectOptions.USERS,
+								value: MemberType.USERS,
 							},
 							{
 								label: Liferay.Language.get('groups'),
-								value: SelectOptions.GROUPS,
+								value: MemberType.GROUPS,
 							},
 						]}
 						value={selectValue}

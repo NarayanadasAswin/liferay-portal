@@ -13,9 +13,9 @@ import ManageMembersModal from '../../src/main/resources/META-INF/resources/mana
 import {MembersSelectOptions} from '../../src/main/resources/META-INF/resources/manage_members_modal/MembersSelectOptions';
 import {
 	AddMembersInputApi,
+	MemberType,
 	MembersConfig,
 	Role,
-	SelectOptions,
 	UserAccount,
 	UserGroup,
 } from '../../src/main/resources/META-INF/resources/manage_members_modal/types';
@@ -29,9 +29,9 @@ jest.mock(
 );
 
 const ROLES: Role[] = [
-	{externalReferenceCode: 'r-member', id: 10, name: 'Member', name_i18n: {}},
-	{externalReferenceCode: 'r-editor', id: 11, name: 'Editor', name_i18n: {}},
-	{externalReferenceCode: 'r-owner', id: 12, name: 'Owner', name_i18n: {}},
+	{externalReferenceCode: 'r-member', id: 10, name: 'Member'},
+	{externalReferenceCode: 'r-editor', id: 11, name: 'Editor'},
+	{externalReferenceCode: 'L_ASSET_LIBRARY_OWNER', id: 12, name: 'Owner'},
 ];
 
 const ALICE: UserAccount = {
@@ -79,8 +79,7 @@ const CANDIDATE_GROUP: UserGroup = {
 
 const CONFIG: MembersConfig = {
 	defaultRoleName: 'Member',
-	excludedRoleNames: ['Connected'],
-	hiddenRoleNames: ['Owner'],
+	excludedRoleExternalReferenceCodes: ['L_ASSET_LIBRARY_OWNER'],
 	messages: {
 		addGroupError: 'add-group-error {0}',
 		addGroupSuccess: 'add-group-success {0}',
@@ -174,7 +173,7 @@ function renderAddMembersInput({
 			<button
 				onClick={() =>
 					onAutocompleteItemSelected(
-						selectValue === SelectOptions.USERS
+						selectValue === MemberType.USERS
 							? CANDIDATE_USER
 							: CANDIDATE_GROUP
 					)

@@ -52,6 +52,24 @@ describe('NewExport', () => {
 		fetch.mockResponse(JSON.stringify(mockExportPreview));
 	});
 
+	it('preloads the preview without fetching when it is provided', async () => {
+		renderComponent({exportPreview: mockExportPreview});
+
+		await screen.findByText('loaded');
+
+		expect(screen.getByRole('checkbox', {name: 'Design'})).toBeChecked();
+		expect(fetch).not.toHaveBeenCalled();
+	});
+
+	it('fetches the preview on mount when it is not provided', async () => {
+		renderComponent();
+
+		await screen.findByText('loaded');
+
+		expect(fetch).toHaveBeenCalledTimes(1);
+		expect(fetch.mock.calls[0][0]).toBe(DEFAULT_PROPS.exportPreviewAPIURL);
+	});
+
 	it('renders the export form', async () => {
 		const {container} = renderComponent();
 
@@ -184,6 +202,56 @@ describe('NewExport', () => {
 		expect(screen.getByRole('textbox', {name: /^name/i})).toHaveValue(
 			'test-file'
 		);
+	});
+
+	it('exports the last range window resolved at apply, not at submit', async () => {
+		const HOUR = 60 * 60 * 1000;
+		const applyTime = Date.UTC(2026, 0, 1, 12, 0, 0);
+
+		let now = applyTime;
+
+		const dateNowSpy = jest
+			.spyOn(Date, 'now')
+			.mockImplementation(() => now);
+
+		renderComponent();
+
+		await screen.findByText('loaded');
+
+		await userEvent.type(
+			await screen.findByRole('textbox', {name: /^name/i}),
+			'test-file'
+		);
+		await userEvent.click(screen.getByRole('checkbox', {name: 'Design'}));
+
+		await userEvent.selectOptions(
+			screen.getByRole('combobox', {name: 'filter-content-by'}),
+			'last'
+		);
+		await userEvent.click(
+			screen.getByRole('button', {name: /show-results/i})
+		);
+
+		now = applyTime + 5 * HOUR;
+
+		fetch.mockResponseOnce(JSON.stringify({}));
+
+		await userEvent.click(screen.getByRole('button', {name: /^export$/i}));
+
+		await waitFor(() => {
+			const exportCall = fetch.mock.calls.find(
+				([, init]) => init?.method === 'POST'
+			);
+
+			const body = JSON.parse(exportCall![1]!.body as string);
+
+			expect(body.startDate).toBe(
+				new Date(applyTime - 12 * HOUR).toISOString()
+			);
+			expect(body.endDate).toBe(new Date(applyTime).toISOString());
+		});
+
+		dateNowSpy.mockRestore();
 	});
 
 	it('enables the export button once the name is set since entities are checked by default', async () => {
@@ -607,5 +675,40 @@ describe('NewExport', () => {
 			expect(handlerNames).not.toContain('comments');
 			expect(handlerNames).not.toContain('COMMENTS');
 		});
+	});
+
+	it('hides a nested control when its parent control is unchecked', async () => {
+		renderComponent();
+
+		await screen.findByText('loaded');
+
+		await expandSection('Content & Data');
+
+		await userEvent.click(
+			screen.getAllByRole('button', {name: 'show-all-x'})[0]
+		);
+
+		const referencedContentCheckbox = screen.getByRole('checkbox', {
+			name: 'Referenced Content',
+		}) as HTMLInputElement;
+
+		if (!referencedContentCheckbox.checked) {
+			await userEvent.click(referencedContentCheckbox);
+		}
+
+		expect(
+			screen.getByText('Referenced Content Behavior', {
+				selector: 'label[for="_journal_referenced-content-behavior"]',
+			})
+		).toBeInTheDocument();
+
+		await userEvent.click(referencedContentCheckbox);
+
+		expect(referencedContentCheckbox).not.toBeChecked();
+		expect(
+			screen.queryByText('Referenced Content Behavior', {
+				selector: 'label[for="_journal_referenced-content-behavior"]',
+			})
+		).not.toBeInTheDocument();
 	});
 });

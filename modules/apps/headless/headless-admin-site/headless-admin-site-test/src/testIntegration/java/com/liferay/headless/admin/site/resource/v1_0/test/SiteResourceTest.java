@@ -12,6 +12,7 @@ import com.liferay.depot.model.DepotEntry;
 import com.liferay.depot.service.DepotEntryLocalService;
 import com.liferay.exportimport.test.rule.LazyReferencing;
 import com.liferay.exportimport.test.rule.LazyReferencingTestRule;
+import com.liferay.exportimport.test.util.ExportImportTestUtil;
 import com.liferay.headless.admin.site.client.dto.v1_0.AnalyticsConfiguration;
 import com.liferay.headless.admin.site.client.dto.v1_0.GoogleAnalyticsConfiguration;
 import com.liferay.headless.admin.site.client.dto.v1_0.RatingsTypes;
@@ -20,6 +21,7 @@ import com.liferay.headless.admin.site.client.pagination.Page;
 import com.liferay.headless.admin.site.client.pagination.Pagination;
 import com.liferay.headless.admin.site.client.problem.Problem;
 import com.liferay.headless.admin.site.client.resource.v1_0.SiteResource;
+import com.liferay.layout.test.util.LayoutTestUtil;
 import com.liferay.petra.string.CharPool;
 import com.liferay.petra.string.StringBundler;
 import com.liferay.petra.string.StringPool;
@@ -27,12 +29,14 @@ import com.liferay.portal.kernel.json.JSONFactory;
 import com.liferay.portal.kernel.json.JSONUtil;
 import com.liferay.portal.kernel.model.Group;
 import com.liferay.portal.kernel.model.GroupConstants;
+import com.liferay.portal.kernel.model.Layout;
 import com.liferay.portal.kernel.model.LayoutSet;
 import com.liferay.portal.kernel.model.LayoutSetPrototype;
 import com.liferay.portal.kernel.model.Role;
 import com.liferay.portal.kernel.model.User;
 import com.liferay.portal.kernel.model.role.RoleConstants;
 import com.liferay.portal.kernel.service.GroupLocalService;
+import com.liferay.portal.kernel.service.LayoutLocalServiceUtil;
 import com.liferay.portal.kernel.service.LayoutSetPrototypeLocalService;
 import com.liferay.portal.kernel.service.RoleLocalService;
 import com.liferay.portal.kernel.service.ServiceContext;
@@ -43,6 +47,7 @@ import com.liferay.portal.kernel.test.rule.AggregateTestRule;
 import com.liferay.portal.kernel.test.rule.DeleteAfterTestRun;
 import com.liferay.portal.kernel.test.util.HTTPTestUtil;
 import com.liferay.portal.kernel.test.util.RandomTestUtil;
+import com.liferay.portal.kernel.test.util.RoleTestUtil;
 import com.liferay.portal.kernel.test.util.ServiceContextTestUtil;
 import com.liferay.portal.kernel.test.util.TestPropsValues;
 import com.liferay.portal.kernel.test.util.UserTestUtil;
@@ -73,6 +78,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -442,8 +448,7 @@ public class SiteResourceTest extends BaseSiteResourceTestCase {
 		User user = UserTestUtil.addUser(
 			testCompany, RandomTestUtil.randomString());
 
-		Role role = _roleLocalService.getRole(
-			testCompany.getCompanyId(), roleName);
+		Role role = RoleTestUtil.addRole(roleName, RoleConstants.TYPE_REGULAR);
 
 		_userLocalService.addRoleUser(role.getRoleId(), user.getUserId());
 
@@ -1133,6 +1138,9 @@ public class SiteResourceTest extends BaseSiteResourceTestCase {
 				).build(),
 				null, true, true, new ServiceContext());
 
+		Layout layoutSetPrototypeLayout = LayoutTestUtil.addTypePortletLayout(
+			layoutSetPrototype.getGroup(), true);
+
 		randomSite.setTemplateKey(
 			String.valueOf(layoutSetPrototype.getLayoutSetPrototypeId()));
 
@@ -1149,6 +1157,13 @@ public class SiteResourceTest extends BaseSiteResourceTestCase {
 		Assert.assertEquals(
 			layoutSetPrototype.getLayoutSetPrototypeId(),
 			publicLayoutSet.getLayoutSetPrototypeId());
+
+		ExportImportTestUtil.retryAssert(
+			1, TimeUnit.SECONDS, 30, TimeUnit.SECONDS,
+			() -> Assert.assertNotNull(
+				LayoutLocalServiceUtil.fetchLayoutByFriendlyURL(
+					group.getGroupId(), false,
+					layoutSetPrototypeLayout.getFriendlyURL())));
 	}
 
 	private void _testPostSiteWithFriendlyURLMissingSlash() throws Exception {

@@ -15,10 +15,12 @@ if (liveGroup == null) {
 	liveGroupId = groupId;
 }
 
-ExportImportPreviewDisplayContext exportImportPreviewDisplayContext = new ExportImportPreviewDisplayContext("/export_import/view_import_layouts", request, liferayPortletResponse, liveGroup, groupId, liveGroupId, privateLayout, stagingGroupHelper);
+ExportImportPreviewDisplayContext exportImportPreviewDisplayContext = new ExportImportPreviewDisplayContext("/export_import/view_import_layouts", liveGroup, groupId, request, liferayPortletResponse, liveGroupId, privateLayout, stagingGroupHelper);
 
 portletDisplay.setShowBackIcon(true);
 portletDisplay.setURLBack(exportImportPreviewDisplayContext.getBackURL());
+
+renderResponse.setTitle(exportImportPreviewDisplayContext.getImportTitle());
 %>
 
 <clay:container-fluid

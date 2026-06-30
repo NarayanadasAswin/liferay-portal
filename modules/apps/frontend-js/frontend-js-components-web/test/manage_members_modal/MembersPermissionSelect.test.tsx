@@ -12,22 +12,21 @@ import {MembersPermissionSelect} from '../../src/main/resources/META-INF/resourc
 import {Role} from '../../src/main/resources/META-INF/resources/manage_members_modal/types';
 
 const ROLES: Role[] = [
-	{externalReferenceCode: 'erc-member', id: 1, name: 'Member', name_i18n: {}},
-	{externalReferenceCode: 'erc-owner', id: 2, name: 'Owner', name_i18n: {}},
+	{externalReferenceCode: 'L_ASSET_LIBRARY_MEMBER', id: 1, name: 'Member'},
+	{externalReferenceCode: 'L_ASSET_LIBRARY_OWNER', id: 2, name: 'Owner'},
 	{
-		externalReferenceCode: 'erc-consumer',
+		externalReferenceCode: 'L_ASSET_LIBRARY_CONTENT_REVIEWER',
 		id: 3,
 		name: 'Consumer',
-		name_i18n: {},
 	},
-	{externalReferenceCode: 'erc-editor', id: 4, name: 'Editor', name_i18n: {}},
+	{
+		externalReferenceCode: 'L_ASSET_LIBRARY_ADMINISTRATOR',
+		id: 4,
+		name: 'Editor',
+	},
 ];
 
 describe('MembersPermissionSelect', () => {
-	beforeAll(() => {
-		(Liferay.ThemeDisplay as any).getBCP47LanguageId = () => 'en-US';
-	});
-
 	function renderOpened(
 		props: Partial<
 			React.ComponentProps<typeof MembersPermissionSelect>
@@ -36,7 +35,6 @@ describe('MembersPermissionSelect', () => {
 		render(
 			<MembersPermissionSelect
 				defaultRoleName="Member"
-				hiddenRoleNames={['Owner', 'Consumer']}
 				onChange={() => {}}
 				roles={ROLES}
 				selectedRoles={['Member']}
@@ -47,14 +45,7 @@ describe('MembersPermissionSelect', () => {
 		fireEvent.click(screen.getByRole('button'));
 	}
 
-	it('hides the roles listed in hiddenRoleNames', () => {
-		renderOpened();
-
-		expect(screen.queryByText('Owner')).not.toBeInTheDocument();
-		expect(screen.queryByText('Consumer')).not.toBeInTheDocument();
-	});
-
-	it('renders the non-hidden roles', () => {
+	it('renders the provided roles', () => {
 		renderOpened();
 
 		expect(screen.getByLabelText('Member')).toBeInTheDocument();
@@ -66,5 +57,14 @@ describe('MembersPermissionSelect', () => {
 
 		expect(screen.getByLabelText('Member')).toBeDisabled();
 		expect(screen.getByLabelText('Editor')).not.toBeDisabled();
+	});
+
+	it('labels a role with the caller-provided name for its external reference code', () => {
+		renderOpened({
+			roleNames: {L_ASSET_LIBRARY_ADMINISTRATOR: 'Custom Editor'},
+		});
+
+		expect(screen.getByLabelText('Custom Editor')).toBeInTheDocument();
+		expect(screen.getByLabelText('Member')).toBeInTheDocument();
 	});
 });

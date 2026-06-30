@@ -35,6 +35,8 @@ import com.liferay.portal.workflow.manager.WorkflowDefinitionManager;
 import java.io.Closeable;
 import java.io.InputStream;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 import org.junit.Assert;
@@ -431,6 +433,67 @@ public class WorkflowDefinitionManagerTest extends BaseWorkflowManagerTestCase {
 							"L_LIFERAY_AI_HUB_MCP_SERVER")
 					).toString()),
 				_createWorkflowNodeSetting("userMessage", "User Message")),
+			workflowNode.getWorkflowNodeSettings());
+	}
+
+	@Test
+	public void testDeployWorkflowDefinitionWithServiceNode() throws Exception {
+		AssertUtils.assertFailure(
+			KaleoDefinitionValidationException.
+				MustNotSetMultipleOutgoingTransitions.class,
+			"The convert node cannot have multiple outgoing transitions",
+			() -> {
+				InputStream inputStream = getResourceInputStream(
+					"service-node-multiple-transitions-workflow-" +
+						"definition.json");
+
+				_workflowDefinitionManager.deployWorkflowDefinition(
+					FileUtil.getBytes(inputStream),
+					TestPropsValues.getCompanyId(),
+					RandomTestUtil.randomString(),
+					"Service Node Multiple Transitions Workflow Definition",
+					RandomTestUtil.randomString(), TestPropsValues.getUserId());
+			});
+
+		InputStream inputStream = getResourceInputStream(
+			"service-node-workflow-definition.json");
+
+		WorkflowDefinition workflowDefinition =
+			_workflowDefinitionManager.deployWorkflowDefinition(
+				FileUtil.getBytes(inputStream), TestPropsValues.getCompanyId(),
+				RandomTestUtil.randomString(),
+				"Service Node Workflow Definition",
+				RandomTestUtil.randomString(), TestPropsValues.getUserId());
+
+		List<WorkflowNode> workflowNodes =
+			workflowDefinition.getWorkflowNodes();
+
+		WorkflowNode workflowNode = workflowNodes.get(2);
+
+		Assert.assertEquals(WorkflowNode.Type.SERVICE, workflowNode.getType());
+
+		_assertEquals(
+			List.of(
+				_createWorkflowNodeSetting(
+					"inputVariables",
+					JSONUtil.put(
+						JSONUtil.put(
+							"name", "input"
+						).put(
+							"type", "string"
+						)
+					).toString()),
+				_createWorkflowNodeSetting(
+					"javaDelegate", "com.example.Converter#convert"),
+				_createWorkflowNodeSetting(
+					"outputVariables",
+					JSONUtil.put(
+						JSONUtil.put(
+							"name", "output"
+						).put(
+							"type", "string"
+						)
+					).toString())),
 			workflowNode.getWorkflowNodeSettings());
 	}
 
@@ -840,11 +903,17 @@ public class WorkflowDefinitionManagerTest extends BaseWorkflowManagerTestCase {
 			expectedWorkflowNodeSettings.size(),
 			actualWorkflowNodeSettings.size());
 
-		for (int i = 0; i < actualWorkflowNodeSettings.size(); i++) {
+		List<WorkflowNodeSetting> sortedActualWorkflowNodeSettings =
+			new ArrayList<>(actualWorkflowNodeSettings);
+
+		sortedActualWorkflowNodeSettings.sort(
+			Comparator.comparing(WorkflowNodeSetting::getName));
+
+		for (int i = 0; i < sortedActualWorkflowNodeSettings.size(); i++) {
 			WorkflowNodeSetting expectedWorkflowNodeSetting =
 				expectedWorkflowNodeSettings.get(i);
 			WorkflowNodeSetting actualWorkflowNodeSetting =
-				actualWorkflowNodeSettings.get(i);
+				sortedActualWorkflowNodeSettings.get(i);
 
 			Assert.assertEquals(
 				expectedWorkflowNodeSetting.getName(),

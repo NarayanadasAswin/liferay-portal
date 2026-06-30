@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: LGPL-2.1-or-later OR LicenseRef-Liferay-DXP-EULA-2.0.0-2023-06
  */
 
-export enum SelectOptions {
+export enum MemberType {
 	GROUPS = 'groups',
 	USERS = 'users',
 }
@@ -12,10 +12,14 @@ export type Role = {
 	externalReferenceCode: string;
 	id: number;
 	name: string;
-	name_i18n: {
-		[key: string]: string;
-	};
 };
+
+export type RoleExternalReferenceCode =
+	| 'L_ASSET_LIBRARY_ADMINISTRATOR'
+	| 'L_ASSET_LIBRARY_CONNECTED_SITE_MEMBER'
+	| 'L_ASSET_LIBRARY_CONTENT_REVIEWER'
+	| 'L_ASSET_LIBRARY_MEMBER'
+	| 'L_ASSET_LIBRARY_OWNER';
 
 export interface UserRole {
 	id: number;
@@ -59,7 +63,7 @@ export interface FetchMembersArgs {
 	pageSize?: number;
 }
 
-export interface MembersFeedbackMessages {
+interface MembersFeedbackMessages {
 	addGroupError: string;
 	addGroupSuccess: string;
 	addUserError: string;
@@ -75,15 +79,15 @@ export interface MembersFeedbackMessages {
 
 export interface MembersConfig {
 	defaultRoleName: string;
-	excludedRoleNames?: string[];
-	hiddenRoleNames: string[];
+	excludedRoleExternalReferenceCodes?: RoleExternalReferenceCode[];
 	messages: MembersFeedbackMessages;
+	roleNames?: Partial<Record<RoleExternalReferenceCode, string>>;
 }
 
 export interface AddMembersInputApi {
 	excludeMembers: (UserAccount | UserGroup)[];
 	filter?: string;
 	onAutocompleteItemSelected: (item: UserAccount | UserGroup) => void;
-	onSelectChange: (value: SelectOptions) => void;
-	selectValue: SelectOptions;
+	onSelectChange: (value: MemberType) => void;
+	selectValue: MemberType;
 }

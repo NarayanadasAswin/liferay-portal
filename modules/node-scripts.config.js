@@ -10,10 +10,11 @@
  */
 
 module.exports = {
-	hash: '6a2d1db97cdaecb97f3d6b380d6995647dde6153c61668f343b7d10ed1718501',
+	hash: 'cb972f3ea909b4ec7bd68d5532d04b60d06ff1572cd13ae5080da6270937522a',
 	imports: {
 		'@liferay/accessibility-menu-web': [],
 		'@liferay/accessibility-settings-state-web': [],
+		'@liferay/account-validator-vies-web': [],
 		'@liferay/address-web': [],
 		'@liferay/ai-creator-openai-web': [],
 		'@liferay/ai-hub-cell-js-components-web': [],
@@ -91,12 +92,14 @@ module.exports = {
 		'@liferay/frontend-data-set-fragment-web': [],
 		'@liferay/frontend-data-set-sample-web': [],
 		'@liferay/frontend-data-set-taglib': [],
-		'@liferay/frontend-data-set-web': [],
+		'@liferay/frontend-data-set-web': ['./api'],
 		'@liferay/frontend-editor-ckeditor4-sample-web': [],
 		'@liferay/frontend-editor-ckeditor5-sample-web': [],
 		'@liferay/frontend-icons-web': [],
 		'@liferay/frontend-js-audiences-web': ['./custom-attributes'],
 		'@liferay/frontend-js-bootstrap-support-web': [],
+		'@liferay/frontend-js-charts-sample-web': [],
+		'@liferay/frontend-js-charts-web': [],
 		'@liferay/frontend-js-clay-web': [
 			'@clayui/alert',
 			'@clayui/autocomplete',
@@ -217,6 +220,7 @@ module.exports = {
 		'@liferay/journal-taglib': [],
 		'@liferay/launch-web': [],
 		'@liferay/layout-content-page-editor-web': [],
+		'@liferay/layout-content-web': [],
 		'@liferay/layout-js-components-web': [],
 		'@liferay/layout-locked-layouts-web': [],
 		'@liferay/layout-page-template-admin-web': [],

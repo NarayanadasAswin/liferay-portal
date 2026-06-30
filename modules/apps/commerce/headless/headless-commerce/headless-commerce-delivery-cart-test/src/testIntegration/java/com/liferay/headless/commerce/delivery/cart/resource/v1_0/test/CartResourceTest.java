@@ -31,6 +31,7 @@ import com.liferay.headless.commerce.delivery.cart.client.dto.v1_0.CouponCode;
 import com.liferay.headless.commerce.delivery.cart.client.pagination.Page;
 import com.liferay.headless.commerce.delivery.cart.client.pagination.Pagination;
 import com.liferay.headless.commerce.delivery.cart.client.problem.Problem;
+import com.liferay.headless.commerce.delivery.cart.client.resource.v1_0.CartResource;
 import com.liferay.list.type.model.ListTypeDefinition;
 import com.liferay.list.type.model.ListTypeEntry;
 import com.liferay.list.type.service.ListTypeDefinitionLocalService;
@@ -605,12 +606,12 @@ public class CartResourceTest extends BaseCartResourceTestCase {
 			_user.getUserId(), CommerceChannel.class.getName(),
 			_commerceChannel.getCommerceChannelId(), corEntry.getCOREntryId());
 
-		Cart cart = _createCart();
+		CommerceOrder commerceOrder = _addCommerceOrder();
 
-		Cart invalidCart = cartResource.getCart(cart.getId());
+		Cart cart = cartResource.getCart(commerceOrder.getCommerceOrderId());
 
-		Assert.assertFalse(invalidCart.getValid());
-		Assert.assertTrue(ArrayUtil.isNotEmpty(invalidCart.getErrorMessages()));
+		Assert.assertTrue(ArrayUtil.isNotEmpty(cart.getErrorMessages()));
+		Assert.assertFalse(cart.getValid());
 
 		Page<Cart> cartsPage = cartResource.getChannelCartsPage(
 			_commerceChannel.getCommerceChannelId(), null, null,
@@ -976,9 +977,17 @@ public class CartResourceTest extends BaseCartResourceTestCase {
 		CommerceTestUtil.runWithGuestCheckoutDisabledOnB2BChannel(
 			_commerceChannel.getGroupId(),
 			() -> {
+				CartResource guestCartResource = CartResource.builder(
+				).endpoint(
+					testCompany.getVirtualHostname(),
+					PortalUtil.getPortalServerPort(false), "http"
+				).locale(
+					LocaleUtil.getDefault()
+				).build();
+
 				Problem.ProblemException problemException = Assert.assertThrows(
 					Problem.ProblemException.class,
-					() -> cartResource.postChannelCart(
+					() -> guestCartResource.postChannelCart(
 						_commerceChannel.getCommerceChannelId(),
 						_randomGuestCart()));
 

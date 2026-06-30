@@ -1,3 +1,20 @@
+create table LPTSREVAudienceEntryRel (
+	mvccVersion LONG default 0 not null,
+	ctCollectionId LONG default 0 not null,
+	uuid_ VARCHAR(75) null,
+	externalReferenceCode VARCHAR(75) null,
+	lptsrevAudienceEntryRelId LONG not null,
+	groupId LONG,
+	companyId LONG,
+	userId LONG,
+	userName VARCHAR(75) null,
+	createDate DATE null,
+	modifiedDate DATE null,
+	audienceEntryERC VARCHAR(75) null,
+	lptsRelElementVariationERC VARCHAR(75) null,
+	primary key (lptsrevAudienceEntryRelId, ctCollectionId)
+);
+
 create table LPTSRelElementVariation (
 	mvccVersion LONG default 0 not null,
 	ctCollectionId LONG default 0 not null,
@@ -17,7 +34,7 @@ create table LPTSRelElementVariation (
 	name VARCHAR(75) null,
 	plid LONG,
 	segmentsExperienceERC VARCHAR(75) null,
-	targetElement VARCHAR(75) null,
+	targetElement VARCHAR(1000) null,
 	primary key (lptsRelElementVariationId, ctCollectionId)
 );
 

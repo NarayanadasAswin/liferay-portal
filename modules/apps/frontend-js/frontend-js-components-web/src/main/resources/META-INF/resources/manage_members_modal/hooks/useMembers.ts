@@ -6,7 +6,14 @@
 import {useCallback, useEffect, useReducer} from 'react';
 
 import * as membersService from '../services/membersService';
-import {MembersConfig, SelectOptions, UserAccount, UserGroup} from '../types';
+import {
+	MemberType,
+	MembersConfig,
+	Role,
+	RoleExternalReferenceCode,
+	UserAccount,
+	UserGroup,
+} from '../types';
 import {ActionTypes, initialState, reducer} from './membersReducer';
 import {runOptimisticMutation} from './runOptimisticMutation';
 
@@ -36,22 +43,21 @@ export function useMembers(
 				}),
 				membersService.getRoles({
 					externalReferenceCode,
-					fields: [
-						'externalReferenceCode',
-						'id',
-						'name',
-						'name_i18n',
-					].join(','),
+					fields: ['externalReferenceCode', 'id', 'name'].join(','),
 				}),
 			]);
 
-			const excludedRoleNames = config.excludedRoleNames ?? [];
+			const excludedRoleExternalReferenceCodes =
+				config.excludedRoleExternalReferenceCodes ?? [];
 
 			dispatch({
 				payload: {
 					groups,
 					roles: allRoles.items.filter(
-						(role) => !excludedRoleNames.includes(role.name)
+						(role) =>
+							!excludedRoleExternalReferenceCodes.includes(
+								role.externalReferenceCode as RoleExternalReferenceCode
+							)
 					),
 					users,
 				},
@@ -65,15 +71,19 @@ export function useMembers(
 				type: ActionTypes.FetchError,
 			});
 		}
-	}, [config.excludedRoleNames, externalReferenceCode, pageSize]);
+	}, [
+		config.excludedRoleExternalReferenceCodes,
+		externalReferenceCode,
+		pageSize,
+	]);
 
 	useEffect(() => {
 		fetchInitialData();
 	}, [fetchInitialData]);
 
 	const fetchPage = useCallback(
-		(type: SelectOptions, page: number, keywords: string) => {
-			const isUser = type === SelectOptions.USERS;
+		(type: MemberType, page: number, keywords: string) => {
+			const isUser = type === MemberType.USERS;
 
 			const params = {
 				externalReferenceCode,
@@ -91,12 +101,12 @@ export function useMembers(
 	);
 
 	const loadMore = useCallback(
-		async (type: SelectOptions) => {
+		async (type: MemberType) => {
 			if (state.isFetching) {
 				return;
 			}
 
-			const isUser = type === SelectOptions.USERS;
+			const isUser = type === MemberType.USERS;
 			const currentState = isUser ? state.users : state.groups;
 			const newPage = currentState.page + 1;
 
@@ -125,7 +135,7 @@ export function useMembers(
 	);
 
 	const search = useCallback(
-		async (type: SelectOptions, keywords: string) => {
+		async (type: MemberType, keywords: string) => {
 			if (state.isSearching) {
 				return;
 			}
@@ -159,8 +169,8 @@ export function useMembers(
 	);
 
 	const addMember = useCallback(
-		async (item: UserAccount | UserGroup, type: SelectOptions) => {
-			const isUser = type === SelectOptions.USERS;
+		async (item: UserAccount | UserGroup, type: MemberType) => {
+			const isUser = type === MemberType.USERS;
 			const items = isUser ? state.users.items : state.groups.items;
 
 			if (items.some((existingItem) => existingItem.id === item.id)) {
@@ -207,8 +217,8 @@ export function useMembers(
 	);
 
 	const removeMember = useCallback(
-		async (item: UserAccount | UserGroup, type: SelectOptions) => {
-			const isUser = type === SelectOptions.USERS;
+		async (item: UserAccount | UserGroup, type: MemberType) => {
+			const isUser = type === MemberType.USERS;
 
 			await runOptimisticMutation(dispatch, {
 				errorMessage: isUser
@@ -248,9 +258,9 @@ export function useMembers(
 		async (
 			itemToUpdate: UserAccount | UserGroup,
 			newRoles: string[],
-			type: SelectOptions
+			type: MemberType
 		) => {
-			const isUser = type === SelectOptions.USERS;
+			const isUser = type === MemberType.USERS;
 			const originalRoles = itemToUpdate.roles;
 
 			const newRoleObjects = state.roles.filter((role) => {
@@ -284,12 +294,13 @@ export function useMembers(
 				rollbackAction: {
 					payload: {
 						id: itemToUpdate.id,
-						originalRoles:
-							originalRoles?.map((originalRole) => {
+						originalRoles: (originalRoles || [])
+							.map((originalRole) => {
 								return state.roles.find(
 									(role) => role.id === originalRole.id
-								)!;
-							}) || [],
+								);
+							})
+							.filter((role): role is Role => Boolean(role)),
 					},
 					type: ActionTypes.UpdateRolesFailure,
 				},

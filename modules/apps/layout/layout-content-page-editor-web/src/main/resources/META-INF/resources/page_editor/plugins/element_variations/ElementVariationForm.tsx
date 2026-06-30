@@ -4,36 +4,43 @@
  */
 
 import ClayButton, {ClayButtonWithIcon} from '@clayui/button';
-import ClayForm, {
-	ClayInput,
-	ClaySelectWithOption,
-	ClayToggle,
-} from '@clayui/form';
+import {LanguagePicker} from '@clayui/core';
+import ClayForm, {ClayInput, ClayToggle} from '@clayui/form';
+import ClayIcon from '@clayui/icon';
+import ClayMultiSelect from '@clayui/multi-select';
 import {useId} from 'frontend-js-components-web';
 import React from 'react';
 
-interface ElementVariation {
-	audienceEntryERC: string;
-	hide: boolean;
-	html: string;
-	js: string;
-	name: string;
-	targetElement: string;
-}
+import {ElementVariation} from './elementVariationsReducer';
+
+type ElementVariationFormData = Pick<
+	ElementVariation,
+	'audienceEntryERC' | 'hide' | 'html' | 'js' | 'name' | 'targetElement'
+>;
 
 interface Props {
 	audiences: Array<{label: string; value: string}>;
-	elementVariation: ElementVariation;
+	defaultLanguageId: string;
+	elementVariation: ElementVariationFormData;
+	languageId: string;
+	locales: Array<{id: string; label: string; symbol: string}>;
 	onCancel: () => void;
-	onChange: (properties: Partial<ElementVariation>) => void;
+	onChange: (properties: Partial<ElementVariationFormData>) => void;
+	onLanguageIdChange: (languageId: string) => void;
+	onReloadPreview: () => void;
 	onSave: () => void;
 }
 
 export default function ElementVariationForm({
 	audiences,
+	defaultLanguageId,
 	elementVariation,
+	languageId,
+	locales,
 	onCancel,
 	onChange,
+	onLanguageIdChange,
+	onReloadPreview,
 	onSave,
 }: Props) {
 	const audienceId = useId();
@@ -58,12 +65,42 @@ export default function ElementVariationForm({
 				<span className="font-weight-bold">
 					{Liferay.Language.get('element-variation')}
 				</span>
+
+				<div className="ml-auto">
+					<LanguagePicker
+						defaultLocaleId={defaultLanguageId}
+						hideTriggerText
+						locales={locales}
+						messages={{
+							default: Liferay.Language.get('default'),
+							option: Liferay.Language.get('x-language-x'),
+							translated: Liferay.Language.get('translated'),
+							translating:
+								Liferay.Language.get('translating-x-x'),
+							trigger: Liferay.Language.get(
+								'select-a-language.-current-language-x'
+							),
+							untranslated:
+								Liferay.Language.get('not-translated'),
+						}}
+						onSelectedLocaleChange={(id) =>
+							onLanguageIdChange(String(id))
+						}
+						selectedLocaleId={languageId}
+						small
+					/>
+				</div>
 			</div>
 
 			<div className="flex-grow-1 overflow-auto p-3">
-				<ClayForm.Group>
+				<ClayForm.Group small>
 					<label htmlFor={nameId}>
 						{Liferay.Language.get('name')}
+
+						<ClayIcon
+							className="mr-1 reference-mark"
+							symbol="asterisk"
+						/>
 					</label>
 
 					<ClayInput
@@ -74,9 +111,14 @@ export default function ElementVariationForm({
 					/>
 				</ClayForm.Group>
 
-				<ClayForm.Group>
+				<ClayForm.Group small>
 					<label htmlFor={targetElementId}>
 						{Liferay.Language.get('page-element')}
+
+						<ClayIcon
+							className="mr-1 reference-mark"
+							symbol="asterisk"
+						/>
 					</label>
 
 					<ClayInput
@@ -89,53 +131,128 @@ export default function ElementVariationForm({
 					/>
 				</ClayForm.Group>
 
-				<ClayForm.Group>
+				<ClayForm.Group small>
 					<label htmlFor={audienceId}>
 						{Liferay.Language.get('audience')}
+
+						<ClayIcon
+							className="mr-1 reference-mark"
+							symbol="asterisk"
+						/>
 					</label>
 
-					<ClaySelectWithOption
+					<ClayMultiSelect
 						id={audienceId}
-						onChange={(event) =>
-							onChange({audienceEntryERC: event.target.value})
-						}
-						options={audiences}
-						value={elementVariation.audienceEntryERC}
+						items={audiences.filter(
+							(audience) =>
+								audience.value ===
+								elementVariation.audienceEntryERC
+						)}
+						onItemsChange={(
+							items: Array<{label: string; value: string}>
+						) => {
+							const existingAudiences = items
+								.map((item) =>
+									audiences.find(
+										(audience) =>
+											audience.value === item.value
+									)
+								)
+								.filter(
+									(
+										audience
+									): audience is {
+										label: string;
+										value: string;
+									} => Boolean(audience)
+								);
+
+							onChange({
+								audienceEntryERC: existingAudiences.length
+									? existingAudiences[
+											existingAudiences.length - 1
+										].value
+									: '',
+							});
+						}}
+						sourceItems={audiences}
 					/>
 				</ClayForm.Group>
 
-				<ClayToggle
-					label={Liferay.Language.get(
-						'hide-element-for-this-audience'
-					)}
-					onToggle={(hide) => onChange({hide})}
-					toggled={elementVariation.hide}
-				/>
-
 				<ClayForm.Group>
+					<ClayToggle
+						label={Liferay.Language.get(
+							'hide-element-for-this-audience'
+						)}
+						onToggle={(hide) =>
+							onChange({
+								hide: {
+									...elementVariation.hide,
+									[languageId]: hide,
+								},
+							})
+						}
+						toggled={Boolean(elementVariation.hide[languageId])}
+					/>
+				</ClayForm.Group>
+
+				<ClayForm.Group small>
 					<label htmlFor={htmlId}>
 						{Liferay.Language.get('html')}
 					</label>
 
 					<ClayInput
 						component="textarea"
-						defaultValue={elementVariation.html}
+						defaultValue={elementVariation.html[languageId] ?? ''}
 						id={htmlId}
-						onBlur={(event) => onChange({html: event.target.value})}
+						key={languageId}
+						onBlur={(event) =>
+							onChange({
+								html: {
+									...elementVariation.html,
+									[languageId]: event.target.value,
+								},
+							})
+						}
 					/>
 				</ClayForm.Group>
 
-				<ClayForm.Group>
+				<ClayForm.Group small>
 					<label htmlFor={jsId}>
 						{Liferay.Language.get('javascript')}
 					</label>
 
+					<p className="mb-1 text-2 text-secondary">
+						{Liferay.Language.get(
+							'changes-persist-in-the-preview.-reload-to-update'
+						)}
+					</p>
+
 					<ClayInput
 						component="textarea"
-						defaultValue={elementVariation.js}
+						defaultValue={elementVariation.js[languageId] ?? ''}
 						id={jsId}
-						onBlur={(event) => onChange({js: event.target.value})}
+						key={languageId}
+						onBlur={(event) =>
+							onChange({
+								js: {
+									...elementVariation.js,
+									[languageId]: event.target.value,
+								},
+							})
+						}
 					/>
+
+					<ClayButton
+						className="mt-2"
+						displayType="secondary"
+						onClick={onReloadPreview}
+						size="sm"
+					>
+						<ClayIcon className="mr-2" symbol="reload" />
+
+						{Liferay.Language.get('reload')}
+					</ClayButton>
 				</ClayForm.Group>
 			</div>
 
@@ -151,7 +268,7 @@ export default function ElementVariationForm({
 
 				<ClayButton
 					className="ml-2"
-					displayType="secondary"
+					displayType="primary"
 					onClick={onSave}
 					size="sm"
 				>

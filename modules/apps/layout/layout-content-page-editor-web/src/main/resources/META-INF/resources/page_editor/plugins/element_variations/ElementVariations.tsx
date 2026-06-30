@@ -7,12 +7,18 @@ import ClayButton from '@clayui/button';
 import {Option, Picker} from '@clayui/core';
 import ClayEmptyState from '@clayui/empty-state';
 import {useId} from 'frontend-js-components-web';
-import React, {useReducer, useState} from 'react';
+import React, {useReducer, useRef, useState} from 'react';
 
+import {initializeConfig} from '../../app/config/index';
+import {Config} from '../../types/config';
 import ElementVariationForm from './ElementVariationForm';
+import ElementVariationService from './ElementVariationService';
 import ElementVariationsList from './ElementVariationsList';
+import ElementVariationsPreview, {
+	ElementVariationsPreviewRef,
+} from './ElementVariationsPreview';
 import {
-	ElementVariation,
+	LoadedElementVariation,
 	createElementVariation,
 	createInitialState,
 	reducer,
@@ -21,49 +27,73 @@ import {
 import './ElementVariations.scss';
 
 interface Props {
+	addElementVariationURL: string;
 	audiences: Array<{label: string; value: string}>;
-	elementVariations: Array<Omit<ElementVariation, 'key'>>;
-	experiences: Array<{label: string; value: string}>;
-	languageId: string;
+	defaultLanguageId: string;
+	deleteElementVariationURL: string;
+	elementVariations: Array<LoadedElementVariation>;
+	experiences: Array<{
+		label: string;
+		segmentsExperienceERC: string;
+		segmentsExperienceId: number;
+	}>;
+	locales: Array<{id: string; label: string; symbol: string}>;
 	plid: number;
-	redirect: string;
-	segmentsExperienceId: number;
+	portletNamespace: string;
+	previewURL: string;
+	selectedSegmentsExperienceId: number;
 }
 
-const ExperienceTrigger = React.forwardRef<HTMLButtonElement, any>(
-	({children, ...otherProps}, ref) => (
-		<ClayButton
-			className="form-control form-control-select form-control-sm text-left"
-			displayType="secondary"
-			ref={ref}
-			{...otherProps}
-		>
-			{children}
-		</ClayButton>
-	)
-);
+export default function (props: Props) {
+	initializeConfig({portletNamespace: props.portletNamespace} as Config);
 
-export default function ElementVariations({
+	return <ElementVariations {...props} />;
+}
+
+function ElementVariations({
+	addElementVariationURL,
 	audiences = [],
+	defaultLanguageId,
+	deleteElementVariationURL,
 	elementVariations: initialElementVariations = [],
 	experiences = [],
+	locales,
+	plid,
+	previewURL,
+	selectedSegmentsExperienceId,
 }: Props) {
 	const experienceId = useId();
 
-	const [experienceKey, setExperienceKey] = useState(
-		experiences[0]?.value ?? ''
-	);
+	const [experienceKey, setExperienceKey] = useState(() => {
+		const selectedExperience = experiences.find(
+			(experience) =>
+				experience.segmentsExperienceId === selectedSegmentsExperienceId
+		);
 
-	const [{draftElementVariation, elementVariations}, dispatch] = useReducer(
-		reducer,
-		initialElementVariations,
-		createInitialState
-	);
+		return (
+			selectedExperience?.segmentsExperienceERC ??
+			experiences[0]?.segmentsExperienceERC ??
+			''
+		);
+	});
+
+	const [{draftElementVariation, elementVariations, languageId}, dispatch] =
+		useReducer(
+			reducer,
+			{
+				defaultLanguageId,
+				elementVariations: initialElementVariations,
+			},
+			createInitialState
+		);
 
 	const experienceElementVariations = elementVariations.filter(
 		(elementVariation) =>
 			elementVariation.segmentsExperienceERC === experienceKey
 	);
+
+	const elementVariationsPreviewRef =
+		useRef<ElementVariationsPreviewRef>(null);
 
 	return (
 		<div className="d-flex element-variations flex-column">
@@ -72,8 +102,11 @@ export default function ElementVariations({
 					{draftElementVariation ? (
 						<ElementVariationForm
 							audiences={audiences}
+							defaultLanguageId={defaultLanguageId}
 							elementVariation={draftElementVariation}
 							key={draftElementVariation.key}
+							languageId={languageId}
+							locales={locales}
 							onCancel={() =>
 								dispatch({
 									type: 'CANCEL_ELEMENT_VARIATION_DRAFT',
@@ -85,8 +118,25 @@ export default function ElementVariations({
 									type: 'UPDATE_ELEMENT_VARIATION_DRAFT',
 								})
 							}
+							onLanguageIdChange={(languageId) =>
+								dispatch({
+									languageId,
+									type: 'SET_LANGUAGE_ID',
+								})
+							}
+							onReloadPreview={() =>
+								elementVariationsPreviewRef.current?.reload()
+							}
 							onSave={() =>
-								dispatch({type: 'SAVE_ELEMENT_VARIATION_DRAFT'})
+								ElementVariationService.addElementVariation({
+									addElementVariationURL,
+									elementVariation: draftElementVariation,
+									plid,
+								}).then(() =>
+									dispatch({
+										type: 'SAVE_ELEMENT_VARIATION_DRAFT',
+									})
+								)
 							}
 						/>
 					) : (
@@ -107,7 +157,7 @@ export default function ElementVariations({
 										aria-label={Liferay.Language.get(
 											'experience'
 										)}
-										as={ExperienceTrigger}
+										className="form-control-sm"
 										id={experienceId}
 										items={experiences}
 										onSelectionChange={(selection) =>
@@ -116,7 +166,9 @@ export default function ElementVariations({
 										selectedKey={experienceKey}
 									>
 										{(item) => (
-											<Option key={item.value}>
+											<Option
+												key={item.segmentsExperienceERC}
+											>
 												{item.label}
 											</Option>
 										)}
@@ -128,6 +180,23 @@ export default function ElementVariations({
 										audiences={audiences}
 										elementVariations={
 											experienceElementVariations
+										}
+										onDeleteElementVariation={(
+											elementVariation
+										) =>
+											ElementVariationService.deleteElementVariation(
+												{
+													deleteElementVariationURL,
+													externalReferenceCode:
+														elementVariation.externalReferenceCode,
+													plid,
+												}
+											).then(() =>
+												dispatch({
+													key: elementVariation.key,
+													type: 'DELETE_ELEMENT_VARIATION',
+												})
+											)
 										}
 										onEditElementVariation={(key) =>
 											dispatch({
@@ -172,10 +241,12 @@ export default function ElementVariations({
 					)}
 				</div>
 
-				<iframe
-					className="border-0 flex-grow-1 h-100 w-100"
-					src="https://example.com"
-					title={Liferay.Language.get('element-variations')}
+				<ElementVariationsPreview
+					defaultLanguageId={defaultLanguageId}
+					draftElementVariation={draftElementVariation}
+					languageId={languageId}
+					previewURL={previewURL}
+					ref={elementVariationsPreviewRef}
 				/>
 			</div>
 		</div>

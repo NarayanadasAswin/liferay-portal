@@ -33,17 +33,14 @@ import {notIncludes} from './operators/not_includes';
 
 import type {
 	Attribute,
+	AudienceId,
 	AudiencesDefinition,
 	Conjunction,
 	Operator,
-	RetentionType,
 	Rule,
 } from '../index';
 
-export interface AudienceMatch {
-	id: string;
-	retentionType: RetentionType;
-}
+declare const Analytics: any;
 
 type AttributeValue = Set<string> | boolean | number | string;
 
@@ -53,6 +50,7 @@ interface OperatorImpl {
 
 export class Detection {
 	private _audiencesDefinition: AudiencesDefinition;
+	private _acSegments: Set<string> | undefined;
 	private _uaParser: UAParser;
 
 	constructor(audiencesDefinition: AudiencesDefinition) {
@@ -62,27 +60,48 @@ export class Detection {
 		this._uaParser = new UAParser(navigator.userAgent);
 	}
 
-	async run(): Promise<AudienceMatch[]> {
+	async run(): Promise<AudienceId[]> {
 		const matches = [];
 
 		for (const audience of this._audiencesDefinition.audiences) {
-			const {conjunction, id, retentionType, rules} = audience;
+			const {conjunction, id, rules} = audience;
 
 			log(`Checking rules for audience '${id}'...`);
 
 			const matched = await this._evaluateGroup(conjunction, rules);
 
 			if (matched) {
-				log(`Matched ${retentionType} audience: ${id}`);
+				log(`Matched audience: ${id}`);
 
-				matches.push({
-					id,
-					retentionType,
-				});
+				matches.push(id);
 			}
 		}
 
 		return matches;
+	}
+
+	private async _getAcSegments() {
+		if (this._acSegments === undefined) {
+			if (typeof Analytics === 'undefined') {
+				throw new Error(
+					`Unable to get Analytics Cloud segments because 'Analytics' global object is missing`
+				);
+			}
+
+			const set: Set<string> = new Set();
+
+			for (const segment of await Analytics.segment.getBatchSegmentExternalReferenceCodes()) {
+				set.add(segment);
+			}
+
+			for (const segment of await Analytics.segment.getRealTimeSegmentExternalReferenceCodes()) {
+				set.add(segment);
+			}
+
+			this._acSegments = set;
+		}
+
+		return this._acSegments;
 	}
 
 	private async _getAttribute(attr: Attribute): Promise<AttributeValue> {
@@ -120,7 +139,7 @@ export class Detection {
 			return getRequestParameters();
 		}
 		else if (attr === 'segments') {
-			return getSegments();
+			return getSegments(await this._getAcSegments());
 		}
 		else if (attr === 'timezone') {
 			return getTimezone();

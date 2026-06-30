@@ -7,6 +7,7 @@ package com.liferay.site.internal.util;
 
 import com.liferay.asset.kernel.model.AssetEntry;
 import com.liferay.asset.kernel.service.AssetEntryLocalService;
+import com.liferay.change.tracking.configuration.helper.CTSettingsConfigurationHelper;
 import com.liferay.exportimport.kernel.configuration.ExportImportConfigurationSettingsMapFactoryUtil;
 import com.liferay.exportimport.kernel.configuration.constants.ExportImportConfigurationConstants;
 import com.liferay.exportimport.kernel.lar.ExportImportHelper;
@@ -74,6 +75,7 @@ import com.liferay.portal.kernel.util.Validator;
 import com.liferay.portal.kernel.uuid.PortalUUIDUtil;
 import com.liferay.portal.kernel.workflow.WorkflowConstants;
 import com.liferay.portlet.PortletPreferencesImpl;
+import com.liferay.site.internal.exportimport.internal.notifications.LayoutSetPrototypeNotificationUtil;
 import com.liferay.sites.kernel.util.Sites;
 
 import jakarta.portlet.PortletPreferences;
@@ -579,6 +581,14 @@ public class SitesImpl implements Sites {
 					"import, or staging process is in progress");
 		}
 
+		if (_ctSettingsConfigurationHelper.isEnabled(
+				layoutSetPrototype.getCompanyId())) {
+
+			throw new IllegalStateException(
+				"The site template merge cannot start while publications is " +
+					"enabled");
+		}
+
 		List<LayoutSet> mergeableLayoutSets = new ArrayList<>();
 
 		for (LayoutSet layoutSet :
@@ -592,6 +602,8 @@ public class SitesImpl implements Sites {
 
 		Map<Long, ExportImportConfiguration> exportImportConfigurations =
 			new HashMap<>();
+
+		boolean preValidationErrors = false;
 
 		User user = _userLocalService.getUser(userId);
 
@@ -613,14 +625,34 @@ public class SitesImpl implements Sites {
 					portalException);
 
 				iterator.remove();
+
+				preValidationErrors = true;
 			}
 		}
+
+		if (mergeableLayoutSets.isEmpty()) {
+			if (preValidationErrors) {
+				throw new PortalException(
+					"Unable to start site template merge");
+			}
+
+			LayoutSetPrototypeNotificationUtil.sendMergeCompletedNotification(
+				null, layoutSetPrototype, userId);
+
+			return;
+		}
+
+		Map<String, Serializable> taskContextMap =
+			LayoutSetPrototypeNotificationUtil.buildTaskContextMap(
+				mergeableLayoutSets, layoutSetPrototype, preValidationErrors,
+				userId);
 
 		for (LayoutSet layoutSet : mergeableLayoutSets) {
 			try {
 				_exportImportLocalService.mergeLayoutSetPrototypeInBackground(
 					userId, layoutSet.getGroupId(),
-					exportImportConfigurations.get(layoutSet.getLayoutSetId()));
+					exportImportConfigurations.get(layoutSet.getLayoutSetId()),
+					taskContextMap);
 			}
 			catch (Exception exception) {
 				_log.error(
@@ -633,18 +665,32 @@ public class SitesImpl implements Sites {
 
 	@Override
 	public void updateLayoutSetPrototypesLinks(
+			Group group, boolean mergeLayoutSetPrototype,
+			long publicLayoutSetPrototypeId, long privateLayoutSetPrototypeId,
+			boolean publicLayoutSetPrototypeLinkEnabled,
+			boolean privateLayoutSetPrototypeLinkEnabled)
+		throws Exception {
+
+		updateLayoutSetPrototypeLink(
+			group.getGroupId(), mergeLayoutSetPrototype, true,
+			privateLayoutSetPrototypeId, privateLayoutSetPrototypeLinkEnabled);
+		updateLayoutSetPrototypeLink(
+			group.getGroupId(), mergeLayoutSetPrototype, false,
+			publicLayoutSetPrototypeId, publicLayoutSetPrototypeLinkEnabled);
+	}
+
+	@Override
+	public void updateLayoutSetPrototypesLinks(
 			Group group, long publicLayoutSetPrototypeId,
 			long privateLayoutSetPrototypeId,
 			boolean publicLayoutSetPrototypeLinkEnabled,
 			boolean privateLayoutSetPrototypeLinkEnabled)
 		throws Exception {
 
-		updateLayoutSetPrototypeLink(
-			group.getGroupId(), true, privateLayoutSetPrototypeId,
+		updateLayoutSetPrototypesLinks(
+			group, true, publicLayoutSetPrototypeId,
+			privateLayoutSetPrototypeId, publicLayoutSetPrototypeLinkEnabled,
 			privateLayoutSetPrototypeLinkEnabled);
-		updateLayoutSetPrototypeLink(
-			group.getGroupId(), false, publicLayoutSetPrototypeId,
-			publicLayoutSetPrototypeLinkEnabled);
 	}
 
 	protected void deleteUnreferencedPortlets(
@@ -908,7 +954,8 @@ public class SitesImpl implements Sites {
 	}
 
 	protected void updateLayoutSetPrototypeLink(
-			long groupId, boolean privateLayout, long layoutSetPrototypeId,
+			long groupId, boolean mergeLayoutSetPrototype,
+			boolean privateLayout, long layoutSetPrototypeId,
 			boolean layoutSetPrototypeLinkEnabled)
 		throws Exception {
 
@@ -925,7 +972,7 @@ public class SitesImpl implements Sites {
 				// Merge without enabling the link
 
 				if (!layoutSetPrototypeLinkEnabled &&
-					(layoutSetPrototypeId > 0)) {
+					(layoutSetPrototypeId > 0) && mergeLayoutSetPrototype) {
 
 					boolean mergeLayoutPrototypesThreadLocalInProgress =
 						MergeLayoutPrototypesThreadLocal.isInProgress();
@@ -946,8 +993,8 @@ public class SitesImpl implements Sites {
 		}
 
 		_layoutSetService.updateLayoutSetPrototypeLinkEnabled(
-			groupId, privateLayout, layoutSetPrototypeLinkEnabled,
-			layoutSetPrototypeUuid);
+			groupId, mergeLayoutSetPrototype, privateLayout,
+			layoutSetPrototypeLinkEnabled, layoutSetPrototypeUuid);
 
 		_layoutLocalService.updatePriorities(groupId, privateLayout);
 	}
@@ -1110,6 +1157,9 @@ public class SitesImpl implements Sites {
 
 	@Reference
 	private AssetEntryLocalService _assetEntryLocalService;
+
+	@Reference
+	private CTSettingsConfigurationHelper _ctSettingsConfigurationHelper;
 
 	@Reference
 	private ExportImportConfigurationLocalService

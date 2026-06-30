@@ -8,6 +8,7 @@ import {defineConfig} from 'vite';
 
 export default defineConfig({
 	build: {
+		chunkSizeWarningLimit: 2000,
 		cssCodeSplit: false,
 		outDir: 'build/vite',
 		rollupOptions: {

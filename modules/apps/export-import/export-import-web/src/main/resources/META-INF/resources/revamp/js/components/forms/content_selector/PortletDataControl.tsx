@@ -74,7 +74,6 @@ export default function PortletDataControl({
 			? (value as Record<string, HandlerSelection>)
 			: {};
 	const nestedControls = control.previewPortletDataHandlerControls ?? [];
-	const expandable = !!nestedControls.length;
 
 	const additionCount =
 		control.type === 'Boolean' ? control.additionCount : undefined;
@@ -109,23 +108,27 @@ export default function PortletDataControl({
 		),
 	};
 
-	const body = nestedControls.map((nestedControl) => (
-		<PortletDataControl
-			control={nestedControl}
-			key={nestedControl.name}
-			onChange={(controlValue) =>
-				onChange(
-					updateSelection(
-						currentSelection,
-						nestedControl.name,
-						controlValue
+	const body = nestedControls
+		.filter((nestedControl) => nestedControl.type !== 'Choice' || !!value)
+		.map((nestedControl) => (
+			<PortletDataControl
+				control={nestedControl}
+				key={nestedControl.name}
+				onChange={(controlValue) =>
+					onChange(
+						updateSelection(
+							currentSelection,
+							nestedControl.name,
+							controlValue
+						)
 					)
-				)
-			}
-			pageTreeModalConfiguration={pageTreeModalConfiguration}
-			value={currentSelection[nestedControl.name]}
-		/>
-	));
+				}
+				pageTreeModalConfiguration={pageTreeModalConfiguration}
+				value={currentSelection[nestedControl.name]}
+			/>
+		));
+
+	const expandable = !!body.length;
 
 	if (topLevel) {
 		return (

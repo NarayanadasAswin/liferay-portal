@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: LGPL-2.1-or-later OR LicenseRef-Liferay-DXP-EULA-2.0.0-2023-06
  */
 
-import './MembersList.scss';
-
 import LoadingIndicator from '@clayui/loading-indicator';
 import classNames from 'classnames';
 import React, {useEffect, useId, useMemo, useRef, useState} from 'react';
@@ -12,9 +10,9 @@ import React, {useEffect, useId, useMemo, useRef, useState} from 'react';
 import {MemberListItem} from './MemberListItem';
 import {SearcheableMembersList} from './SearcheableMembersList';
 import {useMembers} from './hooks/useMembers';
-import {AddMembersInputApi, MembersConfig, SelectOptions} from './types';
+import {AddMembersInputApi, MemberType, MembersConfig} from './types';
 
-export interface MembersListProps {
+interface MembersListProps {
 	className?: string;
 	config: MembersConfig;
 	emptyStateDescription: string;
@@ -61,7 +59,7 @@ export function MembersList({
 
 	const isLoading = isFetchingMembers || isSearching;
 
-	const [selectedOption, setSelectedOption] = useState(SelectOptions.USERS);
+	const [selectedOption, setSelectedOption] = useState(MemberType.USERS);
 	const sentinelRef = useRef(null);
 
 	useEffect(() => {
@@ -93,7 +91,7 @@ export function MembersList({
 	}, [onHasSelectedMembersChange, users.items, groups.items]);
 
 	const hasMembersSelected = useMemo(() => {
-		if (selectedOption === SelectOptions.USERS) {
+		if (selectedOption === MemberType.USERS) {
 			return users.items.length;
 		}
 
@@ -101,7 +99,7 @@ export function MembersList({
 	}, [selectedOption, users.items, groups.items]);
 
 	const excludeMembers = useMemo(() => {
-		if (selectedOption === SelectOptions.USERS) {
+		if (selectedOption === MemberType.USERS) {
 			return users.items;
 		}
 
@@ -147,14 +145,13 @@ export function MembersList({
 						aria-labelledby={listLabelId}
 						className="c-mt-3 c-p-0 list-unstyled members-list"
 					>
-						{selectedOption === SelectOptions.USERS ? (
+						{selectedOption === MemberType.USERS ? (
 							<MemberListItem
 								currentUserId={currentUserId}
 								defaultRoleName={config.defaultRoleName}
 								hasAssignMembersPermission={
 									hasAssignMembersPermission
 								}
-								hiddenRoleNames={config.hiddenRoleNames}
 								itemType="user"
 								items={users.items}
 								onRemoveItem={(item) => {
@@ -168,6 +165,7 @@ export function MembersList({
 									);
 								}}
 								ownerId={ownerId}
+								roleNames={config.roleNames}
 								roles={roles}
 							/>
 						) : (
@@ -176,7 +174,6 @@ export function MembersList({
 								hasAssignMembersPermission={
 									hasAssignMembersPermission
 								}
-								hiddenRoleNames={config.hiddenRoleNames}
 								itemType="group"
 								items={groups.items}
 								onRemoveItem={(item) => {
@@ -189,6 +186,7 @@ export function MembersList({
 										selectedOption
 									);
 								}}
+								roleNames={config.roleNames}
 								roles={roles}
 							/>
 						)}
@@ -202,7 +200,7 @@ export function MembersList({
 							</li>
 						)}
 
-						<div ref={sentinelRef} />
+						<li ref={sentinelRef} role="presentation" />
 					</ul>
 				</>
 			)}
