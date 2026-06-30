@@ -1,4 +1,8 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
 
 cd "$(dirname "${0}")" || exit
 
@@ -17,6 +21,7 @@ function main {
 			--exclude "README.md" \
 			--exclude "build.gradle" \
 			--exclude "client-extensions" \
+			--exclude "gradle-local.properties" \
 			--exclude "language" \
 			--exclude "modules" \
 			--exclude "node_modules" \
