@@ -10,14 +10,19 @@ import com.liferay.audiences.criteria.AudiencesCriteria;
 import com.liferay.audiences.criteria.AudiencesCriteriaProvider;
 import com.liferay.audiences.criteria.AudiencesCriteriaType;
 import com.liferay.client.extension.constants.ClientExtensionEntryConstants;
+import com.liferay.client.extension.type.AudiencesCustomAttributesCET;
 import com.liferay.client.extension.type.CET;
 import com.liferay.client.extension.type.manager.CETManager;
 import com.liferay.petra.function.transform.TransformUtil;
+import com.liferay.petra.string.CharPool;
+import com.liferay.petra.string.StringBundler;
+import com.liferay.petra.string.StringPool;
 import com.liferay.portal.kernel.dao.orm.QueryUtil;
 import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.language.Language;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
+import com.liferay.portal.kernel.util.StringUtil;
 import com.liferay.portal.vulcan.pagination.Pagination;
 
 import java.util.ArrayList;
@@ -62,64 +67,77 @@ public class AudiencesCriteriaProviderImpl
 		return new AudiencesCriteriaType(
 			Arrays.asList(
 				new AudiencesCriteria(
-					"text", AudiencesCriteriaKeys.BROWSER_NAME,
+					"text", AudiencesCriteria.InputType.TEXT,
+					AudiencesCriteriaKeys.BROWSER_NAME,
 					_language.get(locale, "browser-name"),
 					AudiencesCriteria.Type.STRING),
 				new AudiencesCriteria(
-					"text", AudiencesCriteriaKeys.BROWSER_VERSION,
+					"text", AudiencesCriteria.InputType.TEXT,
+					AudiencesCriteriaKeys.BROWSER_VERSION,
 					_language.get(locale, "browser-version"),
 					AudiencesCriteria.Type.STRING),
 				new AudiencesCriteria(
-					"fieldset", AudiencesCriteriaKeys.COOKIES,
+					"fieldset", AudiencesCriteria.InputType.TEXT,
+					AudiencesCriteriaKeys.COOKIES,
 					_language.get(locale, "cookies"),
-					AudiencesCriteria.Type.COLLECTION),
+					AudiencesCriteria.Type.SET),
 				new AudiencesCriteria(
-					"text", AudiencesCriteriaKeys.DEVICE_TYPE,
+					"text", AudiencesCriteria.InputType.TEXT,
+					AudiencesCriteriaKeys.DEVICE_TYPE,
 					_language.get(locale, "device-type"),
 					AudiencesCriteria.Type.STRING),
 				new AudiencesCriteria(
-					"text", AudiencesCriteriaKeys.GEOLOCATION,
+					"text", AudiencesCriteria.InputType.TEXT,
+					AudiencesCriteriaKeys.GEOLOCATION,
 					_language.get(locale, "geolocation"),
 					AudiencesCriteria.Type.STRING),
 				new AudiencesCriteria(
-					"text", AudiencesCriteriaKeys.HOSTNAME,
+					"text", AudiencesCriteria.InputType.TEXT,
+					AudiencesCriteriaKeys.HOSTNAME,
 					_language.get(locale, "hostname"),
 					AudiencesCriteria.Type.STRING),
 				new AudiencesCriteria(
-					"text", AudiencesCriteriaKeys.LANGUAGE,
+					"text", AudiencesCriteria.InputType.SELECT,
+					AudiencesCriteriaKeys.LANGUAGE,
 					_language.get(locale, "language"),
-					_getLanguageOptions(locale),
-					AudiencesCriteria.Type.OPTIONS),
+					_getLanguageOptions(locale), AudiencesCriteria.Type.STRING),
 				new AudiencesCriteria(
-					"date", AudiencesCriteriaKeys.LOCAL_DATE,
+					"date", AudiencesCriteria.InputType.DATE,
+					AudiencesCriteriaKeys.LOCAL_DATE,
 					_language.get(locale, "local-date"),
-					AudiencesCriteria.Type.DATE),
+					AudiencesCriteria.Type.STRING),
 				new AudiencesCriteria(
-					"time", AudiencesCriteriaKeys.LOCAL_HOUR,
+					"time", AudiencesCriteria.InputType.SELECT,
+					AudiencesCriteriaKeys.LOCAL_HOUR,
 					_language.get(locale, "local-hour"), _getLocalHourOptions(),
 					AudiencesCriteria.Type.NUMBER),
 				new AudiencesCriteria(
-					"text", AudiencesCriteriaKeys.PATHNAME,
+					"text", AudiencesCriteria.InputType.TEXT,
+					AudiencesCriteriaKeys.PATHNAME,
 					_language.get(locale, "pathname"),
 					AudiencesCriteria.Type.STRING),
 				new AudiencesCriteria(
-					"text", AudiencesCriteriaKeys.REFERRER,
+					"text", AudiencesCriteria.InputType.TEXT,
+					AudiencesCriteriaKeys.REFERRER,
 					_language.get(locale, "referrer-url"),
 					AudiencesCriteria.Type.STRING),
 				new AudiencesCriteria(
-					"fieldset", AudiencesCriteriaKeys.REQUEST_PARAMETERS,
+					"fieldset", AudiencesCriteria.InputType.TEXT,
+					AudiencesCriteriaKeys.REQUEST_PARAMETERS,
 					_language.get(locale, "request-parameters"),
-					AudiencesCriteria.Type.COLLECTION),
+					AudiencesCriteria.Type.SET),
 				new AudiencesCriteria(
-					"text", AudiencesCriteriaKeys.TIMEZONE,
+					"text", AudiencesCriteria.InputType.TEXT,
+					AudiencesCriteriaKeys.TIMEZONE,
 					_language.get(locale, "time-zone"),
 					AudiencesCriteria.Type.STRING),
 				new AudiencesCriteria(
-					"text", AudiencesCriteriaKeys.URL,
-					_language.get(locale, "url"),
+					"text", AudiencesCriteria.InputType.TEXT,
+					AudiencesCriteriaKeys.URL, _language.get(locale, "url"),
 					AudiencesCriteria.Type.STRING),
 				new AudiencesCriteria(
-					"text", AudiencesCriteriaKeys.USER_AGENT,
+					"text", AudiencesCriteria.InputType.TEXT,
+					AudiencesCriteriaKeys.USER_AGENT,
 					_language.get(locale, "user-agent"),
 					AudiencesCriteria.Type.STRING)),
 			_language.get(locale, "browser-attributes"));
@@ -138,13 +156,37 @@ public class AudiencesCriteriaProviderImpl
 				return null;
 			}
 
+			List<AudiencesCriteria> audiencesCriterias = new ArrayList<>();
+
+			for (CET cet : cets) {
+				AudiencesCustomAttributesCET audiencesCustomAttributesCET =
+					(AudiencesCustomAttributesCET)cet;
+
+				String[] names = StringUtil.split(
+					audiencesCustomAttributesCET.getNames(), CharPool.NEW_LINE);
+				String[] symbols = StringUtil.split(
+					audiencesCustomAttributesCET.getSymbols(),
+					CharPool.NEW_LINE);
+				String[] types = StringUtil.split(
+					audiencesCustomAttributesCET.getTypes(), CharPool.NEW_LINE);
+
+				for (int i = 0; i < symbols.length; i++) {
+					AudiencesCriteria.Type type = AudiencesCriteria.Type.parse(
+						types[i]);
+
+					audiencesCriterias.add(
+						new AudiencesCriteria(
+							"cog", _getInputType(type),
+							StringBundler.concat(
+								"custom:",
+								audiencesCustomAttributesCET.getURL(),
+								StringPool.POUND, symbols[i]),
+							names[i], type));
+				}
+			}
+
 			return new AudiencesCriteriaType(
-				TransformUtil.transform(
-					cets,
-					cet -> new AudiencesCriteria(
-						"cog", "custom:" + cet.getExternalReferenceCode(),
-						cet.getName(locale), AudiencesCriteria.Type.STRING)),
-				_language.get(locale, "custom"));
+				audiencesCriterias, _language.get(locale, "custom"));
 		}
 		catch (PortalException portalException) {
 			if (_log.isDebugEnabled()) {
@@ -161,20 +203,27 @@ public class AudiencesCriteriaProviderImpl
 		return new AudiencesCriteriaType(
 			Arrays.asList(
 				new AudiencesCriteria(
-					"check", AudiencesCriteriaKeys.USER_AUTHENTICATION,
+					"check", AudiencesCriteria.InputType.BOOLEAN,
+					AudiencesCriteriaKeys.USER_AUTHENTICATION,
 					_language.get(locale, "user-authentication"),
-					Arrays.asList(
-						new AudiencesCriteria.Option(
-							_language.get(locale, "yes"), "yes"),
-						new AudiencesCriteria.Option(
-							_language.get(locale, "no"), "no")),
-					AudiencesCriteria.Type.OPTIONS),
+					AudiencesCriteria.Type.BOOLEAN),
 				new AudiencesCriteria(
-					"text", AudiencesCriteriaKeys.USER_LANGUAGE,
+					"text", AudiencesCriteria.InputType.SELECT,
+					AudiencesCriteriaKeys.USER_LANGUAGE,
 					_language.get(locale, "user-language"),
 					_getLanguageOptions(locale),
-					AudiencesCriteria.Type.OPTIONS)),
+					AudiencesCriteria.Type.STRING)),
 			_language.get(locale, "general"));
+	}
+
+	private AudiencesCriteria.InputType _getInputType(
+		AudiencesCriteria.Type type) {
+
+		if (type == AudiencesCriteria.Type.BOOLEAN) {
+			return AudiencesCriteria.InputType.BOOLEAN;
+		}
+
+		return AudiencesCriteria.InputType.TEXT;
 	}
 
 	private List<AudiencesCriteria.Option> _getLanguageOptions(Locale locale) {

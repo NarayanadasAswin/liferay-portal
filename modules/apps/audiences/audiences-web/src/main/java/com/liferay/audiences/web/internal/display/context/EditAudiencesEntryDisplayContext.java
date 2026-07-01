@@ -18,7 +18,6 @@ import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.theme.ThemeDisplay;
 import com.liferay.portal.kernel.util.HashMapBuilder;
 import com.liferay.portal.kernel.util.ParamUtil;
-import com.liferay.portal.kernel.util.StringUtil;
 import com.liferay.portal.kernel.util.Validator;
 import com.liferay.portal.kernel.util.WebKeys;
 
@@ -93,14 +92,17 @@ public class EditAudiencesEntryDisplayContext {
 						audiencesCriteria -> HashMapBuilder.<String, Object>put(
 							"icon", audiencesCriteria.getIcon()
 						).put(
+							"inputType",
+							() -> {
+								AudiencesCriteria.InputType inputType =
+									audiencesCriteria.getInputType();
+
+								return inputType.getValue();
+							}
+						).put(
 							"key", audiencesCriteria.getKey()
 						).put(
 							"label", audiencesCriteria.getLabel()
-						).put(
-							"operators",
-							TransformUtil.transform(
-								audiencesCriteria.getOperators(),
-								AudiencesCriteria.Operator::getValue)
 						).put(
 							"options",
 							TransformUtil.transform(
@@ -112,8 +114,12 @@ public class EditAudiencesEntryDisplayContext {
 								).build())
 						).put(
 							"type",
-							StringUtil.toLowerCase(
-								String.valueOf(audiencesCriteria.getType()))
+							() -> {
+								AudiencesCriteria.Type type =
+									audiencesCriteria.getType();
+
+								return type.getValue();
+							}
 						).build())
 				).put(
 					"label", audiencesCriteriaType.getLabel()

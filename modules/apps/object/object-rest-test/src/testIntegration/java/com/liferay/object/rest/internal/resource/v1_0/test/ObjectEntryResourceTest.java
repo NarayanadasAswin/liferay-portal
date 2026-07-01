@@ -19,6 +19,8 @@ import com.liferay.asset.kernel.service.AssetVocabularyLocalServiceUtil;
 import com.liferay.depot.constants.DepotConstants;
 import com.liferay.depot.constants.DepotRolesConstants;
 import com.liferay.depot.model.DepotEntry;
+import com.liferay.depot.model.DepotEntryGroupRel;
+import com.liferay.depot.service.DepotEntryGroupRelLocalService;
 import com.liferay.depot.service.DepotEntryLocalService;
 import com.liferay.document.library.kernel.model.DLFileEntry;
 import com.liferay.document.library.kernel.model.DLFileVersion;
@@ -8701,7 +8703,28 @@ public class ObjectEntryResourceTest {
 
 		// Company scope
 
-		CMSTestUtil.getOrAddGroup(ObjectEntryResourceTest.class);
+		Company company = _companyLocalService.getCompany(
+			TestPropsValues.getCompanyId());
+
+		AssetVocabulary companyAssetVocabulary =
+			_assetVocabularyLocalService.addVocabulary(
+				TestPropsValues.getUserId(), company.getGroupId(),
+				RandomTestUtil.randomString(), new ServiceContext());
+
+		TaxonomyCategory companyTaxonomyCategory1 =
+			_postTaxonomyVocabularyTaxonomyCategory(
+				company.getGroupId(), companyAssetVocabulary.getVocabularyId());
+
+		TaxonomyCategory companyTaxonomyCategory2 =
+			_postTaxonomyCategoryTaxonomyCategory(
+				company.getGroupId(), companyTaxonomyCategory1.getId(),
+				companyTaxonomyCategory1.getTaxonomyVocabularyId());
+
+		_testGetObjectEntryWithTaxonomyCategories(
+			0, _objectDefinition1, companyTaxonomyCategory1,
+			companyTaxonomyCategory2);
+
+		// Depot scope
 
 		DepotEntry depotEntry = _depotEntryLocalService.addDepotEntry(
 			RandomTestUtil.randomLocaleStringMap(),
@@ -8709,73 +8732,64 @@ public class ObjectEntryResourceTest {
 			DepotConstants.TYPE_ASSET_LIBRARY,
 			ServiceContextTestUtil.getServiceContext());
 
-		Group group1 = _groupLocalService.getGroup(depotEntry.getGroupId());
+		AssetVocabulary depotAssetVocabulary =
+			_assetVocabularyLocalService.addVocabulary(
+				TestPropsValues.getUserId(), depotEntry.getGroupId(),
+				RandomTestUtil.randomString(), new ServiceContext());
 
-		AssetVocabulary assetVocabulary1 =
-			AssetVocabularyLocalServiceUtil.addVocabulary(
-				UserLocalServiceUtil.getGuestUserId(
-					TestPropsValues.getCompanyId()),
-				group1.getGroupId(), RandomTestUtil.randomString(),
-				new ServiceContext());
-
-		TaxonomyCategory taxonomyCategory1 =
+		TaxonomyCategory depotTaxonomyCategory1 =
 			_postTaxonomyVocabularyTaxonomyCategory(
-				group1.getGroupId(), assetVocabulary1.getVocabularyId());
+				depotEntry.getGroupId(),
+				depotAssetVocabulary.getVocabularyId());
 
-		Group group2 = _groupLocalService.getGroup(
-			TestPropsValues.getCompanyId(), GroupConstants.CMS);
-
-		AssetVocabulary assetVocabulary2 =
-			AssetVocabularyLocalServiceUtil.addVocabulary(
-				UserLocalServiceUtil.getGuestUserId(
-					TestPropsValues.getCompanyId()),
-				group2.getGroupId(), RandomTestUtil.randomString(),
-				new ServiceContext());
-
-		TaxonomyCategory taxonomyCategory2 =
-			_postTaxonomyVocabularyTaxonomyCategory(
-				group2.getGroupId(), assetVocabulary2.getVocabularyId());
-
-		Group group3 = _groupLocalService.fetchGroup(_testGroupId);
-
-		TaxonomyCategory taxonomyCategory3 =
-			_postTaxonomyVocabularyTaxonomyCategory(
-				group3.getGroupId(), _assetVocabulary.getVocabularyId());
-
-		TaxonomyCategory taxonomyCategory4 =
+		TaxonomyCategory depotTaxonomyCategory2 =
 			_postTaxonomyCategoryTaxonomyCategory(
-				group3.getGroupId(), taxonomyCategory3.getId(),
-				taxonomyCategory3.getTaxonomyVocabularyId());
-
-		_testGetObjectEntryWithTaxonomyCategories(
-			0, _objectDefinition1, taxonomyCategory1, taxonomyCategory2,
-			taxonomyCategory3, taxonomyCategory4);
-
-		// Depot scope
+				depotEntry.getGroupId(), depotTaxonomyCategory1.getId(),
+				depotTaxonomyCategory1.getTaxonomyVocabularyId());
 
 		ObjectDefinition depotScopedObjectDefinition =
 			_addDepotScopedObjectDefinition();
 
 		_testGetObjectEntryWithTaxonomyCategories(
 			depotEntry.getGroupId(), depotScopedObjectDefinition,
-			taxonomyCategory1, taxonomyCategory2, taxonomyCategory3,
-			taxonomyCategory4);
+			depotTaxonomyCategory1, depotTaxonomyCategory2);
 
 		// Site scope
 
+		TaxonomyCategory siteTaxonomyCategory1 =
+			_postTaxonomyVocabularyTaxonomyCategory(
+				_testGroupId, _assetVocabulary.getVocabularyId());
+
+		TaxonomyCategory siteTaxonomyCategory2 =
+			_postTaxonomyCategoryTaxonomyCategory(
+				_testGroupId, siteTaxonomyCategory1.getId(),
+				siteTaxonomyCategory1.getTaxonomyVocabularyId());
+
 		_testGetObjectEntryWithTaxonomyCategories(
-			_testGroupId, _siteScopedObjectDefinition1, taxonomyCategory1,
-			taxonomyCategory2, taxonomyCategory3, taxonomyCategory4);
+			_testGroupId, _siteScopedObjectDefinition1, siteTaxonomyCategory1,
+			siteTaxonomyCategory2);
 	}
 
 	@Test
 	public void testGetObjectEntryWithTaxonomyCategoriesAndEmbeddedTaxonomyCategory()
 		throws Exception {
 
+		Company company = _companyLocalService.getCompany(
+			TestPropsValues.getCompanyId());
+
+		AssetVocabulary assetVocabulary =
+			_assetVocabularyLocalService.addVocabulary(
+				TestPropsValues.getUserId(), company.getGroupId(),
+				RandomTestUtil.randomString(), new ServiceContext());
+
 		TaxonomyCategory taxonomyCategory1 =
-			_postTaxonomyVocabularyTaxonomyCategory();
+			_postTaxonomyVocabularyTaxonomyCategory(
+				assetVocabulary.getGroupId(),
+				assetVocabulary.getVocabularyId());
 		TaxonomyCategory taxonomyCategory2 =
-			_postTaxonomyVocabularyTaxonomyCategory();
+			_postTaxonomyVocabularyTaxonomyCategory(
+				assetVocabulary.getGroupId(),
+				assetVocabulary.getVocabularyId());
 
 		JSONObject jsonObject = HTTPTestUtil.invokeToJSONObject(
 			JSONUtil.put(
@@ -9335,10 +9349,22 @@ public class ObjectEntryResourceTest {
 
 	@Test
 	public void testPatchObjectEntryWithTaxonomyCategories() throws Exception {
+		Company company = _companyLocalService.getCompany(
+			TestPropsValues.getCompanyId());
+
+		AssetVocabulary assetVocabulary =
+			_assetVocabularyLocalService.addVocabulary(
+				TestPropsValues.getUserId(), company.getGroupId(),
+				RandomTestUtil.randomString(), new ServiceContext());
+
 		TaxonomyCategory taxonomyCategory1 =
-			_postTaxonomyVocabularyTaxonomyCategory();
+			_postTaxonomyVocabularyTaxonomyCategory(
+				assetVocabulary.getGroupId(),
+				assetVocabulary.getVocabularyId());
 		TaxonomyCategory taxonomyCategory2 =
-			_postTaxonomyVocabularyTaxonomyCategory();
+			_postTaxonomyVocabularyTaxonomyCategory(
+				assetVocabulary.getGroupId(),
+				assetVocabulary.getVocabularyId());
 
 		JSONObject jsonObject = HTTPTestUtil.invokeToJSONObject(
 			JSONUtil.put(
@@ -9351,7 +9377,9 @@ public class ObjectEntryResourceTest {
 			_objectDefinition1.getRESTContextPath(), Http.Method.POST);
 
 		TaxonomyCategory taxonomyCategory3 =
-			_postTaxonomyVocabularyTaxonomyCategory();
+			_postTaxonomyVocabularyTaxonomyCategory(
+				assetVocabulary.getGroupId(),
+				assetVocabulary.getVocabularyId());
 
 		jsonObject = HTTPTestUtil.invokeToJSONObject(
 			JSONUtil.put(
@@ -11520,6 +11548,8 @@ public class ObjectEntryResourceTest {
 				jsonObject.getLong("id")));
 
 		_assetVocabularyLocalService.deleteVocabulary(assetVocabulary);
+
+		_testPostObjectEntryWithCrossSiteTaxonomyCategories();
 	}
 
 	@Test
@@ -20728,6 +20758,164 @@ public class ObjectEntryResourceTest {
 			JSONCompareMode.LENIENT);
 	}
 
+	private void _testPostObjectEntryWithCrossSiteTaxonomyCategories()
+		throws Exception {
+
+		// Can add a category from a connected depot entry
+
+		DepotEntry depotEntry = _depotEntryLocalService.addDepotEntry(
+			RandomTestUtil.randomLocaleStringMap(),
+			RandomTestUtil.randomLocaleStringMap(),
+			DepotConstants.TYPE_ASSET_LIBRARY,
+			ServiceContextTestUtil.getServiceContext());
+
+		DepotEntryGroupRel depotEntryGroupRel =
+			_depotEntryGroupRelLocalService.addDepotEntryGroupRel(
+				depotEntry.getDepotEntryId(), _testGroupId);
+
+		AssetVocabulary depotAssetVocabulary =
+			_assetVocabularyLocalService.addVocabulary(
+				TestPropsValues.getUserId(), depotEntry.getGroupId(),
+				RandomTestUtil.randomString(), new ServiceContext());
+
+		TaxonomyCategory depotTaxonomyCategory =
+			_postTaxonomyVocabularyTaxonomyCategory(
+				depotEntry.getGroupId(),
+				depotAssetVocabulary.getVocabularyId());
+
+		Assert.assertNotNull(
+			HTTPTestUtil.invokeToJSONObject(
+				JSONUtil.put(
+					_OBJECT_FIELD_NAME_1, RandomTestUtil.randomString()
+				).put(
+					"taxonomyCategoryIds",
+					JSONUtil.put(depotTaxonomyCategory.getId())
+				).toString(),
+				_getEndpoint(_siteScopedObjectDefinition1, _testGroupId),
+				Http.Method.POST
+			).get(
+				"id"
+			));
+
+		_depotEntryGroupRelLocalService.deleteDepotEntryGroupRel(
+			depotEntryGroupRel.getDepotEntryGroupRelId());
+
+		// Can add a category from a parent site
+
+		AssetVocabulary assetVocabulary =
+			_assetVocabularyLocalService.addVocabulary(
+				TestPropsValues.getUserId(), _group.getGroupId(),
+				RandomTestUtil.randomString(), new ServiceContext());
+
+		TaxonomyCategory taxonomyCategory =
+			_postTaxonomyVocabularyTaxonomyCategory(
+				_group.getGroupId(), assetVocabulary.getVocabularyId());
+
+		Group childGroup = GroupTestUtil.addGroup(_group.getGroupId());
+
+		Assert.assertNotNull(
+			HTTPTestUtil.invokeToJSONObject(
+				JSONUtil.put(
+					_OBJECT_FIELD_NAME_1, RandomTestUtil.randomString()
+				).put(
+					"taxonomyCategoryIds",
+					JSONUtil.put(taxonomyCategory.getId())
+				).toString(),
+				_getEndpoint(
+					_siteScopedObjectDefinition1, childGroup.getGroupId()),
+				Http.Method.POST
+			).get(
+				"id"
+			));
+
+		_groupLocalService.deleteGroup(childGroup);
+
+		// Cannot add a category to a company-scoped entry
+
+		Assert.assertEquals(
+			400,
+			HTTPTestUtil.invokeToHttpCode(
+				JSONUtil.put(
+					_OBJECT_FIELD_NAME_1, RandomTestUtil.randomString()
+				).put(
+					"taxonomyCategoryIds",
+					JSONUtil.put(taxonomyCategory.getId())
+				).toString(),
+				_objectDefinition1.getRESTContextPath(), Http.Method.POST));
+
+		// Cannot add a category from a foreign site
+
+		Assert.assertEquals(
+			400,
+			HTTPTestUtil.invokeToHttpCode(
+				JSONUtil.put(
+					_OBJECT_FIELD_NAME_1, RandomTestUtil.randomString()
+				).put(
+					"taxonomyCategoryIds",
+					JSONUtil.put(taxonomyCategory.getId())
+				).toString(),
+				_getEndpoint(_siteScopedObjectDefinition1, _testGroupId),
+				Http.Method.POST));
+
+		// Cannot add a category via UPSERT
+
+		Assert.assertEquals(
+			400,
+			HTTPTestUtil.invokeToHttpCode(
+				JSONUtil.put(
+					_OBJECT_FIELD_NAME_1, RandomTestUtil.randomString()
+				).put(
+					"taxonomyCategoryIds",
+					JSONUtil.put(taxonomyCategory.getId())
+				).toString(),
+				StringBundler.concat(
+					_getEndpoint(_siteScopedObjectDefinition1, _testGroupId),
+					"/by-external-reference-code/",
+					RandomTestUtil.randomString()),
+				Http.Method.PUT));
+
+		// No empty category created
+
+		String externalReferenceCode = RandomTestUtil.randomString();
+
+		Assert.assertNull(
+			AssetCategoryLocalServiceUtil.
+				fetchAssetCategoryByExternalReferenceCode(
+					externalReferenceCode, _group.getGroupId()));
+
+		Assert.assertEquals(
+			400,
+			HTTPTestUtil.invokeToHttpCode(
+				JSONUtil.put(
+					_OBJECT_FIELD_NAME_1, RandomTestUtil.randomString()
+				).put(
+					"taxonomyCategoryBriefs",
+					JSONUtil.put(
+						JSONUtil.put(
+							"scope",
+							JSONUtil.put(
+								"externalReferenceCode",
+								_group.getExternalReferenceCode()
+							).put(
+								"type", "Site"
+							)
+						).put(
+							"taxonomyCategoryExternalReferenceCode",
+							externalReferenceCode
+						))
+				).toString(),
+				_getEndpoint(_siteScopedObjectDefinition1, _testGroupId),
+				Http.Method.POST));
+
+		Assert.assertNull(
+			AssetCategoryLocalServiceUtil.
+				fetchAssetCategoryByExternalReferenceCode(
+					externalReferenceCode, _group.getGroupId()));
+
+		_assetVocabularyLocalService.deleteVocabulary(assetVocabulary);
+		_assetVocabularyLocalService.deleteVocabulary(depotAssetVocabulary);
+	}
+
 	private void _testPostScopeScopeKey(Object scopeKey1, Object scopeKey2)
 		throws Exception {
 
@@ -22119,6 +22307,9 @@ public class ObjectEntryResourceTest {
 
 	@Inject
 	private CompanyLocalService _companyLocalService;
+
+	@Inject
+	private DepotEntryGroupRelLocalService _depotEntryGroupRelLocalService;
 
 	@Inject
 	private DepotEntryLocalService _depotEntryLocalService;

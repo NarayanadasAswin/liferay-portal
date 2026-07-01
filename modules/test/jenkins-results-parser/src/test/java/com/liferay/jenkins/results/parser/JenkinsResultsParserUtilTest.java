@@ -7,9 +7,12 @@ package com.liferay.jenkins.results.parser;
 
 import java.io.File;
 
+import java.net.InetAddress;
+import java.net.ServerSocket;
 import java.net.URI;
 import java.net.URL;
 
+import java.util.HashMap;
 import java.util.Properties;
 
 import org.json.JSONArray;
@@ -44,6 +47,31 @@ public class JenkinsResultsParserUtilTest
 	@After
 	public void tearDown() {
 		Environment.setInstance(new Environment());
+	}
+
+	@Test(timeout = 30000)
+	public void testExecuteJenkinsScriptReadTimeout() throws Exception {
+		try (ServerSocket serverSocket = _createServerSocket()) {
+			int port = serverSocket.getLocalPort();
+
+			long startTime = System.currentTimeMillis();
+
+			String result = JenkinsResultsParserUtil.executeJenkinsScript(
+				"localhost:" + port, "println 'hello'", true, 2000);
+
+			long duration = System.currentTimeMillis() - startTime;
+
+			testEquals(null, result);
+
+			if (duration < 1500) {
+				errorCollector.addError(
+					new Throwable(
+						JenkinsResultsParserUtil.combine(
+							"The read timeout was not reached after ",
+							JenkinsResultsParserUtil.toDurationString(
+								duration))));
+			}
+		}
 	}
 
 	@Test
@@ -297,6 +325,42 @@ public class JenkinsResultsParserUtilTest
 				"https://releases.liferay.com/portal/"));
 	}
 
+	@Test(timeout = 30000)
+	public void testInvokeJenkinsBuildReadTimeout() throws Exception {
+		try (ServerSocket serverSocket = _createServerSocket()) {
+			JenkinsMaster jenkinsMaster = Mockito.mock(JenkinsMaster.class);
+
+			Mockito.when(
+				jenkinsMaster.getRemoteURL()
+			).thenReturn(
+				"http://localhost:" + serverSocket.getLocalPort() + "/"
+			);
+
+			long startTime = System.currentTimeMillis();
+
+			try {
+				JenkinsResultsParserUtil.invokeJenkinsBuild(
+					jenkinsMaster, "test-job", new HashMap<>(), 2000);
+
+				errorCollector.addError(
+					new Throwable("A RuntimeException was not thrown"));
+			}
+			catch (RuntimeException runtimeException) {
+			}
+
+			long duration = System.currentTimeMillis() - startTime;
+
+			if (duration < 1500) {
+				errorCollector.addError(
+					new Throwable(
+						JenkinsResultsParserUtil.combine(
+							"The read timeout was not reached after ",
+							JenkinsResultsParserUtil.toDurationString(
+								duration))));
+			}
+		}
+	}
+
 	@Test
 	public void testIsJSONArrayEqual() {
 		JSONArray expectedJSONArray = new JSONArray();
@@ -492,6 +556,10 @@ public class JenkinsResultsParserUtilTest
 		URL url = uri.toURL();
 
 		return url.toString();
+	}
+
+	private ServerSocket _createServerSocket() throws Exception {
+		return new ServerSocket(0, 1, InetAddress.getByName("localhost"));
 	}
 
 	private String _fixURLMultipleTimes(String urlString) {

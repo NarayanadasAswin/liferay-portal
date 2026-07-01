@@ -8,23 +8,24 @@ import userEvent from '@testing-library/user-event';
 import React from 'react';
 
 import AttributesSidebar from '../../../src/main/resources/META-INF/resources/js/components/AttributesSidebar';
+import {AudiencesCriteriaType} from '../../../src/main/resources/META-INF/resources/js/types';
 
-const AUDIENCES_CRITERIA_TYPES = [
+const AUDIENCES_CRITERIA_TYPES: AudiencesCriteriaType[] = [
 	{
 		audiencesCriterias: [
 			{
 				icon: 'user',
+				inputType: 'text',
 				key: 'age',
 				label: 'Age',
-				operators: [],
 				options: [],
 				type: 'number',
 			},
 			{
 				icon: 'user',
+				inputType: 'text',
 				key: 'city',
 				label: 'City',
-				operators: [],
 				options: [],
 				type: 'string',
 			},
@@ -35,9 +36,9 @@ const AUDIENCES_CRITERIA_TYPES = [
 		audiencesCriterias: [
 			{
 				icon: 'globe',
+				inputType: 'text',
 				key: 'browser',
 				label: 'Browser',
-				operators: [],
 				options: [],
 				type: 'string',
 			},

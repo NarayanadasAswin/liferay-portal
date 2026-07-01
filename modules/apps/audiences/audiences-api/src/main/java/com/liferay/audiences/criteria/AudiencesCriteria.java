@@ -5,8 +5,8 @@
 
 package com.liferay.audiences.criteria;
 
-import java.util.Arrays;
-import java.util.Collections;
+import com.liferay.portal.kernel.util.StringUtil;
+
 import java.util.List;
 
 /**
@@ -15,22 +15,29 @@ import java.util.List;
 public class AudiencesCriteria {
 
 	public AudiencesCriteria(
-		String icon, String key, String label, List<Option> options,
-		Type type) {
+		String icon, InputType inputType, String key, String label,
+		List<Option> options, Type type) {
 
 		_icon = icon;
+		_inputType = inputType;
 		_key = key;
 		_label = label;
 		_options = options;
 		_type = type;
 	}
 
-	public AudiencesCriteria(String icon, String key, String label, Type type) {
-		this(icon, key, label, null, type);
+	public AudiencesCriteria(
+		String icon, InputType inputType, String key, String label, Type type) {
+
+		this(icon, inputType, key, label, null, type);
 	}
 
 	public String getIcon() {
 		return _icon;
+	}
+
+	public InputType getInputType() {
+		return _inputType;
 	}
 
 	public String getKey() {
@@ -39,10 +46,6 @@ public class AudiencesCriteria {
 
 	public String getLabel() {
 		return _label;
-	}
-
-	public List<Operator> getOperators() {
-		return _type.getOperators();
 	}
 
 	public List<Option> getOptions() {
@@ -73,16 +76,15 @@ public class AudiencesCriteria {
 
 	}
 
-	public enum Operator {
+	public enum InputType {
 
-		EQ("eq"), GT("gt"), GTE("gte"), INCLUDES("includes"), LT("lt"),
-		LTE("lte"), NOT_EQ("not_eq"), NOT_INCLUDES("not_includes");
+		BOOLEAN("boolean"), DATE("date"), SELECT("select"), TEXT("text");
 
 		public String getValue() {
 			return _value;
 		}
 
-		private Operator(String value) {
+		private InputType(String value) {
 			_value = value;
 		}
 
@@ -92,31 +94,26 @@ public class AudiencesCriteria {
 
 	public enum Type {
 
-		COLLECTION(Operator.INCLUDES, Operator.NOT_INCLUDES),
-		DATE(
-			Operator.EQ, Operator.GT, Operator.GTE, Operator.LT, Operator.LTE,
-			Operator.NOT_EQ),
-		NUMBER(
-			Operator.EQ, Operator.GT, Operator.GTE, Operator.LT, Operator.LTE,
-			Operator.NOT_EQ),
-		OPTIONS(Operator.EQ, Operator.NOT_EQ),
-		STRING(
-			Operator.EQ, Operator.INCLUDES, Operator.NOT_EQ,
-			Operator.NOT_INCLUDES);
+		BOOLEAN("boolean"), NUMBER("number"), SET("set"), STRING("string");
 
-		public List<Operator> getOperators() {
-			return _operators;
+		public static Type parse(String value) {
+			return valueOf(StringUtil.toUpperCase(value));
 		}
 
-		private Type(Operator... operators) {
-			_operators = Collections.unmodifiableList(Arrays.asList(operators));
+		public String getValue() {
+			return _value;
 		}
 
-		private final List<Operator> _operators;
+		private Type(String value) {
+			_value = value;
+		}
+
+		private final String _value;
 
 	}
 
 	private final String _icon;
+	private final InputType _inputType;
 	private final String _key;
 	private final String _label;
 	private final List<Option> _options;
