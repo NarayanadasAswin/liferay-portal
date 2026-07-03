@@ -56,11 +56,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.naming.NamingException;
@@ -776,6 +780,10 @@ public abstract class BaseDBProcess implements DBProcess {
 		ThrowableCollector throwableCollector = new ThrowableCollector();
 
 		try {
+			AtomicBoolean producerFinished = new AtomicBoolean();
+			BlockingQueue<T> queue = new ArrayBlockingQueue<>(
+				fixedThreadPoolSize);
+
 			boolean notificationEnabled = NotificationThreadLocal.isEnabled();
 			boolean workflowEnabled = WorkflowThreadLocal.isEnabled();
 
@@ -788,25 +796,21 @@ public abstract class BaseDBProcess implements DBProcess {
 				try {
 					PreparedStatement preparedStatement = null;
 
-					while (true) {
-						T current = null;
+					while (!producerFinished.get() || !queue.isEmpty()) {
+						T t = queue.poll(1, TimeUnit.SECONDS);
 
-						synchronized (unsafeSupplier) {
-							current = unsafeSupplier.get();
-						}
-
-						if (current == null) {
-							break;
+						if (t == null) {
+							continue;
 						}
 
 						if (Validator.isNull(updateSQL)) {
-							unsafeConsumer.accept(current);
+							unsafeConsumer.accept(t);
 						}
 						else {
 							preparedStatement = _getConcurrentPreparedStatement(
 								updateSQL, preparedStatementHashMap);
 
-							unsafeBiConsumer.accept(current, preparedStatement);
+							unsafeBiConsumer.accept(t, preparedStatement);
 						}
 					}
 
@@ -830,6 +834,22 @@ public abstract class BaseDBProcess implements DBProcess {
 				futures.add(
 					executorService.submit(
 						new CompanyInheritableThreadLocalCallable<>(callable)));
+			}
+
+			try {
+				T t = unsafeSupplier.get();
+
+				while (t != null) {
+					if (queue.offer(t, 1, TimeUnit.SECONDS)) {
+						t = unsafeSupplier.get();
+					}
+					else if (throwableCollector.getThrowable() != null) {
+						return;
+					}
+				}
+			}
+			finally {
+				producerFinished.set(true);
 			}
 		}
 		finally {

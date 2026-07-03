@@ -84,13 +84,12 @@ export class StructureBuilderPage {
 		}
 
 		await expect(async () => {
-			await this.page.goto(url);
+			await this.page.goto(url, {waitUntil: 'networkidle'});
 
-			await this.page
-				.locator('.component-tbar')
-				.getByText('Publish')
-				.waitFor({timeout: 2000});
-		}).toPass();
+			await expect(
+				this.page.locator('.component-tbar').getByText('Publish')
+			).toBeVisible({timeout: 5000});
+		}).toPass({timeout: 30000});
 	}
 
 	getTreeItem({
@@ -444,6 +443,7 @@ export class StructureBuilderPage {
 		page,
 		publish = true,
 		spaces,
+		type = 'content',
 	}: {
 		autoDelete?: boolean;
 		erc?: string;
@@ -452,8 +452,9 @@ export class StructureBuilderPage {
 		page: StructureBuilderPage;
 		publish?: boolean;
 		spaces?: string[];
+		type?: StructureType;
 	}) {
-		await page.goToCreateStructure();
+		await page.goToCreateStructure(type);
 
 		if (spaces) {
 			await this.selectSpaces(spaces);
@@ -713,8 +714,8 @@ export class StructureBuilderPage {
 
 				await expect(
 					this.page.locator('.label-secondary', {hasText: space})
-				).toBeVisible();
-			}).toPass();
+				).toBeVisible({timeout: 5000});
+			}).toPass({timeout: 20000});
 		}
 	}
 

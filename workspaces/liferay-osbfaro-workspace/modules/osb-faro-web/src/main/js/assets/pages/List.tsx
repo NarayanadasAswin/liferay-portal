@@ -169,7 +169,7 @@ const List = () => {
 				id: 'accountIds',
 				itemKey: 'id',
 				itemLabel: 'accountName',
-				label: Liferay.Language.get('account'),
+				label: Liferay.Language.get('accounts'),
 				multiple: true,
 				...(accountId && {
 					preloadedData: {
@@ -178,6 +178,17 @@ const List = () => {
 						],
 					},
 				}),
+				searchable: true,
+				type: 'selection',
+			},
+			{
+				apiURL: `/o/faro/contacts/${groupId}/individual_segment/search?channelId=${channelId}&${rangeSelectorParams}`,
+				entityFieldType: 'string',
+				id: 'segmentIds',
+				itemKey: 'id',
+				itemLabel: 'name',
+				label: Liferay.Language.get('segments'),
+				multiple: true,
 				searchable: true,
 				type: 'selection',
 			},
@@ -226,7 +237,7 @@ const List = () => {
 				type: 'selection',
 			},
 		],
-		[accountId, accountName, groupId, rangeSelectorParams]
+		[accountId, accountName, channelId, groupId, rangeSelectorParams]
 	);
 
 	return (
@@ -294,6 +305,21 @@ const List = () => {
 							),
 						}}
 						filters={filters}
+						groupedFilters={[
+							{
+								filters: [
+									'assetType',
+									'tags/id',
+									'categories/id',
+									'mimeType',
+								],
+								label: Liferay.Language.get('filter-by'),
+							},
+							{
+								filters: ['accountIds', 'segmentIds'],
+								label: Liferay.Language.get('filter-by-people'),
+							},
+						]}
 						id="assetTable"
 						itemsActions={[
 							{

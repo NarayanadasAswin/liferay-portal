@@ -10,6 +10,12 @@ import React from 'react';
 import AudienceBuilder from '../../src/main/resources/META-INF/resources/js/AudienceBuilder';
 
 describe('AudienceBuilder', () => {
+	beforeAll(() => {
+		(Liferay.Language as {direction: Record<string, string>}).direction = {
+			en_US: 'ltr',
+		};
+	});
+
 	it('renders editor, updates name, back and cancel link to backURL', async () => {
 		const {getByLabelText, getByText, queryByText} = render(
 			<AudienceBuilder backURL="/back" namespace="_test_" />
@@ -29,9 +35,9 @@ describe('AudienceBuilder', () => {
 		expect(input.getAttribute('maxLength')).toBe('75');
 		expect(input.hasAttribute('required')).toBe(true);
 
-		expect((input as HTMLInputElement).value).toBe('new-audience');
+		expect((input as HTMLInputElement).value).toBe('');
+		expect(input.getAttribute('placeholder')).toBe('new-audience');
 
-		await userEvent.clear(input);
 		await userEvent.type(input, 'My Audience');
 
 		expect(getByText('My Audience')).toBeTruthy();

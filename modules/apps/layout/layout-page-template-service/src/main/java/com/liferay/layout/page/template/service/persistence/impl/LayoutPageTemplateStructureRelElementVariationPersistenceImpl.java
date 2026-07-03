@@ -22,8 +22,6 @@ import com.liferay.portal.kernel.dao.orm.FinderPath;
 import com.liferay.portal.kernel.dao.orm.Session;
 import com.liferay.portal.kernel.dao.orm.SessionFactory;
 import com.liferay.portal.kernel.exception.SystemException;
-import com.liferay.portal.kernel.log.Log;
-import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.sanitizer.Sanitizer;
 import com.liferay.portal.kernel.sanitizer.SanitizerException;
 import com.liferay.portal.kernel.sanitizer.SanitizerUtil;
@@ -1072,6 +1070,11 @@ public class LayoutPageTemplateStructureRelElementVariationPersistenceImpl
 	}
 
 	@Override
+	protected String getPKFieldName() {
+		return "layoutPageTemplateStructureRelElementVariationId";
+	}
+
+	@Override
 	protected String getSelectSQL() {
 		return _SQL_SELECT_LAYOUTPAGETEMPLATESTRUCTURERELELEMENTVARIATION;
 	}
@@ -1181,7 +1184,7 @@ public class LayoutPageTemplateStructureRelElementVariationPersistenceImpl
 			_SQL_COUNT_LAYOUTPAGETEMPLATESTRUCTURERELELEMENTVARIATION_WHERE,
 			LayoutPageTemplateStructureRelElementVariationModelImpl.
 				ORDER_BY_JPQL,
-			_ENTITY_ALIAS_PREFIX, "", "",
+			_ENTITY_ALIAS_PREFIX, "", "", null,
 			new FinderColumn<>(
 				"layoutPageTemplateStructureRelElementVariation.", "uuid",
 				"uuid_", FinderColumn.Type.STRING, "=", true, true,
@@ -1230,7 +1233,7 @@ public class LayoutPageTemplateStructureRelElementVariationPersistenceImpl
 				_SQL_COUNT_LAYOUTPAGETEMPLATESTRUCTURERELELEMENTVARIATION_WHERE,
 				LayoutPageTemplateStructureRelElementVariationModelImpl.
 					ORDER_BY_JPQL,
-				_ENTITY_ALIAS_PREFIX, "", "",
+				_ENTITY_ALIAS_PREFIX, "", "", null,
 				new FinderColumn<>(
 					"layoutPageTemplateStructureRelElementVariation.", "uuid",
 					"uuid_", FinderColumn.Type.STRING, "=", true, true,
@@ -1262,7 +1265,7 @@ public class LayoutPageTemplateStructureRelElementVariationPersistenceImpl
 			_SQL_COUNT_LAYOUTPAGETEMPLATESTRUCTURERELELEMENTVARIATION_WHERE,
 			LayoutPageTemplateStructureRelElementVariationModelImpl.
 				ORDER_BY_JPQL,
-			_ENTITY_ALIAS_PREFIX, "", "",
+			_ENTITY_ALIAS_PREFIX, "", "", null,
 			new FinderColumn<>(
 				"layoutPageTemplateStructureRelElementVariation.", "plid",
 				FinderColumn.Type.LONG, "=", true, true,
@@ -1294,7 +1297,7 @@ public class LayoutPageTemplateStructureRelElementVariationPersistenceImpl
 				_SQL_COUNT_LAYOUTPAGETEMPLATESTRUCTURERELELEMENTVARIATION_WHERE,
 				LayoutPageTemplateStructureRelElementVariationModelImpl.
 					ORDER_BY_JPQL,
-				_ENTITY_ALIAS_PREFIX, "", "",
+				_ENTITY_ALIAS_PREFIX, "", "", null,
 				new FinderColumn<>(
 					"layoutPageTemplateStructureRelElementVariation.",
 					"segmentsExperienceERC", FinderColumn.Type.STRING, "=",
@@ -1327,7 +1330,7 @@ public class LayoutPageTemplateStructureRelElementVariationPersistenceImpl
 				_SQL_COUNT_LAYOUTPAGETEMPLATESTRUCTURERELELEMENTVARIATION_WHERE,
 				LayoutPageTemplateStructureRelElementVariationModelImpl.
 					ORDER_BY_JPQL,
-				_ENTITY_ALIAS_PREFIX, "", "",
+				_ENTITY_ALIAS_PREFIX, "", "", null,
 				new FinderColumn<>(
 					"layoutPageTemplateStructureRelElementVariation.", "plid",
 					FinderColumn.Type.LONG, "=", true, true,
@@ -1424,12 +1427,6 @@ public class LayoutPageTemplateStructureRelElementVariationPersistenceImpl
 		_SQL_COUNT_LAYOUTPAGETEMPLATESTRUCTURERELELEMENTVARIATION_WHERE =
 			"SELECT COUNT(layoutPageTemplateStructureRelElementVariation) FROM LayoutPageTemplateStructureRelElementVariation layoutPageTemplateStructureRelElementVariation WHERE ";
 
-	private static final String _NO_SUCH_ENTITY_WITH_KEY =
-		"No LayoutPageTemplateStructureRelElementVariation exists with the key {";
-
-	private static final Log _log = LogFactoryUtil.getLog(
-		LayoutPageTemplateStructureRelElementVariationPersistenceImpl.class);
-
 	private static final Set<String> _badColumnNames = SetUtil.fromArray(
 		new String[] {
 			"uuid", "layoutPageTemplateStructureRelElementVariationId"
@@ -1441,4 +1438,4 @@ public class LayoutPageTemplateStructureRelElementVariationPersistenceImpl
 	}
 
 }
-// LIFERAY-SERVICE-BUILDER-HASH:-1246642275
+// LIFERAY-SERVICE-BUILDER-HASH:-941394124

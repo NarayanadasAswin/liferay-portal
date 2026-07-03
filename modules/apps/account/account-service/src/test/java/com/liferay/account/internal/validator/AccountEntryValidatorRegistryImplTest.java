@@ -5,6 +5,7 @@
 
 package com.liferay.account.internal.validator;
 
+import com.liferay.account.configuration.AccountEntryValidatorConfiguration;
 import com.liferay.account.constants.AccountEntryValidatorConstants;
 import com.liferay.account.model.AccountEntry;
 import com.liferay.account.validator.AccountEntryValidator;
@@ -119,17 +120,37 @@ public class AccountEntryValidatorRegistryImplTest {
 
 		Mockito.verifyNoInteractions(_serviceTrackerMap);
 
-		AccountEntry accountEntry = Mockito.mock(AccountEntry.class);
+		AccountEntryValidatorConfiguration
+			enabledAccountEntryValidatorConfiguration1 = Mockito.mock(
+				AccountEntryValidatorConfiguration.class);
+
+		Mockito.when(
+			enabledAccountEntryValidatorConfiguration1.enabled()
+		).thenReturn(
+			true
+		);
+
 		AccountEntryValidator accountEntryValidator1 = Mockito.mock(
 			AccountEntryValidator.class);
+
+		AccountEntry accountEntry = Mockito.mock(AccountEntry.class);
+
+		long companyId = accountEntry.getCompanyId();
+
+		Mockito.when(
+			accountEntryValidator1.getAccountEntryValidatorConfiguration(
+				companyId)
+		).thenReturn(
+			enabledAccountEntryValidatorConfiguration1
+		);
+
+		JSONObject jsonObject = JSONUtil.put(
+			RandomTestUtil.randomString(), RandomTestUtil.randomString());
 
 		AccountEntryValidatorResult accountEntryValidatorResult1 =
 			AccountEntryValidatorResult.builder(
 				RandomTestUtil.randomString()
 			).build();
-
-		JSONObject jsonObject = JSONUtil.put(
-			RandomTestUtil.randomString(), RandomTestUtil.randomString());
 
 		Mockito.when(
 			accountEntryValidator1.validate(accountEntry, jsonObject)
@@ -139,6 +160,13 @@ public class AccountEntryValidatorRegistryImplTest {
 
 		AccountEntryValidator accountEntryValidator2 = Mockito.mock(
 			AccountEntryValidator.class);
+
+		Mockito.when(
+			accountEntryValidator2.getAccountEntryValidatorConfiguration(
+				companyId)
+		).thenReturn(
+			enabledAccountEntryValidatorConfiguration1
+		);
 
 		AccountEntryValidatorResult accountEntryValidatorResult2 =
 			AccountEntryValidatorResult.builder(
@@ -153,10 +181,30 @@ public class AccountEntryValidatorRegistryImplTest {
 			accountEntryValidatorResult2
 		);
 
+		AccountEntryValidator accountEntryValidator3 = Mockito.mock(
+			AccountEntryValidator.class);
+
+		AccountEntryValidatorConfiguration accountEntryValidatorConfiguration2 =
+			Mockito.mock(AccountEntryValidatorConfiguration.class);
+
+		Mockito.when(
+			accountEntryValidatorConfiguration2.enabled()
+		).thenReturn(
+			false
+		);
+
+		Mockito.when(
+			accountEntryValidator3.getAccountEntryValidatorConfiguration(
+				companyId)
+		).thenReturn(
+			accountEntryValidatorConfiguration2
+		);
+
 		List<ServiceWrapper<AccountEntryValidator>> serviceWrappers =
 			Arrays.asList(
 				_getServiceWrapper(accountEntryValidator1),
-				_getServiceWrapper(accountEntryValidator2));
+				_getServiceWrapper(accountEntryValidator2),
+				_getServiceWrapper(accountEntryValidator3));
 
 		Mockito.when(
 			_serviceTrackerMap.values()
@@ -178,6 +226,12 @@ public class AccountEntryValidatorRegistryImplTest {
 			accountEntryValidator2
 		).validate(
 			accountEntry, jsonObject
+		);
+
+		Mockito.verify(
+			accountEntryValidator3, Mockito.never()
+		).validate(
+			Mockito.any(), Mockito.any()
 		);
 
 		Assert.assertEquals(

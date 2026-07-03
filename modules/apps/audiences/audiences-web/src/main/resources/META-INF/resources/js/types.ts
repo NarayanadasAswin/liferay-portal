@@ -12,7 +12,19 @@ export interface AudiencesCriteria {
 	type: 'boolean' | 'number' | 'set' | 'string';
 }
 
+export interface AudiencesCriteriaRulesGroup {
+	conjunction?: string;
+	rules?: Array<{attribute: string; operator: string; value: string}>;
+}
+
 export interface AudiencesCriteriaType {
 	audiencesCriterias: AudiencesCriteria[];
 	label: string;
+}
+
+export interface Rule {
+	attribute: string;
+	id: string;
+	operator: string;
+	value: string;
 }

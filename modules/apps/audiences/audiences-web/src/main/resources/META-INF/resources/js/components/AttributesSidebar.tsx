@@ -5,12 +5,11 @@
 
 import ClayEmptyState from '@clayui/empty-state';
 import ClayForm, {ClaySelectWithOption} from '@clayui/form';
-import ClayIcon from '@clayui/icon';
-import ClayList from '@clayui/list';
 import {SearchForm} from '@liferay/layout-js-components-web';
 import React, {useState} from 'react';
 
 import {AudiencesCriteriaType} from '../types';
+import AttributeListItem from './AttributeListItem';
 
 interface IProps {
 	audiencesCriteriaTypes: AudiencesCriteriaType[];
@@ -37,6 +36,7 @@ export default function AttributesSidebar({audiencesCriteriaTypes}: IProps) {
 			<ClayForm.Group>
 				<ClaySelectWithOption
 					aria-label={Liferay.Language.get('attributes-types')}
+					className="bg-white font-weight-semi-bold text-4"
 					onChange={(event) => {
 						setSelectedIndex(Number(event.target.value));
 						setQuery('');
@@ -59,23 +59,12 @@ export default function AttributesSidebar({audiencesCriteriaTypes}: IProps) {
 
 			{audiencesCriterias.length ? (
 				<div className="overflow-auto">
-					<ClayList>
-						{audiencesCriterias.map((audiencesCriteria) => (
-							<ClayList.Item
-								className="align-items-center border-0"
-								flex
-								key={audiencesCriteria.key}
-							>
-								<ClayList.ItemField>
-									<ClayIcon symbol={audiencesCriteria.icon} />
-								</ClayList.ItemField>
-
-								<ClayList.ItemField expand>
-									{audiencesCriteria.label}
-								</ClayList.ItemField>
-							</ClayList.Item>
-						))}
-					</ClayList>
+					{audiencesCriterias.map((audiencesCriteria) => (
+						<AttributeListItem
+							audiencesCriteria={audiencesCriteria}
+							key={audiencesCriteria.key}
+						/>
+					))}
 				</div>
 			) : (
 				<ClayEmptyState

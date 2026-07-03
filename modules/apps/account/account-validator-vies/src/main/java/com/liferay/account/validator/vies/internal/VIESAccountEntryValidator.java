@@ -22,8 +22,10 @@ import com.liferay.portal.kernel.model.Address;
 import com.liferay.portal.kernel.model.Country;
 import com.liferay.portal.kernel.service.AddressLocalService;
 import com.liferay.portal.kernel.util.ArrayUtil;
+import com.liferay.portal.kernel.util.HashMapBuilder;
 import com.liferay.portal.kernel.util.Validator;
 
+import java.util.Map;
 import java.util.Objects;
 
 import org.osgi.service.component.annotations.Component;
@@ -116,6 +118,8 @@ public class VIESAccountEntryValidator implements AccountEntryValidator {
 		if (Validator.isNull(taxIdNumber)) {
 			return AccountEntryValidatorResult.builder(
 				classPK
+			).resultMessage(
+				"the-account-is-missing-a-vat-number"
 			).resultStatus(
 				AccountEntryValidatorConstants.RESULT_FAILURE
 			).build();
@@ -140,13 +144,8 @@ public class VIESAccountEntryValidator implements AccountEntryValidator {
 			JSONObject errorWrapperJSONObject =
 				errorWrappersJSONArray.getJSONObject(0);
 
-			return AccountEntryValidatorResult.builder(
-				classPK
-			).resultMessage(
-				errorWrapperJSONObject.getString("error")
-			).resultStatus(
-				AccountEntryValidatorConstants.RESULT_WARNING
-			).build();
+			return _getAccountEntryValidatorResult(
+				classPK, errorWrapperJSONObject.getString("error"));
 		}
 
 		if (checkVatNumberJSONObject.getBoolean("valid", false)) {
@@ -159,8 +158,31 @@ public class VIESAccountEntryValidator implements AccountEntryValidator {
 
 		return AccountEntryValidatorResult.builder(
 			classPK
+		).resultMessage(
+			"vies-unexpected-error"
 		).resultStatus(
 			AccountEntryValidatorConstants.RESULT_FAILURE
+		).build();
+	}
+
+	private AccountEntryValidatorResult _getAccountEntryValidatorResult(
+		String classPK, String error) {
+
+		String resultMessage = _resultMessages.getOrDefault(
+			error, "vies-unexpected-error");
+
+		String resultStatus = AccountEntryValidatorConstants.RESULT_WARNING;
+
+		if (error.equals("INVALID_INPUT") || error.equals("VAT_BLOCKED")) {
+			resultStatus = AccountEntryValidatorConstants.RESULT_FAILURE;
+		}
+
+		return AccountEntryValidatorResult.builder(
+			classPK
+		).resultMessage(
+			resultMessage
+		).resultStatus(
+			resultStatus
 		).build();
 	}
 
@@ -197,5 +219,25 @@ public class VIESAccountEntryValidator implements AccountEntryValidator {
 
 	@Reference
 	private ConfigurationProvider _configurationProvider;
+
+	private final Map<String, String> _resultMessages = HashMapBuilder.put(
+		"GLOBAL_MAX_CONCURRENT_REQ", "vies-unexpected-error"
+	).put(
+		"INVALID_INPUT", "vies-invalid-input-error"
+	).put(
+		"IO_ERROR", "vies-unexpected-error"
+	).put(
+		"IP_BLOCKED", "vies-unexpected-error"
+	).put(
+		"MS_MAX_CONCURRENT_REQ", "vies-unexpected-error"
+	).put(
+		"MS_UNAVAILABLE", "vies-unexpected-error"
+	).put(
+		"TECHNICAL_ERROR", "vies-unexpected-error"
+	).put(
+		"TIMEOUT", "vies-unexpected-error"
+	).put(
+		"VAT_BLOCKED", "vies-vat-blocked-error"
+	).build();
 
 }

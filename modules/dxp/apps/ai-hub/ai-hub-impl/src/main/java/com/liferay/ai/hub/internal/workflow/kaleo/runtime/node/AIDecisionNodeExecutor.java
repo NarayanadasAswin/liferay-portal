@@ -8,6 +8,7 @@ package com.liferay.ai.hub.internal.workflow.kaleo.runtime.node;
 import com.liferay.ai.hub.guardrail.ModelArmorHandler;
 import com.liferay.ai.hub.internal.assistant.handler.AssistantHandlerContext;
 import com.liferay.ai.hub.internal.assistant.handler.AssistantHandlerUtil;
+import com.liferay.ai.hub.internal.langchain4j.observability.api.listener.AiServiceErrorListenerImpl;
 import com.liferay.ai.hub.internal.langchain4j.observability.api.listener.InputGuardrailExecutedListenerImpl;
 import com.liferay.ai.hub.internal.langchain4j.observability.api.listener.OutputGuardrailExecutedListenerImpl;
 import com.liferay.ai.hub.internal.mcp.tool.provider.MCPToolProviderUtil;
@@ -15,6 +16,7 @@ import com.liferay.ai.hub.internal.model.VertexAiGeminiUtil;
 import com.liferay.ai.hub.internal.workflow.kaleo.runtime.node.util.GuardrailsUtil;
 import com.liferay.ai.hub.internal.workflow.kaleo.runtime.node.util.KaleoNodeSettingUtil;
 import com.liferay.ai.hub.internal.workflow.kaleo.runtime.node.util.MessageUtil;
+import com.liferay.ai.hub.internal.workflow.kaleo.runtime.node.util.OnErrorConsumerUtil;
 import com.liferay.ai.hub.internal.workflow.kaleo.runtime.node.util.PromptUtil;
 import com.liferay.ai.hub.internal.workflow.kaleo.runtime.node.util.QuotaUtil;
 import com.liferay.ai.hub.internal.workflow.kaleo.runtime.node.util.RetrievalAugmentorUtil;
@@ -26,8 +28,6 @@ import com.liferay.object.rest.manager.v1_0.ObjectEntryManager;
 import com.liferay.petra.reflect.ReflectionUtil;
 import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.json.JSONFactory;
-import com.liferay.portal.kernel.log.Log;
-import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.security.auth.CompanyInheritableThreadLocalCallable;
 import com.liferay.portal.kernel.service.ServiceContext;
 import com.liferay.portal.kernel.util.GetterUtil;
@@ -59,6 +59,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.function.Consumer;
 
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
@@ -188,10 +189,14 @@ public class AIDecisionNodeExecutor extends BaseNodeExecutor {
 			_objectEntryManager, outputGuardrails, _quotaManager,
 			serviceContext, workflowContext);
 
+		Consumer<Throwable> onErrorConsumer = OnErrorConsumerUtil.create(
+			sseEventSinkKey, vertexAiGeminiStreamingChatModel);
+
 		AssistantHandlerUtil.handle(
 			AssistantHandlerContext.builder(
 			).aiServiceListeners(
 				List.of(
+					new AiServiceErrorListenerImpl(onErrorConsumer),
 					new InputGuardrailExecutedListenerImpl(executionContext),
 					new OutputGuardrailExecutedListenerImpl(executionContext))
 			).inputGuardrails(
@@ -212,13 +217,7 @@ public class AIDecisionNodeExecutor extends BaseNodeExecutor {
 						executionContext.getServiceContext(), userMessage);
 				}
 			).onErrorConsumer(
-				throwable -> {
-					MCPToolProviderUtil.close(sseEventSinkKey);
-
-					vertexAiGeminiStreamingChatModel.close();
-
-					_log.error(throwable);
-				}
+				onErrorConsumer
 			).outputGuardrails(
 				outputGuardrails
 			).retrievalAugmentor(
@@ -272,9 +271,6 @@ public class AIDecisionNodeExecutor extends BaseNodeExecutor {
 					executionContext.getWorkflowContext(),
 					executionContext.getServiceContext())));
 	}
-
-	private static final Log _log = LogFactoryUtil.getLog(
-		AIDecisionNodeExecutor.class);
 
 	@Reference
 	private DTOConverterRegistry _dtoConverterRegistry;
