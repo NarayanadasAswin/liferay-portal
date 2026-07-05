@@ -45,6 +45,15 @@ type TDocumentShortcut = {
 	viewableBy?: string;
 };
 
+type TStructuredContentFolder = {
+	description?: string;
+	externalReferenceCode?: string;
+	id?: number;
+	name?: string;
+	parentStructuredContentFolderId?: number;
+	viewableBy?: string;
+};
+
 type TWikiNode = {
 	description?: string;
 	externalReferenceCode?: string;
@@ -195,10 +204,12 @@ export class HeadlessDeliveryApiHelper {
 		articleBody,
 		siteId,
 		title,
+		viewableBy,
 	}: {
 		articleBody: string;
 		siteId: string;
 		title: string;
+		viewableBy?: string;
 	}): Promise<KnowledgeBaseArticle> {
 		return this.apiHelpers.post(
 			`${this.apiHelpers.baseUrl}${this.basePath}/sites/${siteId}/knowledge-base-articles`,
@@ -206,6 +217,7 @@ export class HeadlessDeliveryApiHelper {
 				data: {
 					articleBody,
 					title,
+					viewableBy,
 				},
 				failOnStatusCode: true,
 			}
@@ -349,6 +361,30 @@ export class HeadlessDeliveryApiHelper {
 					viewableBy,
 				},
 				failOnStatusCode: true,
+			}
+		);
+	}
+
+	async postStructuredContentFolder(
+		siteId: number | string,
+		structuredContentFolder?: TStructuredContentFolder
+	) {
+		structuredContentFolder = {
+			description: getRandomString(),
+			externalReferenceCode: getRandomString(),
+			name: getRandomString(),
+			viewableBy: 'Anyone',
+			...(structuredContentFolder || {}),
+		};
+
+		return this.apiHelpers.post(
+			`${this.apiHelpers.baseUrl}${this.basePath}/sites/${siteId}/structured-content-folders`,
+			{
+				data: structuredContentFolder,
+				failOnStatusCode: true,
+				headers: {
+					...(await this.apiHelpers.getCSRFTokenHeader()),
+				},
 			}
 		);
 	}

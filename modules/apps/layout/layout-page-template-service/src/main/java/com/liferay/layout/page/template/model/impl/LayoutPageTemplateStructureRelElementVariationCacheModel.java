@@ -7,6 +7,7 @@ package com.liferay.layout.page.template.model.impl;
 
 import com.liferay.layout.page.template.model.LayoutPageTemplateStructureRelElementVariation;
 import com.liferay.petra.lang.HashUtil;
+import com.liferay.petra.reflect.ReflectionUtil;
 import com.liferay.petra.string.StringBundler;
 import com.liferay.portal.kernel.model.CacheModel;
 import com.liferay.portal.kernel.model.MVCCModel;
@@ -15,6 +16,9 @@ import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 
 import java.util.Date;
 
@@ -78,7 +82,7 @@ public class LayoutPageTemplateStructureRelElementVariationCacheModel
 
 	@Override
 	public String toString() {
-		StringBundler sb = new StringBundler(39);
+		StringBundler sb = new StringBundler(37);
 
 		sb.append("{mvccVersion=");
 		sb.append(mvccVersion);
@@ -102,8 +106,6 @@ public class LayoutPageTemplateStructureRelElementVariationCacheModel
 		sb.append(createDate);
 		sb.append(", modifiedDate=");
 		sb.append(modifiedDate);
-		sb.append(", audienceEntryERC=");
-		sb.append(audienceEntryERC);
 		sb.append(", hide=");
 		sb.append(hide);
 		sb.append(", html=");
@@ -184,15 +186,6 @@ public class LayoutPageTemplateStructureRelElementVariationCacheModel
 				new Date(modifiedDate));
 		}
 
-		if (audienceEntryERC == null) {
-			layoutPageTemplateStructureRelElementVariationImpl.
-				setAudienceEntryERC("");
-		}
-		else {
-			layoutPageTemplateStructureRelElementVariationImpl.
-				setAudienceEntryERC(audienceEntryERC);
-		}
-
 		if (hide == null) {
 			layoutPageTemplateStructureRelElementVariationImpl.setHide("");
 		}
@@ -244,11 +237,22 @@ public class LayoutPageTemplateStructureRelElementVariationCacheModel
 		layoutPageTemplateStructureRelElementVariationImpl.
 			resetOriginalValues();
 
+		try {
+			_audienceEntryERCsMethodHandle.invokeExact(
+				layoutPageTemplateStructureRelElementVariationImpl,
+				audienceEntryERCs);
+		}
+		catch (Throwable throwable) {
+			ReflectionUtil.throwException(throwable);
+		}
+
 		return layoutPageTemplateStructureRelElementVariationImpl;
 	}
 
 	@Override
-	public void readExternal(ObjectInput objectInput) throws IOException {
+	public void readExternal(ObjectInput objectInput)
+		throws ClassNotFoundException, IOException {
+
 		mvccVersion = objectInput.readLong();
 
 		ctCollectionId = objectInput.readLong();
@@ -266,7 +270,6 @@ public class LayoutPageTemplateStructureRelElementVariationCacheModel
 		userName = objectInput.readUTF();
 		createDate = objectInput.readLong();
 		modifiedDate = objectInput.readLong();
-		audienceEntryERC = objectInput.readUTF();
 		hide = objectInput.readUTF();
 		html = objectInput.readUTF();
 		js = objectInput.readUTF();
@@ -275,6 +278,8 @@ public class LayoutPageTemplateStructureRelElementVariationCacheModel
 		plid = objectInput.readLong();
 		segmentsExperienceERC = objectInput.readUTF();
 		targetElement = objectInput.readUTF();
+
+		audienceEntryERCs = (java.util.List)objectInput.readObject();
 	}
 
 	@Override
@@ -315,13 +320,6 @@ public class LayoutPageTemplateStructureRelElementVariationCacheModel
 
 		objectOutput.writeLong(createDate);
 		objectOutput.writeLong(modifiedDate);
-
-		if (audienceEntryERC == null) {
-			objectOutput.writeUTF("");
-		}
-		else {
-			objectOutput.writeUTF(audienceEntryERC);
-		}
 
 		if (hide == null) {
 			objectOutput.writeUTF("");
@@ -366,6 +364,8 @@ public class LayoutPageTemplateStructureRelElementVariationCacheModel
 		else {
 			objectOutput.writeUTF(targetElement);
 		}
+
+		objectOutput.writeObject(audienceEntryERCs);
 	}
 
 	public long mvccVersion;
@@ -379,7 +379,6 @@ public class LayoutPageTemplateStructureRelElementVariationCacheModel
 	public String userName;
 	public long createDate;
 	public long modifiedDate;
-	public String audienceEntryERC;
 	public String hide;
 	public String html;
 	public String js;
@@ -387,6 +386,22 @@ public class LayoutPageTemplateStructureRelElementVariationCacheModel
 	public long plid;
 	public String segmentsExperienceERC;
 	public String targetElement;
+	public volatile java.util.List audienceEntryERCs;
+
+	private static final MethodHandle _audienceEntryERCsMethodHandle;
+
+	static {
+		MethodHandles.Lookup lookup = ReflectionUtil.getImplLookup();
+
+		try {
+			_audienceEntryERCsMethodHandle = lookup.findSetter(
+				LayoutPageTemplateStructureRelElementVariationImpl.class,
+				"_audienceEntryERCs", java.util.List.class);
+		}
+		catch (ReflectiveOperationException reflectiveOperationException) {
+			throw new ExceptionInInitializerError(reflectiveOperationException);
+		}
+	}
 
 }
-// LIFERAY-SERVICE-BUILDER-HASH:1657957509
+// LIFERAY-SERVICE-BUILDER-HASH:-2108233286

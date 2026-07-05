@@ -721,18 +721,26 @@ public class ObjectEntryLocalServiceImpl
 
 		Date date = new Date();
 
-		_companyIdPreviousCheckDate.computeIfAbsent(
-			companyId,
-			key -> new Date(
-				date.getTime() - _getObjectEntryCheckInterval(companyId)));
+		ObjectEntryScheduleConfiguration objectEntryScheduleConfiguration =
+			configurationProvider.getCompanyConfiguration(
+				ObjectEntryScheduleConfiguration.class, companyId);
 
-		_checkObjectEntriesByDisplayDate(companyId, date);
+		int checkBatchSize = objectEntryScheduleConfiguration.checkBatchSize();
 
-		_checkObjectEntriesByExpirationDate(companyId, date);
+		_checkObjectEntriesByDisplayDate(companyId, date, checkBatchSize);
+		_checkObjectEntriesByExpirationDate(companyId, date, checkBatchSize);
 
-		_checkObjectEntriesByReviewDate(companyId, date);
+		long checkInterval =
+			objectEntryScheduleConfiguration.checkInterval() * Time.MINUTE;
 
-		_companyIdPreviousCheckDate.put(companyId, date);
+		ReviewCheckpoint reviewCheckpoint =
+			_companyIdReviewCheckpoint.computeIfAbsent(
+				companyId,
+				key -> new ReviewCheckpoint(
+					new Date(date.getTime() - checkInterval), 0));
+
+		_checkObjectEntriesByReviewDate(
+			companyId, date, checkBatchSize, reviewCheckpoint);
 	}
 
 	@Override
@@ -3202,8 +3210,8 @@ public class ObjectEntryLocalServiceImpl
 		}
 	}
 
-	private void _checkObjectEntriesByDisplayDate(long companyId, Date date)
-		throws PortalException {
+	private void _checkObjectEntriesByDisplayDate(
+		long companyId, Date date, int checkBatchSize) {
 
 		List<ObjectEntry> objectEntries = objectEntryPersistence.dslQuery(
 			DSLQueryFactoryUtil.select(
@@ -3214,25 +3222,41 @@ public class ObjectEntryLocalServiceImpl
 				ObjectEntryTable.INSTANCE.companyId.eq(
 					companyId
 				).and(
-					ObjectEntryTable.INSTANCE.displayDate.gte(
-						_companyIdPreviousCheckDate.get(companyId))
-				).and(
 					ObjectEntryTable.INSTANCE.displayDate.lte(date)
+				).and(
+					Predicate.withParentheses(
+						ObjectEntryTable.INSTANCE.expirationDate.isNull(
+						).or(
+							ObjectEntryTable.INSTANCE.expirationDate.gt(date)
+						))
 				).and(
 					ObjectEntryTable.INSTANCE.status.eq(
 						WorkflowConstants.STATUS_SCHEDULED)
 				)
-			));
+			).limit(
+				0, checkBatchSize
+			),
+			false);
 
 		for (ObjectEntry objectEntry : objectEntries) {
-			updateStatus(
-				objectEntry.getUserId(), objectEntry,
-				WorkflowConstants.STATUS_APPROVED, new ServiceContext());
+			try {
+				updateStatus(
+					objectEntry.getUserId(), objectEntry,
+					WorkflowConstants.STATUS_APPROVED, new ServiceContext());
+			}
+			catch (Exception exception) {
+				if (_log.isWarnEnabled()) {
+					_log.warn(
+						"Unable to publish object entry " +
+							objectEntry.getObjectEntryId(),
+						exception);
+				}
+			}
 		}
 	}
 
-	private void _checkObjectEntriesByExpirationDate(long companyId, Date date)
-		throws PortalException {
+	private void _checkObjectEntriesByExpirationDate(
+		long companyId, Date date, int checkBatchSize) {
 
 		List<ObjectEntry> objectEntries = objectEntryPersistence.dslQuery(
 			DSLQueryFactoryUtil.select(
@@ -3242,9 +3266,6 @@ public class ObjectEntryLocalServiceImpl
 			).where(
 				ObjectEntryTable.INSTANCE.companyId.eq(
 					companyId
-				).and(
-					ObjectEntryTable.INSTANCE.expirationDate.gte(
-						_companyIdPreviousCheckDate.get(companyId))
 				).and(
 					ObjectEntryTable.INSTANCE.expirationDate.lte(date)
 				).and(
@@ -3256,17 +3277,31 @@ public class ObjectEntryLocalServiceImpl
 							WorkflowConstants.STATUS_PENDING
 						})
 				)
-			));
+			).limit(
+				0, checkBatchSize
+			),
+			false);
 
 		for (ObjectEntry objectEntry : objectEntries) {
-			expireObjectEntry(
-				objectEntry.getUserId(), objectEntry.getObjectEntryId(),
-				new ServiceContext());
+			try {
+				expireObjectEntry(
+					objectEntry.getUserId(), objectEntry.getObjectEntryId(),
+					new ServiceContext());
+			}
+			catch (Exception exception) {
+				if (_log.isWarnEnabled()) {
+					_log.warn(
+						"Unable to expire object entry " +
+							objectEntry.getObjectEntryId(),
+						exception);
+				}
+			}
 		}
 	}
 
-	private void _checkObjectEntriesByReviewDate(long companyId, Date date)
-		throws PortalException {
+	private void _checkObjectEntriesByReviewDate(
+		long companyId, Date date, int checkBatchSize,
+		ReviewCheckpoint reviewCheckpoint) {
 
 		List<ObjectEntry> objectEntries = objectEntryPersistence.dslQuery(
 			DSLQueryFactoryUtil.select(
@@ -3277,39 +3312,87 @@ public class ObjectEntryLocalServiceImpl
 				ObjectEntryTable.INSTANCE.companyId.eq(
 					companyId
 				).and(
-					ObjectEntryTable.INSTANCE.reviewDate.gte(
-						_companyIdPreviousCheckDate.get(companyId))
-				).and(
 					ObjectEntryTable.INSTANCE.reviewDate.lte(date)
+				).and(
+					Predicate.withParentheses(
+						ObjectEntryTable.INSTANCE.reviewDate.gt(
+							reviewCheckpoint._reviewDate
+						).or(
+							Predicate.withParentheses(
+								ObjectEntryTable.INSTANCE.reviewDate.eq(
+									reviewCheckpoint._reviewDate
+								).and(
+									ObjectEntryTable.INSTANCE.objectEntryId.gt(
+										reviewCheckpoint._objectEntryId)
+								))
+						))
 				)
-			));
+			).orderBy(
+				ObjectEntryTable.INSTANCE.reviewDate.ascending(),
+				ObjectEntryTable.INSTANCE.objectEntryId.ascending()
+			).limit(
+				0, checkBatchSize
+			),
+			false);
+
+		if (objectEntries.isEmpty()) {
+			return;
+		}
 
 		for (ObjectEntry objectEntry : objectEntries) {
-			JSONObject payloadJSONObject = JSONUtil.put(
-				"classPK", objectEntry.getObjectEntryId()
-			).put(
-				"notificationMessageArg", objectEntry.getTitleValue()
-			).put(
-				"notificationMessageKey", "x-has-reached-its-review-date"
-			);
+			try {
+				JSONObject payloadJSONObject = JSONUtil.put(
+					"classPK", objectEntry.getObjectEntryId()
+				).put(
+					"notificationMessageArg", objectEntry.getTitleValue()
+				).put(
+					"notificationMessageKey", "x-has-reached-its-review-date"
+				);
 
-			for (ObjectEntryReviewNotificationContributor contributor :
-					_objectEntryReviewNotificationContributors) {
+				for (ObjectEntryReviewNotificationContributor
+						objectEntryReviewNotificationContributor :
+							_objectEntryReviewNotificationContributors) {
 
-				if (contributor.isApplicable(objectEntry)) {
-					contributor.contribute(objectEntry, payloadJSONObject);
+					if (objectEntryReviewNotificationContributor.isApplicable(
+							objectEntry)) {
+
+						objectEntryReviewNotificationContributor.contribute(
+							objectEntry, payloadJSONObject);
+					}
+				}
+
+				ObjectDefinition objectDefinition =
+					_objectDefinitionPersistence.fetchByPrimaryKey(
+						objectEntry.getObjectDefinitionId());
+
+				_userNotificationEventLocalService.sendUserNotificationEvents(
+					objectEntry.getUserId(), objectDefinition.getPortletId(),
+					UserNotificationDeliveryConstants.TYPE_WEBSITE, false,
+					payloadJSONObject);
+			}
+			catch (Exception exception) {
+				if (_log.isWarnEnabled()) {
+					_log.warn(
+						"Unable to send user notification events for object " +
+							"entry " + objectEntry.getObjectEntryId(),
+						exception);
 				}
 			}
-
-			ObjectDefinition objectDefinition =
-				_objectDefinitionPersistence.fetchByPrimaryKey(
-					objectEntry.getObjectDefinitionId());
-
-			_userNotificationEventLocalService.sendUserNotificationEvents(
-				objectEntry.getUserId(), objectDefinition.getPortletId(),
-				UserNotificationDeliveryConstants.TYPE_WEBSITE, false,
-				payloadJSONObject);
 		}
+
+		ObjectEntry lastObjectEntry = objectEntries.get(
+			objectEntries.size() - 1);
+
+		ReviewCheckpoint nextReviewCheckpoint = new ReviewCheckpoint(
+			lastObjectEntry.getReviewDate(),
+			lastObjectEntry.getObjectEntryId());
+
+		TransactionCommitCallbackUtil.registerCallback(
+			() -> {
+				_companyIdReviewCheckpoint.put(companyId, nextReviewCheckpoint);
+
+				return null;
+			});
 	}
 
 	private void _contributeValues(
@@ -4818,20 +4901,6 @@ public class ObjectEntryLocalServiceImpl
 					dynamicObjectDefinitionTable, groupIds)
 			)
 		);
-	}
-
-	private long _getObjectEntryCheckInterval(long companyId) {
-		try {
-			ObjectEntryScheduleConfiguration objectEntryScheduleConfiguration =
-				configurationProvider.getCompanyConfiguration(
-					ObjectEntryScheduleConfiguration.class, companyId);
-
-			return objectEntryScheduleConfiguration.checkInterval() *
-				Time.MINUTE;
-		}
-		catch (PortalException portalException) {
-			throw new RuntimeException(portalException);
-		}
 	}
 
 	private Predicate _getObjectFieldPredicate(
@@ -8543,7 +8612,7 @@ public class ObjectEntryLocalServiceImpl
 	@Reference
 	private CommentManager _commentManager;
 
-	private final Map<Long, Date> _companyIdPreviousCheckDate =
+	private final Map<Long, ReviewCheckpoint> _companyIdReviewCheckpoint =
 		new ConcurrentHashMap<>();
 
 	@Reference
@@ -8712,5 +8781,17 @@ public class ObjectEntryLocalServiceImpl
 
 	@Reference
 	private WorkflowInstanceLinkLocalService _workflowInstanceLinkLocalService;
+
+	private static class ReviewCheckpoint {
+
+		private ReviewCheckpoint(Date reviewDate, long objectEntryId) {
+			_reviewDate = reviewDate;
+			_objectEntryId = objectEntryId;
+		}
+
+		private final long _objectEntryId;
+		private final Date _reviewDate;
+
+	}
 
 }

@@ -5,11 +5,15 @@
 
 package com.liferay.oauth2.provider.rest.internal.endpoint.dynamic.registration;
 
+import com.liferay.oauth2.provider.rest.internal.endpoint.constants.OAuth2ProviderRESTEndpointConstants;
 import com.liferay.oauth2.provider.rest.internal.endpoint.dynamic.registration.model.LiferayClientRegistration;
 import com.liferay.oauth2.provider.rest.internal.endpoint.dynamic.registration.model.LiferayClientRegistrationResponse;
 import com.liferay.oauth2.provider.rest.internal.endpoint.util.OAuth2ErrorUtil;
 import com.liferay.oauth2.provider.util.OAuth2SecureRandomGenerator;
+import com.liferay.petra.function.transform.TransformUtil;
+import com.liferay.petra.string.StringBundler;
 import com.liferay.petra.string.StringPool;
+import com.liferay.portal.kernel.util.GetterUtil;
 import com.liferay.portal.kernel.util.HashMapBuilder;
 import com.liferay.portal.kernel.util.ListUtil;
 import com.liferay.portal.kernel.util.StringUtil;
@@ -55,10 +59,9 @@ public class LiferayDynamicRegistrationService
 
 		super.deleteClientRegistration(clientId);
 
-		Response.ResponseBuilder responseBuilder = JAXRSUtils.toResponseBuilder(
-			204);
-
-		return responseBuilder.build();
+		return JAXRSUtils.toResponseBuilder(
+			204
+		).build();
 	}
 
 	@GET
@@ -124,62 +127,76 @@ public class LiferayDynamicRegistrationService
 
 		_validate(client, clientRegistration);
 
+		_setAllowedGrantTypes(client);
+
 		client.setApplicationName(clientRegistration.getClientName());
 
 		clientRegistration.setApplicationType(
 			_getApplicationType(clientRegistration));
-
-		List<String> redirectUris = clientRegistration.getRedirectUris();
-
-		if (redirectUris != null) {
-			client.setRedirectUris(redirectUris);
-		}
 
 		Map<String, String> properties = client.getProperties();
 
 		properties.put(
 			"application_type", clientRegistration.getApplicationType());
 
-		String jwks = clientRegistration.getStringProperty("jwks");
+		String jwks = clientRegistration.getStringProperty(
+			OAuth2ProviderRESTEndpointConstants.PROPERTY_KEY_CLIENT_JWKS);
 
 		if (Validator.isNotNull(jwks)) {
-			properties.put("jwks", jwks);
+			properties.put(
+				OAuth2ProviderRESTEndpointConstants.PROPERTY_KEY_CLIENT_JWKS,
+				jwks);
 		}
 
-		String jwksURI = clientRegistration.getStringProperty("jwks_uri");
+		String jwksURI = clientRegistration.getStringProperty(
+			OAuth2ProviderRESTEndpointConstants.PROPERTY_KEY_CLIENT_JWKS_URI);
 
 		if (Validator.isNotNull(jwksURI)) {
-			properties.put("jwks_uri", jwksURI);
+			properties.put(
+				OAuth2ProviderRESTEndpointConstants.
+					PROPERTY_KEY_CLIENT_JWKS_URI,
+				jwksURI);
 		}
 
-		String softwareId = clientRegistration.getStringProperty("software_id");
+		String softwareId = clientRegistration.getStringProperty(
+			OAuth2ProviderRESTEndpointConstants.
+				PROPERTY_KEY_CLIENT_SOFTWARE_ID);
 
 		if (Validator.isNotNull(softwareId)) {
-			properties.put("software_id", softwareId);
+			properties.put(
+				OAuth2ProviderRESTEndpointConstants.
+					PROPERTY_KEY_CLIENT_SOFTWARE_ID,
+				softwareId);
 		}
 
-		String tosUri = clientRegistration.getTosUri();
+		String tosURI = clientRegistration.getTosUri();
 
-		if (Validator.isNotNull(tosUri)) {
-			properties.put("tos_uri", tosUri);
+		if (Validator.isNotNull(tosURI)) {
+			properties.put("tos_uri", tosURI);
 		}
 
-		String logoUri = clientRegistration.getLogoUri();
+		String logoURI = clientRegistration.getLogoUri();
 
-		if (Validator.isNotNull(logoUri)) {
-			client.setApplicationLogoUri(logoUri);
+		if (Validator.isNotNull(logoURI)) {
+			client.setApplicationLogoUri(logoURI);
 		}
 
-		String clientUri = clientRegistration.getClientUri();
+		String clientURI = clientRegistration.getClientUri();
 
-		if (clientUri != null) {
-			client.setApplicationWebUri(clientUri);
+		if (clientURI != null) {
+			client.setApplicationWebUri(clientURI);
 		}
 
-		List<String> resourceUris = clientRegistration.getResourceUris();
+		List<String> redirectURIs = clientRegistration.getRedirectUris();
 
-		if (resourceUris != null) {
-			client.setRegisteredAudiences(resourceUris);
+		if (redirectURIs != null) {
+			client.setRedirectUris(redirectURIs);
+		}
+
+		List<String> resourceURIs = clientRegistration.getResourceUris();
+
+		if (resourceURIs != null) {
+			client.setRegisteredAudiences(resourceURIs);
 		}
 
 		String scope = clientRegistration.getScope();
@@ -212,7 +229,7 @@ public class LiferayDynamicRegistrationService
 		}
 
 		liferayClientRegistrationResponse.setGrantTypes(
-			client.getAllowedGrantTypes());
+			_toResponseGrantTypes(client.getAllowedGrantTypes()));
 		liferayClientRegistrationResponse.setLogoUri(
 			client.getApplicationLogoUri());
 		liferayClientRegistrationResponse.setRedirectUris(
@@ -220,13 +237,18 @@ public class LiferayDynamicRegistrationService
 
 		Map<String, String> properties = client.getProperties();
 
-		if (properties.get("jwks") != null) {
-			liferayClientRegistrationResponse.setJwks(properties.get("jwks"));
+		String jwks = properties.get(
+			OAuth2ProviderRESTEndpointConstants.PROPERTY_KEY_CLIENT_JWKS);
+
+		if (jwks != null) {
+			liferayClientRegistrationResponse.setJwks(jwks);
 		}
 
-		if (properties.get("jwks_uri") != null) {
-			liferayClientRegistrationResponse.setJwksUri(
-				properties.get("jwks_uri"));
+		String jwksURI = properties.get(
+			OAuth2ProviderRESTEndpointConstants.PROPERTY_KEY_CLIENT_JWKS_URI);
+
+		if (jwksURI != null) {
+			liferayClientRegistrationResponse.setJwksUri(jwksURI);
 		}
 
 		liferayClientRegistrationResponse.setRegistrationAccessToken(
@@ -251,9 +273,12 @@ public class LiferayDynamicRegistrationService
 					client.getRegisteredScopes(), StringPool.SPACE));
 		}
 
-		if (properties.get("software_id") != null) {
-			liferayClientRegistrationResponse.setSoftwareId(
-				properties.get("software_id"));
+		String softwareId = properties.get(
+			OAuth2ProviderRESTEndpointConstants.
+				PROPERTY_KEY_CLIENT_SOFTWARE_ID);
+
+		if (softwareId != null) {
+			liferayClientRegistrationResponse.setSoftwareId(softwareId);
 		}
 
 		if (properties.get("tos_uri") != null) {
@@ -277,13 +302,62 @@ public class LiferayDynamicRegistrationService
 	}
 
 	private String _getApplicationType(ClientRegistration clientRegistration) {
-		String applicationType = clientRegistration.getApplicationType();
+		return GetterUtil.getString(
+			clientRegistration.getApplicationType(), "web");
+	}
 
-		if (applicationType == null) {
-			applicationType = "web";
+	private void _setAllowedGrantTypes(Client client) {
+		if (!OAuthConstants.TOKEN_ENDPOINT_AUTH_NONE.equals(
+				client.getTokenEndpointAuthMethod())) {
+
+			return;
 		}
 
-		return applicationType;
+		List<String> allowedGrantTypes = client.getAllowedGrantTypes();
+
+		if (allowedGrantTypes == null) {
+			return;
+		}
+
+		int index = allowedGrantTypes.indexOf(
+			OAuthConstants.AUTHORIZATION_CODE_GRANT);
+
+		if (index < 0) {
+			return;
+		}
+
+		allowedGrantTypes = new ArrayList<>(allowedGrantTypes);
+
+		allowedGrantTypes.set(
+			index,
+			OAuth2ProviderRESTEndpointConstants.AUTHORIZATION_CODE_PKCE_GRANT);
+
+		client.setAllowedGrantTypes(allowedGrantTypes);
+	}
+
+	private List<String> _toResponseGrantTypes(List<String> allowedGrantTypes) {
+		if (allowedGrantTypes == null) {
+			return null;
+		}
+
+		List<String> responseGrantTypes = new ArrayList<>(
+			allowedGrantTypes.size());
+
+		for (String allowedGrantType : allowedGrantTypes) {
+			String responseGrantType = allowedGrantType;
+
+			if (OAuth2ProviderRESTEndpointConstants.
+					AUTHORIZATION_CODE_PKCE_GRANT.equals(allowedGrantType)) {
+
+				responseGrantType = OAuthConstants.AUTHORIZATION_CODE_GRANT;
+			}
+
+			if (!responseGrantTypes.contains(responseGrantType)) {
+				responseGrantTypes.add(responseGrantType);
+			}
+		}
+
+		return responseGrantTypes;
 	}
 
 	private void _validate(
@@ -307,33 +381,32 @@ public class LiferayDynamicRegistrationService
 			}
 		}
 
-		if (ListUtil.isEmpty(redirectUris) &&
-			(allowedGrantTypes.contains("authorization_code") ||
-			 allowedGrantTypes.contains("implicit"))) {
+		if ((allowedGrantTypes.contains(
+				OAuthConstants.AUTHORIZATION_CODE_GRANT) ||
+			 allowedGrantTypes.contains(OAuthConstants.IMPLICIT_GRANT)) &&
+			ListUtil.isEmpty(redirectUris)) {
 
 			OAuth2ErrorUtil.reportInvalidRequestError(
-				"At least one redirect URI is required for the provided " +
-					"grant types " + allowedGrantTypes,
+				StringBundler.concat(
+					"At least one redirect URI is required for the provided ",
+					"grant types ", allowedGrantTypes),
 				OAuthConstants.INVALID_REQUEST, Response.Status.BAD_REQUEST);
 		}
 
-		List<String> allowedResponseTypes = new ArrayList<>();
-
-		for (String grantType : allowedGrantTypes) {
-			if (_allowedResponseTypes.containsKey(grantType)) {
-				allowedResponseTypes.add(_allowedResponseTypes.get(grantType));
-			}
-		}
-
+		List<String> allowedResponseTypes = TransformUtil.transform(
+			allowedGrantTypes, _allowedResponseTypes::get);
 		List<String> responseTypes = clientRegistration.getResponseTypes();
 
 		if (ListUtil.isNotEmpty(allowedResponseTypes) &&
 			ListUtil.isEmpty(responseTypes)) {
 
 			OAuth2ErrorUtil.reportInvalidRequestError(
-				"At least one response type is required for the provided " +
-					"grant types " + allowedGrantTypes,
-				"invalid_client_metadata", Response.Status.BAD_REQUEST);
+				StringBundler.concat(
+					"At least one response type is required for the provided ",
+					"grant types ", allowedGrantTypes),
+				OAuth2ProviderRESTEndpointConstants.
+					ERROR_INVALID_CLIENT_METADATA,
+				Response.Status.BAD_REQUEST);
 		}
 
 		if (responseTypes != null) {
@@ -341,7 +414,9 @@ public class LiferayDynamicRegistrationService
 				if (!allowedResponseTypes.contains(responseType)) {
 					OAuth2ErrorUtil.reportInvalidRequestError(
 						"Invalid response type " + responseType,
-						"invalid_client_metadata", Response.Status.BAD_REQUEST);
+						OAuth2ProviderRESTEndpointConstants.
+							ERROR_INVALID_CLIENT_METADATA,
+						Response.Status.BAD_REQUEST);
 				}
 			}
 		}
@@ -349,9 +424,10 @@ public class LiferayDynamicRegistrationService
 
 	private static final Map<String, String> _allowedResponseTypes =
 		HashMapBuilder.put(
-			"authorization_code", "code"
+			OAuthConstants.AUTHORIZATION_CODE_GRANT,
+			OAuthConstants.CODE_RESPONSE_TYPE
 		).put(
-			"implicit", "token"
+			OAuthConstants.IMPLICIT_GRANT, OAuthConstants.TOKEN_RESPONSE_TYPE
 		).build();
 
 }

@@ -53,7 +53,6 @@ public class LayoutPageTemplateStructureRelElementVariationWrapper
 		attributes.put("userName", getUserName());
 		attributes.put("createDate", getCreateDate());
 		attributes.put("modifiedDate", getModifiedDate());
-		attributes.put("audienceEntryERC", getAudienceEntryERC());
 		attributes.put("hide", getHide());
 		attributes.put("html", getHtml());
 		attributes.put("js", getJs());
@@ -137,12 +136,6 @@ public class LayoutPageTemplateStructureRelElementVariationWrapper
 			setModifiedDate(modifiedDate);
 		}
 
-		String audienceEntryERC = (String)attributes.get("audienceEntryERC");
-
-		if (audienceEntryERC != null) {
-			setAudienceEntryERC(audienceEntryERC);
-		}
-
 		String hide = (String)attributes.get("hide");
 
 		if (hide != null) {
@@ -194,14 +187,9 @@ public class LayoutPageTemplateStructureRelElementVariationWrapper
 		return wrap(model.cloneWithOriginalValues());
 	}
 
-	/**
-	 * Returns the audience entry erc of this layout page template structure rel element variation.
-	 *
-	 * @return the audience entry erc of this layout page template structure rel element variation
-	 */
 	@Override
-	public String getAudienceEntryERC() {
-		return model.getAudienceEntryERC();
+	public java.util.List<String> getAudienceEntryERCs() {
+		return model.getAudienceEntryERCs();
 	}
 
 	@Override
@@ -633,16 +621,6 @@ public class LayoutPageTemplateStructureRelElementVariationWrapper
 	}
 
 	/**
-	 * Sets the audience entry erc of this layout page template structure rel element variation.
-	 *
-	 * @param audienceEntryERC the audience entry erc of this layout page template structure rel element variation
-	 */
-	@Override
-	public void setAudienceEntryERC(String audienceEntryERC) {
-		model.setAudienceEntryERC(audienceEntryERC);
-	}
-
-	/**
 	 * Sets the company ID of this layout page template structure rel element variation.
 	 *
 	 * @param companyId the company ID of this layout page template structure rel element variation
@@ -1042,4 +1020,4 @@ public class LayoutPageTemplateStructureRelElementVariationWrapper
 	}
 
 }
-// LIFERAY-SERVICE-BUILDER-HASH:-1318191918
+// LIFERAY-SERVICE-BUILDER-HASH:387626618

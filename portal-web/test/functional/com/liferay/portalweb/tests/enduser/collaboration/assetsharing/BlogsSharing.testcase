@@ -122,10 +122,10 @@ definition {
 			value1 = "Notification for Sharing was deleted.");
 	}
 
-	@description = "This test ensures a user can only comment on a blog entry once it is shared with him."
+	@description = "This test ensures a user can view, comment on, and update a blog entry once it is shared with him with the matching permission."
 	@priority = 5
 	@refactordone
-	test CanShareWithCommentPermissions {
+	test CanShareWithPermissions {
 		property portal.acceptance = "true";
 
 		BlogsNavigator.gotoShare(entryTitle = "Blogs Entry Title");
@@ -160,13 +160,48 @@ definition {
 			commentCount = 1,
 			entryComment = "test",
 			userFullName = "userfn userln");
-	}
 
-	@description = "This test ensures a user can update a blog entry once it is shared with him."
-	@priority = 5
-	@refactordone
-	test CanShareWithUpdatePermissions {
-		property portal.acceptance = "true";
+		User.logoutPG();
+
+		User.loginPG(
+			password = PropsUtil.get("default.admin.password"),
+			userEmailAddress = "test@liferay.com");
+
+		BlogsNavigator.openBlogsAdmin(siteURLKey = "guest");
+
+		BlogsNavigator.gotoShare(entryTitle = "Blogs Entry Title");
+
+		Asset.share(
+			sharingPermissions = "View",
+			userEmailAddress = "userea@liferay.com",
+			userName = "userfn userln");
+
+		User.logoutAndLoginPG(
+			userLoginEmailAddress = "userea@liferay.com",
+			userLoginFullName = "userfn userln");
+
+		Notifications.viewBadgeCount(notificationCount = 1);
+
+		Notifications.gotoNotifications();
+
+		Notifications.viewNewSharedContent(
+			contentSharingPermission = "viewing",
+			contentTitle = "Blogs Entry Title",
+			openNotification = "true",
+			ownerName = "Test Test");
+
+		BlogsEntry.viewSharedAsset(
+			contentSharingPermission = "View",
+			entryContent = "Blogs Entry Content",
+			entryTitle = "Blogs Entry Title");
+
+		User.logoutPG();
+
+		User.loginPG(
+			password = PropsUtil.get("default.admin.password"),
+			userEmailAddress = "test@liferay.com");
+
+		BlogsNavigator.openBlogsAdmin(siteURLKey = "guest");
 
 		BlogsNavigator.gotoShare(entryTitle = "Blogs Entry Title");
 
@@ -204,36 +239,6 @@ definition {
 		BlogsEntry.viewSharedAsset(
 			entryContent = "Blogs Entry Content Edit",
 			entryTitle = "Blogs Entry Title Edit");
-	}
-
-	@description = "This test ensures a user can only view a blog entry once it is shared with him."
-	@priority = 5
-	test CanShareWithViewPermissions {
-		BlogsNavigator.gotoShare(entryTitle = "Blogs Entry Title");
-
-		Asset.share(
-			sharingPermissions = "View",
-			userEmailAddress = "userea@liferay.com",
-			userName = "userfn userln");
-
-		User.logoutAndLoginPG(
-			userLoginEmailAddress = "userea@liferay.com",
-			userLoginFullName = "userfn userln");
-
-		Notifications.viewBadgeCount(notificationCount = 1);
-
-		Notifications.gotoNotifications();
-
-		Notifications.viewNewSharedContent(
-			contentSharingPermission = "viewing",
-			contentTitle = "Blogs Entry Title",
-			openNotification = "true",
-			ownerName = "Test Test");
-
-		BlogsEntry.viewSharedAsset(
-			contentSharingPermission = "View",
-			entryContent = "Blogs Entry Content",
-			entryTitle = "Blogs Entry Title");
 	}
 
 	@description = "This test asserts that proper notifications are sent based on sharing permissions granted."

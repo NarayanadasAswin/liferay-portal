@@ -69,6 +69,8 @@ export default function ProjectTasksFDSPropsTransformer({
 			CalendarView({
 				...props,
 				projectId: additionalProps.projectId,
+				projectObjectDefinitionId:
+					additionalProps.projectObjectDefinitionId,
 			}),
 		default: false,
 		initialPaginationDelta: FDS_PAGINATION_DELTA_ALL,
@@ -88,7 +90,12 @@ export default function ProjectTasksFDSPropsTransformer({
 
 	const kanbanView: IView = {
 		component: (props: any) =>
-			KanbanView({...props, projectId: additionalProps.projectId}),
+			KanbanView({
+				...props,
+				projectId: additionalProps.projectId,
+				projectObjectDefinitionId:
+					additionalProps.projectObjectDefinitionId,
+			}),
 		default: false,
 		initialPaginationDelta: FDS_PAGINATION_DELTA_ALL,
 		label: Liferay.Language.get('kanban'),
@@ -241,17 +248,21 @@ export default function ProjectTasksFDSPropsTransformer({
 					getCustomBulkDeleteMessage: (selectedData) => {
 						if (selectedData.selectAll) {
 							return {
-								confirmationMessage: Liferay.Language.get(
-									'delete-tasks-confirmation'
-								),
+								messages: [
+									Liferay.Language.get(
+										'delete-tasks-confirmation'
+									),
+								],
 								title: Liferay.Language.get('delete-all-tasks'),
 							};
 						}
 						else if (selectedData.items.length > 1) {
 							return {
-								confirmationMessage: Liferay.Language.get(
-									'delete-tasks-confirmation'
-								),
+								messages: [
+									Liferay.Language.get(
+										'delete-tasks-confirmation'
+									),
+								],
 								title: sub(
 									Liferay.Language.get('delete-x-tasks'),
 									[selectedData.items.length]
@@ -260,9 +271,11 @@ export default function ProjectTasksFDSPropsTransformer({
 						}
 
 						return {
-							confirmationMessage: Liferay.Language.get(
-								'delete-tasks-confirmation'
-							),
+							messages: [
+								Liferay.Language.get(
+									'delete-tasks-confirmation'
+								),
+							],
 							title: Liferay.Language.get('delete-task'),
 						};
 					},

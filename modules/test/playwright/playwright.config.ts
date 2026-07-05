@@ -20,6 +20,7 @@ import {config as announcementsWebConfig} from './tests/announcements-web/main/c
 import {config as applicationListTaglibConfig} from './tests/application-list-taglib/main/config';
 import {config as assetCategoriesAdminWebConfig} from './tests/asset-categories-admin-web/main/config';
 import {config as assetPublisherWebConfig} from './tests/asset-publisher-web/main/config';
+import {config as assetPublisherWebRelatedAssetsConfig} from './tests/asset-publisher-web/related-assets/config';
 import {config as assetTagsAdminWebConfig} from './tests/asset-tags-admin-web/main/config';
 import {config as audiencesWebConfig} from './tests/audiences-web/main/config';
 import {config as batchPlannerConfig} from './tests/batch-planner/main/config';
@@ -74,6 +75,8 @@ import {config as documentLibraryWebConfig} from './tests/document-library-web/m
 import {config as dynamicDataMappingFormWebConfig} from './tests/dynamic-data-mapping-form-web/main/config';
 import {config as e2eCmsDxpContentPageConfig} from './tests/e2e-cms-dxp/content-page/main/config';
 import {config as e2eCmsDxpDisplayPageTemplateConfig} from './tests/e2e-cms-dxp/display-page-template/main/config';
+import {config as e2eCmsDxpSharingConfig} from './tests/e2e-cms-dxp/sharing/main/config';
+import {config as e2eCmsDxpTranslationsConfig} from './tests/e2e-cms-dxp/translations/main/config';
 import {config as e2eCmsDxpWorkflowConfig} from './tests/e2e-cms-dxp/workflow/main/config';
 import {config as expandoWebConfig} from './tests/expando-web/main/config';
 import {config as exportImportServiceConfig} from './tests/export-import-service/main/config';
@@ -260,6 +263,7 @@ export default defineConfig({
 		applicationListTaglibConfig,
 		assetCategoriesAdminWebConfig,
 		assetPublisherWebConfig,
+		assetPublisherWebRelatedAssetsConfig,
 		assetTagsAdminWebConfig,
 		audiencesWebConfig,
 		batchPlannerConfig,
@@ -315,6 +319,8 @@ export default defineConfig({
 		dynamicDataMappingFormWebConfig,
 		e2eCmsDxpDisplayPageTemplateConfig,
 		e2eCmsDxpContentPageConfig,
+		e2eCmsDxpSharingConfig,
+		e2eCmsDxpTranslationsConfig,
 		e2eCmsDxpWorkflowConfig,
 		expandoWebConfig,
 		exportImportServiceConfig,
