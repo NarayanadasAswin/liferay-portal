@@ -5,19 +5,30 @@
 
 package com.liferay.oauth2.provider.rest.internal.endpoint.dynamic.registration;
 
+import com.liferay.oauth2.provider.model.OAuth2Application;
+import com.liferay.oauth2.provider.rest.internal.constants.OAuth2ProviderRESTWebKeys;
 import com.liferay.oauth2.provider.rest.internal.endpoint.constants.OAuth2ProviderRESTEndpointConstants;
 import com.liferay.oauth2.provider.rest.internal.endpoint.dynamic.registration.model.LiferayClientRegistration;
 import com.liferay.oauth2.provider.rest.internal.endpoint.dynamic.registration.model.LiferayClientRegistrationResponse;
+import com.liferay.oauth2.provider.rest.internal.endpoint.util.DynamicRegistrationAuditMessageUtil;
 import com.liferay.oauth2.provider.rest.internal.endpoint.util.OAuth2ErrorUtil;
 import com.liferay.oauth2.provider.util.OAuth2SecureRandomGenerator;
 import com.liferay.petra.function.transform.TransformUtil;
 import com.liferay.petra.string.StringBundler;
 import com.liferay.petra.string.StringPool;
+import com.liferay.portal.kernel.audit.AuditMessage;
+import com.liferay.portal.kernel.json.JSONArray;
+import com.liferay.portal.kernel.json.JSONFactoryUtil;
+import com.liferay.portal.kernel.json.JSONObject;
+import com.liferay.portal.kernel.json.JSONUtil;
 import com.liferay.portal.kernel.util.GetterUtil;
 import com.liferay.portal.kernel.util.HashMapBuilder;
 import com.liferay.portal.kernel.util.ListUtil;
+import com.liferay.portal.kernel.util.Portal;
 import com.liferay.portal.kernel.util.StringUtil;
 import com.liferay.portal.kernel.util.Validator;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -28,6 +39,7 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriBuilder;
@@ -40,6 +52,7 @@ import java.util.Map;
 import org.apache.cxf.jaxrs.ext.MessageContext;
 import org.apache.cxf.jaxrs.utils.JAXRSUtils;
 import org.apache.cxf.rs.security.oauth2.common.Client;
+import org.apache.cxf.rs.security.oauth2.common.OAuthError;
 import org.apache.cxf.rs.security.oauth2.services.ClientRegistration;
 import org.apache.cxf.rs.security.oauth2.services.DynamicRegistrationService;
 import org.apache.cxf.rs.security.oauth2.utils.OAuthConstants;
@@ -89,7 +102,25 @@ public class LiferayDynamicRegistrationService
 	public Response register(
 		LiferayClientRegistration liferayClientRegistration) {
 
-		return super.register(liferayClientRegistration);
+		try {
+			Response response = super.register(liferayClientRegistration);
+
+			DynamicRegistrationAuditMessageUtil.routeAuditMessage(
+				_getAddAuditMessage(response));
+
+			return response;
+		}
+		catch (RuntimeException runtimeException) {
+			DynamicRegistrationAuditMessageUtil.routeAuditMessage(
+				_getRejectAuditMessage(
+					runtimeException, liferayClientRegistration));
+
+			throw runtimeException;
+		}
+	}
+
+	public void setPortal(Portal portal) {
+		_portal = portal;
 	}
 
 	@Consumes(MediaType.APPLICATION_JSON)
@@ -301,9 +332,167 @@ public class LiferayDynamicRegistrationService
 		return OAuth2SecureRandomGenerator.generateClientSecret();
 	}
 
+	private AuditMessage _getAddAuditMessage(Response response) {
+		if (response == null) {
+			return null;
+		}
+
+		Object entity = response.getEntity();
+
+		if (!(entity instanceof
+				LiferayClientRegistrationResponse
+					liferayClientRegistrationResponse)) {
+
+			return null;
+		}
+
+		JSONObject additionalInfoJSONObject = _getBaseAdditionalInfoJSONObject(
+		).put(
+			"clientId", liferayClientRegistrationResponse.getClientId()
+		).put(
+			"clientName", liferayClientRegistrationResponse.getClientName()
+		).put(
+			"grantTypes",
+			JSONFactoryUtil.createJSONArray(
+				liferayClientRegistrationResponse.getGrantTypes())
+		).put(
+			"redirectUris",
+			JSONFactoryUtil.createJSONArray(
+				liferayClientRegistrationResponse.getRedirectUris())
+		).put(
+			"scope", liferayClientRegistrationResponse.getScope()
+		);
+
+		return new AuditMessage(
+			0, _getCompanyId(), 0, StringPool.BLANK, null,
+			additionalInfoJSONObject, OAuth2Application.class.getName(),
+			GetterUtil.getString(
+				liferayClientRegistrationResponse.getClientId()),
+			OAuth2ProviderRESTEndpointConstants.
+				EVENT_TYPE_DYNAMIC_REGISTRATION_ADD,
+			StringPool.BLANK);
+	}
+
 	private String _getApplicationType(ClientRegistration clientRegistration) {
 		return GetterUtil.getString(
 			clientRegistration.getApplicationType(), "web");
+	}
+
+	private JSONObject _getBaseAdditionalInfoJSONObject() {
+		HttpServletRequest httpServletRequest = _getHttpServletRequest();
+
+		String clientHost = StringPool.BLANK;
+		String userAgent = StringPool.BLANK;
+
+		if (httpServletRequest != null) {
+			clientHost = GetterUtil.getString(
+				httpServletRequest.getAttribute(
+					OAuth2ProviderRESTWebKeys.DYNAMIC_REGISTRATION_CLIENT_HOST),
+				httpServletRequest.getRemoteAddr());
+
+			userAgent = GetterUtil.getString(
+				httpServletRequest.getHeader("User-Agent"));
+		}
+
+		return JSONUtil.put(
+			"clientHost", clientHost
+		).put(
+			"mode",
+			OAuth2ProviderRESTEndpointConstants.
+				DYNAMIC_REGISTRATION_MODE_AUTHENTICATED
+		).put(
+			"userAgent", userAgent
+		);
+	}
+
+	private long _getCompanyId() {
+		HttpServletRequest httpServletRequest = _getHttpServletRequest();
+
+		if ((httpServletRequest == null) || (_portal == null)) {
+			return 0;
+		}
+
+		return _portal.getCompanyId(httpServletRequest);
+	}
+
+	private HttpServletRequest _getHttpServletRequest() {
+		MessageContext messageContext = getMessageContext();
+
+		if (messageContext == null) {
+			return null;
+		}
+
+		return messageContext.getHttpServletRequest();
+	}
+
+	private AuditMessage _getRejectAuditMessage(
+		Exception exception,
+		LiferayClientRegistration liferayClientRegistration) {
+
+		String clientName = StringPool.BLANK;
+
+		if (liferayClientRegistration != null) {
+			clientName = GetterUtil.getString(
+				liferayClientRegistration.getClientName());
+		}
+
+		String error = OAuth2ProviderRESTEndpointConstants.ERROR_SERVER_ERROR;
+		String errorDescription = GetterUtil.getString(exception.getMessage());
+
+		if (exception instanceof
+				WebApplicationException webApplicationException) {
+
+			Object entity = null;
+
+			Response response = webApplicationException.getResponse();
+
+			if (response != null) {
+				entity = response.getEntity();
+			}
+
+			if (entity instanceof OAuthError oAuthError) {
+				error = GetterUtil.getString(oAuthError.getError(), error);
+
+				if (Validator.isNotNull(oAuthError.getErrorDescription())) {
+					errorDescription = oAuthError.getErrorDescription();
+				}
+			}
+		}
+
+		JSONArray grantTypesJSONArray = JSONFactoryUtil.createJSONArray();
+		JSONArray redirectURIsJSONArray = JSONFactoryUtil.createJSONArray();
+		String scope = StringPool.BLANK;
+
+		if (liferayClientRegistration != null) {
+			grantTypesJSONArray = JSONFactoryUtil.createJSONArray(
+				liferayClientRegistration.getGrantTypes());
+			redirectURIsJSONArray = JSONFactoryUtil.createJSONArray(
+				liferayClientRegistration.getRedirectUris());
+			scope = GetterUtil.getString(liferayClientRegistration.getScope());
+		}
+
+		JSONObject additionalInfoJSONObject = _getBaseAdditionalInfoJSONObject(
+		).put(
+			"clientName", clientName
+		).put(
+			"error", error
+		).put(
+			"errorDescription", errorDescription
+		).put(
+			"grantTypes", grantTypesJSONArray
+		).put(
+			"redirectUris", redirectURIsJSONArray
+		).put(
+			"scope", scope
+		);
+
+		return new AuditMessage(
+			0, _getCompanyId(), 0, StringPool.BLANK, null,
+			additionalInfoJSONObject, OAuth2Application.class.getName(),
+			StringPool.BLANK,
+			OAuth2ProviderRESTEndpointConstants.
+				EVENT_TYPE_DYNAMIC_REGISTRATION_REJECT,
+			StringPool.BLANK);
 	}
 
 	private void _setAllowedGrantTypes(Client client) {
@@ -369,14 +558,14 @@ public class LiferayDynamicRegistrationService
 			return;
 		}
 
-		List<String> redirectUris = clientRegistration.getRedirectUris();
+		List<String> redirectURIs = clientRegistration.getRedirectUris();
 
-		if (redirectUris != null) {
+		if (redirectURIs != null) {
 			String applicationType = _getApplicationType(clientRegistration);
 
-			for (String redirectUri : redirectUris) {
+			for (String redirectURI : redirectURIs) {
 				validateRequestUri(
-					redirectUri, applicationType,
+					redirectURI, applicationType,
 					client.getAllowedGrantTypes());
 			}
 		}
@@ -384,7 +573,7 @@ public class LiferayDynamicRegistrationService
 		if ((allowedGrantTypes.contains(
 				OAuthConstants.AUTHORIZATION_CODE_GRANT) ||
 			 allowedGrantTypes.contains(OAuthConstants.IMPLICIT_GRANT)) &&
-			ListUtil.isEmpty(redirectUris)) {
+			ListUtil.isEmpty(redirectURIs)) {
 
 			OAuth2ErrorUtil.reportInvalidRequestError(
 				StringBundler.concat(
@@ -429,5 +618,7 @@ public class LiferayDynamicRegistrationService
 		).put(
 			OAuthConstants.IMPLICIT_GRANT, OAuthConstants.TOKEN_RESPONSE_TYPE
 		).build();
+
+	private Portal _portal;
 
 }

@@ -9,10 +9,15 @@ import com.liferay.oauth2.provider.constants.OAuth2ApplicationConstants;
 import com.liferay.oauth2.provider.constants.OAuth2ProviderActionKeys;
 import com.liferay.oauth2.provider.model.OAuth2Application;
 import com.liferay.oauth2.provider.model.OAuth2Authorization;
+import com.liferay.oauth2.provider.rest.internal.constants.OAuth2ProviderRESTWebKeys;
+import com.liferay.oauth2.provider.rest.internal.endpoint.constants.OAuth2ProviderRESTEndpointConstants;
+import com.liferay.oauth2.provider.rest.internal.endpoint.util.DynamicRegistrationAuditMessageUtil;
 import com.liferay.oauth2.provider.service.OAuth2ApplicationLocalService;
 import com.liferay.oauth2.provider.service.OAuth2AuthorizationLocalService;
 import com.liferay.petra.string.StringPool;
+import com.liferay.portal.kernel.audit.AuditMessage;
 import com.liferay.portal.kernel.feature.flag.FeatureFlagManagerUtil;
+import com.liferay.portal.kernel.json.JSONUtil;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.model.User;
@@ -87,9 +92,9 @@ public class DynamicRegistrationServiceContainerRequestFilter
 		HttpServletRequest httpServletRequest = (HttpServletRequest)message.get(
 			AbstractHTTPDestination.HTTP_REQUEST);
 
-		if (!FeatureFlagManagerUtil.isEnabled(
-				_portal.getCompanyId(httpServletRequest), "LPD-63416")) {
+		long companyId = _portal.getCompanyId(httpServletRequest);
 
+		if (!FeatureFlagManagerUtil.isEnabled(companyId, "LPD-63416")) {
 			containerRequestContext.abortWith(
 				Response.status(
 					Response.Status.NOT_FOUND
@@ -101,6 +106,10 @@ public class DynamicRegistrationServiceContainerRequestFilter
 		User user = null;
 
 		try {
+			httpServletRequest.setAttribute(
+				OAuth2ProviderRESTWebKeys.DYNAMIC_REGISTRATION_CLIENT_HOST,
+				_normalizeHost(_getClientHost(httpServletRequest)));
+
 			user = _authorize(
 				httpServletRequest, httpServletRequest.getMethod());
 		}
@@ -115,6 +124,15 @@ public class DynamicRegistrationServiceContainerRequestFilter
 			if (_log.isDebugEnabled()) {
 				_log.debug(exception);
 			}
+
+			String clientHost = GetterUtil.getString(
+				httpServletRequest.getAttribute(
+					OAuth2ProviderRESTWebKeys.DYNAMIC_REGISTRATION_CLIENT_HOST),
+				_normalizeHost(_getClientHost(httpServletRequest)));
+
+			DynamicRegistrationAuditMessageUtil.routeAuditMessage(
+				_getAuthorizationFailureAuditMessage(
+					clientHost, companyId, httpServletRequest));
 
 			throw ExceptionUtils.toNotAuthorizedException(null, null);
 		}
@@ -205,6 +223,23 @@ public class DynamicRegistrationServiceContainerRequestFilter
 		return user;
 	}
 
+	private AuditMessage _getAuthorizationFailureAuditMessage(
+		String clientHost, long companyId,
+		HttpServletRequest httpServletRequest) {
+
+		return _getRejectAuditMessage(
+			clientHost, companyId,
+			OAuth2ProviderRESTEndpointConstants.ERROR_INVALID_TOKEN,
+			"Authenticated registration authorization failed",
+			httpServletRequest,
+			OAuth2ProviderRESTEndpointConstants.
+				DYNAMIC_REGISTRATION_MODE_AUTHENTICATED);
+	}
+
+	private String _getClientHost(HttpServletRequest httpServletRequest) {
+		return httpServletRequest.getRemoteAddr();
+	}
+
 	private String _getClientId(HttpServletRequest httpServletRequest) {
 		String requestURI = httpServletRequest.getRequestURI();
 
@@ -254,6 +289,58 @@ public class DynamicRegistrationServiceContainerRequestFilter
 			accessTokenContent);
 
 		return jwsJwtCompactConsumer.getJwtToken();
+	}
+
+	private AuditMessage _getRejectAuditMessage(
+		String clientHost, long companyId, String error,
+		String errorDescription, HttpServletRequest httpServletRequest,
+		String mode) {
+
+		return new AuditMessage(
+			0, companyId, 0, StringPool.BLANK, null,
+			JSONUtil.put(
+				"clientHost", clientHost
+			).put(
+				"error", error
+			).put(
+				"errorDescription", errorDescription
+			).put(
+				"mode", mode
+			).put(
+				"userAgent",
+				GetterUtil.getString(httpServletRequest.getHeader("User-Agent"))
+			),
+			OAuth2Application.class.getName(), StringPool.BLANK,
+			OAuth2ProviderRESTEndpointConstants.
+				EVENT_TYPE_DYNAMIC_REGISTRATION_REJECT,
+			StringPool.BLANK);
+	}
+
+	private String _normalizeHost(String host) {
+		if (Validator.isBlank(host)) {
+			return StringPool.BLANK;
+		}
+
+		host = host.trim();
+
+		if (host.startsWith(StringPool.OPEN_BRACKET)) {
+			int index = host.indexOf(StringPool.CLOSE_BRACKET);
+
+			if (index > 1) {
+				host = host.substring(1, index);
+			}
+		}
+		else {
+			int index = host.indexOf(StringPool.COLON);
+
+			if ((index > 0) &&
+				(host.indexOf(StringPool.COLON, index + 1) < 0)) {
+
+				host = host.substring(0, index);
+			}
+		}
+
+		return StringUtil.toLowerCase(host);
 	}
 
 	private void _setSecurityContext(
