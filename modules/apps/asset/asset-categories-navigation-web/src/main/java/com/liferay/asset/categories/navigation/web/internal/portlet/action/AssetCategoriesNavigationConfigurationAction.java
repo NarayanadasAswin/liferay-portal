@@ -72,18 +72,26 @@ public class AssetCategoriesNavigationConfigurationAction
 			return;
 		}
 
-		long[] assetVocabularyIds = GetterUtil.getLongValues(
-			StringUtil.split(assetVocabularyIdsString, ','));
+		Map<Long, Group> groupsMap = new HashMap<>();
+		List<String> orderedGroupExternalReferenceCodes = new ArrayList<>();
+		List<String> orderedVocabularyExternalReferenceCodes =
+			new ArrayList<>();
 
 		Map<Long, List<String>> groupAssetVocabularyIdsMap =
 			_getGroupAssetVocabularyExternalReferenceCodesMap(
-				assetVocabularyIds);
+				GetterUtil.getLongValues(
+					StringUtil.split(assetVocabularyIdsString, ',')),
+				groupsMap, orderedGroupExternalReferenceCodes,
+				orderedVocabularyExternalReferenceCodes);
 
 		try {
 			_resetPortletPreferences(portletPreferences);
 
 			_setPortletPreferences(
-				portletPreferences, portletRequest, groupAssetVocabularyIdsMap);
+				groupAssetVocabularyIdsMap, groupsMap,
+				orderedGroupExternalReferenceCodes,
+				orderedVocabularyExternalReferenceCodes, portletPreferences,
+				portletRequest);
 
 			portletPreferences.reset("assetVocabularyIds");
 			portletPreferences.reset("displayStyleGroupId");
@@ -95,7 +103,9 @@ public class AssetCategoriesNavigationConfigurationAction
 
 	private Map<Long, List<String>>
 			_getGroupAssetVocabularyExternalReferenceCodesMap(
-				long[] assetVocabularyIds)
+				long[] assetVocabularyIds, Map<Long, Group> groupsMap,
+				List<String> orderedGroupExternalReferenceCodes,
+				List<String> orderedVocabularyExternalReferenceCodes)
 		throws PortalException {
 
 		Map<Long, List<String>> groupAssetVocabularyExternalReferenceCodesMap =
@@ -109,11 +119,26 @@ public class AssetCategoriesNavigationConfigurationAction
 				continue;
 			}
 
+			long groupId = assetVocabulary.getGroupId();
+
+			Group group = groupsMap.get(groupId);
+
+			if (group == null) {
+				group = _groupLocalService.getGroup(groupId);
+
+				groupsMap.put(groupId, group);
+			}
+
 			List<String> groupAssetVocabularyExternalReferenceCodes =
 				groupAssetVocabularyExternalReferenceCodesMap.computeIfAbsent(
-					assetVocabulary.getGroupId(), key -> new ArrayList<>());
+					groupId, key -> new ArrayList<>());
 
 			groupAssetVocabularyExternalReferenceCodes.add(
+				assetVocabulary.getExternalReferenceCode());
+
+			orderedGroupExternalReferenceCodes.add(
+				group.getExternalReferenceCode());
+			orderedVocabularyExternalReferenceCodes.add(
 				assetVocabulary.getExternalReferenceCode());
 		}
 
@@ -135,13 +160,21 @@ public class AssetCategoriesNavigationConfigurationAction
 				portletPreferences.reset(key);
 			}
 		}
+
+		portletPreferences.reset(
+			"assetVocabularyOrderedGroupExternalReferenceCodes");
+		portletPreferences.reset(
+			"assetVocabularyOrderedVocabularyExternalReferenceCodes");
 	}
 
 	private void _setPortletPreferences(
+			Map<Long, List<String>> groupAssetVocabularyIdsMap,
+			Map<Long, Group> groupsMap,
+			List<String> orderedGroupExternalReferenceCodes,
+			List<String> orderedVocabularyExternalReferenceCodes,
 			PortletPreferences portletPreferences,
-			PortletRequest portletRequest,
-			Map<Long, List<String>> groupAssetVocabularyIdsMap)
-		throws PortalException, ReadOnlyException {
+			PortletRequest portletRequest)
+		throws ReadOnlyException {
 
 		List<String> groupExternalReferenceCodes = new ArrayList<>();
 
@@ -151,7 +184,7 @@ public class AssetCategoriesNavigationConfigurationAction
 		for (Map.Entry<Long, List<String>> entries :
 				groupAssetVocabularyIdsMap.entrySet()) {
 
-			Group group = _groupLocalService.getGroup(entries.getKey());
+			Group group = groupsMap.get(entries.getKey());
 
 			if (group.getGroupId() == themeDisplay.getScopeGroupId()) {
 				portletPreferences.setValues(
@@ -172,6 +205,12 @@ public class AssetCategoriesNavigationConfigurationAction
 		portletPreferences.setValues(
 			"assetVocabularyGroupExternalReferenceCodes",
 			ArrayUtil.toStringArray(groupExternalReferenceCodes));
+		portletPreferences.setValues(
+			"assetVocabularyOrderedGroupExternalReferenceCodes",
+			ArrayUtil.toStringArray(orderedGroupExternalReferenceCodes));
+		portletPreferences.setValues(
+			"assetVocabularyOrderedVocabularyExternalReferenceCodes",
+			ArrayUtil.toStringArray(orderedVocabularyExternalReferenceCodes));
 	}
 
 	@Reference

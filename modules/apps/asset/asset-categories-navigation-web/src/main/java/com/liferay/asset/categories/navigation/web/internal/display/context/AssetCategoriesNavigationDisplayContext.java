@@ -223,9 +223,27 @@ public class AssetCategoriesNavigationDisplayContext {
 	}
 
 	private String[] _getAssetVocabularyIds() {
-		List<Long> assetVocabularyIds = new ArrayList<>();
-
 		PortletPreferences portletPreferences = _renderRequest.getPreferences();
+
+		String[] orderedGroupExternalReferenceCodes =
+			portletPreferences.getValues(
+				"assetVocabularyOrderedGroupExternalReferenceCodes", null);
+		String[] orderedVocabularyExternalReferenceCodes =
+			portletPreferences.getValues(
+				"assetVocabularyOrderedVocabularyExternalReferenceCodes", null);
+
+		if ((orderedGroupExternalReferenceCodes != null) &&
+			(orderedVocabularyExternalReferenceCodes != null) &&
+			(orderedGroupExternalReferenceCodes.length ==
+				orderedVocabularyExternalReferenceCodes.length)) {
+
+			return ArrayUtil.toStringArray(
+				_getOrderedAssetVocabularyIds(
+					orderedGroupExternalReferenceCodes,
+					orderedVocabularyExternalReferenceCodes));
+		}
+
+		List<Long> assetVocabularyIds = new ArrayList<>();
 
 		assetVocabularyIds.addAll(
 			_getExternalAssetVocabularyIds(portletPreferences));
@@ -308,6 +326,38 @@ public class AssetCategoriesNavigationDisplayContext {
 
 				return assetVocabulary.getVocabularyId();
 			});
+	}
+
+	private List<Long> _getOrderedAssetVocabularyIds(
+		String[] orderedGroupExternalReferenceCodes,
+		String[] orderedVocabularyExternalReferenceCodes) {
+
+		List<Long> assetVocabularyIds = new ArrayList<>();
+
+		for (int i = 0; i < orderedGroupExternalReferenceCodes.length; i++) {
+			Group group =
+				GroupLocalServiceUtil.fetchGroupByExternalReferenceCode(
+					orderedGroupExternalReferenceCodes[i],
+					_themeDisplay.getCompanyId());
+
+			if (group == null) {
+				continue;
+			}
+
+			AssetVocabulary assetVocabulary =
+				AssetVocabularyLocalServiceUtil.
+					fetchAssetVocabularyByExternalReferenceCode(
+						orderedVocabularyExternalReferenceCodes[i],
+						group.getGroupId());
+
+			if (assetVocabulary == null) {
+				continue;
+			}
+
+			assetVocabularyIds.add(assetVocabulary.getVocabularyId());
+		}
+
+		return assetVocabularyIds;
 	}
 
 	private String _getTitle(AssetVocabulary assetVocabulary) {
