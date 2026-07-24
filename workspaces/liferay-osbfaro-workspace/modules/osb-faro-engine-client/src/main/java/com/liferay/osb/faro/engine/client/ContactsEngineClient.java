@@ -27,6 +27,7 @@ import com.liferay.osb.faro.engine.client.model.AssetSummaryType;
 import com.liferay.osb.faro.engine.client.model.AssetSummaryVocabulary;
 import com.liferay.osb.faro.engine.client.model.Author;
 import com.liferay.osb.faro.engine.client.model.BlockedKeyword;
+import com.liferay.osb.faro.engine.client.model.CatalogField;
 import com.liferay.osb.faro.engine.client.model.Channel;
 import com.liferay.osb.faro.engine.client.model.ChannelDataSource;
 import com.liferay.osb.faro.engine.client.model.Credentials;
@@ -272,7 +273,7 @@ public interface ContactsEngineClient {
 		int delta, List<OrderByField> orderByFields);
 
 	public Results<ApiUsageMetric> getApiUsageMetrics(
-		FaroProject faroProject, Date usageDate);
+		FaroProject faroProject, String endDateString, String startDateString);
 
 	public Asset getAsset(FaroProject faroProject, String id)
 		throws FaroEngineClientException;
@@ -318,6 +319,11 @@ public interface ContactsEngineClient {
 	public Results<BlockedKeyword> getBlockedKeywords(
 		FaroProject faroProject, String query, int cur, int delta,
 		List<OrderByField> orderByFields);
+
+	public Results<CatalogField> getCatalogFields(
+			FaroProject faroProject, String query, String tableName, int cur,
+			int delta, String sortString)
+		throws FaroEngineClientException;
 
 	public Channel getChannel(FaroProject faroProject, String id)
 		throws FaroEngineClientException;

@@ -27,6 +27,7 @@ import CommentsPanel from './panels/CommentsPanel';
 import GeneralPanel from './panels/GeneralPanel';
 import ProjectsPanel from './panels/ProjectsPanel';
 import SchedulePanel from './panels/SchedulePanel';
+import useAssistantCategorization from './useAssistantCategorization';
 
 type Props = {
 	addCommentURL: string;
@@ -338,6 +339,17 @@ function SidePanel(props: SidePanelProps) {
 		setHasError(true);
 	}, []);
 
+	const {onUpdateCategorization} = props;
+
+	useAssistantCategorization({
+		assetLibraryId: props.assetLibraryId,
+		categorizationFields: props.categorizationFields,
+		cmsGroupId: props.cmsGroupId,
+		contentAPIURL: props.contentAPIURL,
+		onUpdateCategorization,
+		panel,
+	});
+
 	useEffect(() => {
 		const validateScheduleFields = ({event}: {event: MouseEvent}) => {
 			const hasError = Object.values(props.scheduleFields).some(
@@ -357,8 +369,6 @@ function SidePanel(props: SidePanelProps) {
 			Liferay.detach(EVENT_VALIDATE_FORM, validateScheduleFields);
 		};
 	}, [props.scheduleFields, showErrorInPanel]);
-
-	const {onUpdateCategorization} = props;
 
 	useEffect(() => {
 		if (

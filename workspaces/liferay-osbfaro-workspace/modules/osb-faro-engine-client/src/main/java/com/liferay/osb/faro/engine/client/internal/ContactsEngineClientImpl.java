@@ -37,6 +37,7 @@ import com.liferay.osb.faro.engine.client.model.AssetSummaryType;
 import com.liferay.osb.faro.engine.client.model.AssetSummaryVocabulary;
 import com.liferay.osb.faro.engine.client.model.Author;
 import com.liferay.osb.faro.engine.client.model.BlockedKeyword;
+import com.liferay.osb.faro.engine.client.model.CatalogField;
 import com.liferay.osb.faro.engine.client.model.Channel;
 import com.liferay.osb.faro.engine.client.model.ChannelDataSource;
 import com.liferay.osb.faro.engine.client.model.Credentials;
@@ -1178,7 +1179,7 @@ public class ContactsEngineClientImpl
 
 	@Override
 	public Results<ApiUsageMetric> getApiUsageMetrics(
-		FaroProject faroProject, Date usageDate) {
+		FaroProject faroProject, String endDateString, String startDateString) {
 
 		PagedModel<?, ApiUsageMetric> pagedModel = get(
 			faroProject, Rels.API_USAGE_METRICS,
@@ -1186,7 +1187,9 @@ public class ContactsEngineClientImpl
 				<EntityModelPagedModel<ApiUsageMetric>>() {
 			},
 			HashMapBuilder.<String, Object>put(
-				"usageDate", usageDate
+				"endDate", endDateString
+			).put(
+				"startDate", startDateString
 			).build());
 
 		return pagedModel.getResults();
@@ -1545,6 +1548,39 @@ public class ContactsEngineClientImpl
 			faroProject, Rels.BLOCKED_KEYWORDS,
 			new ParameterizedTypeReference
 				<EntityModelPagedModel<BlockedKeyword>>() {
+			},
+			uriVariables);
+
+		return pagedModel.getResults();
+	}
+
+	@Override
+	public Results<CatalogField> getCatalogFields(
+			FaroProject faroProject, String query, String tableName, int cur,
+			int delta, String sortString)
+		throws FaroEngineClientException {
+
+		Map<String, Object> uriVariables = getUriVariables(
+			faroProject, cur, delta, null);
+
+		if (Validator.isNotNull(query)) {
+			uriVariables.put("query", query);
+		}
+
+		uriVariables.put("tableName", tableName);
+
+		if (Validator.isNotNull(sortString)) {
+			uriVariables.put(
+				"sort",
+				Arrays.asList(
+					StringUtil.replace(
+						sortString, CharPool.COLON, CharPool.COMMA)));
+		}
+
+		PagedModel<?, CatalogField> pagedModel = get(
+			faroProject, Rels.CATALOG_FIELDS,
+			new ParameterizedTypeReference
+				<EntityModelPagedModel<CatalogField>>() {
 			},
 			uriVariables);
 
