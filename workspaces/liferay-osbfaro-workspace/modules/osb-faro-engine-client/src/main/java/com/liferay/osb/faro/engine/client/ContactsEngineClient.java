@@ -76,8 +76,8 @@ import java.util.Set;
 public interface ContactsEngineClient {
 
 	public AccountLifecycle addAccountLifecycle(
-		FaroProject faroProject, String description, String name,
-		String segmentId);
+		FaroProject faroProject, AccountLifecycle accountLifecycle,
+		String channelId);
 
 	public Results<BlockedKeyword> addBlockedKeywords(
 		FaroProject faroProject, List<String> keywords);
@@ -283,8 +283,9 @@ public interface ContactsEngineClient {
 
 	public Results<AssetSummary> getAssetSummaries(
 		FaroProject faroProject, long channelId, String filterString,
-		String keywords, String objectType, int rangeKey, String selectedMetric,
-		int cur, int delta, String sortString);
+		String keywords, String objectType, String rangeEnd, int rangeKey,
+		String rangeStart, String selectedMetric, int cur, int delta,
+		String sortString);
 
 	public Results<AssetSummaryCategory> getAssetSummaryCategories(
 		FaroProject faroProject, String accountId, long channelId,
