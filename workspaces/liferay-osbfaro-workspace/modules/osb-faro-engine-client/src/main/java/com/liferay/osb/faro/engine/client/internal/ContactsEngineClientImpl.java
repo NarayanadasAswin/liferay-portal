@@ -22,6 +22,7 @@ import com.liferay.osb.faro.engine.client.model.AccountLifecycleStageMetric;
 import com.liferay.osb.faro.engine.client.model.AccountLifecycleStageRule;
 import com.liferay.osb.faro.engine.client.model.AccountLifecycleStatus;
 import com.liferay.osb.faro.engine.client.model.AccountMetric;
+import com.liferay.osb.faro.engine.client.model.AccountName;
 import com.liferay.osb.faro.engine.client.model.Activity;
 import com.liferay.osb.faro.engine.client.model.ActivityAggregation;
 import com.liferay.osb.faro.engine.client.model.ActivityAsset;
@@ -888,6 +889,52 @@ public class ContactsEngineClientImpl
 			new ParameterizedTypeReference<List<AccountMetric>>() {
 			},
 			uriVariables);
+	}
+
+	@Override
+	public Results<AccountName> getAccountNames(
+		FaroProject faroProject, String assetId, String assetTitle,
+		String assetType, Long channelId, String keywords, String rangeEnd,
+		Integer rangeKey, String rangeStart, int page, int pageSize) {
+
+		Map<String, Object> uriVariables = getUriVariables(faroProject);
+
+		uriVariables.put("assetId", assetId);
+
+		if (Validator.isNotNull(assetTitle)) {
+			uriVariables.put("assetTitle", assetTitle);
+		}
+
+		uriVariables.put("assetType", assetType);
+		uriVariables.put("channelId", channelId);
+
+		if (Validator.isNotNull(keywords)) {
+			uriVariables.put("keywords", keywords);
+		}
+
+		uriVariables.put("page", page);
+		uriVariables.put("pageSize", pageSize);
+
+		if (Validator.isNotNull(rangeEnd)) {
+			uriVariables.put("rangeEnd", rangeEnd);
+		}
+
+		if (rangeKey != null) {
+			uriVariables.put("rangeKey", rangeKey);
+		}
+
+		if (Validator.isNotNull(rangeStart)) {
+			uriVariables.put("rangeStart", rangeStart);
+		}
+
+		PagedModel<?, AccountName> pagedModel = get(
+			faroProject, Rels.ACCOUNT_NAMES,
+			new ParameterizedTypeReference
+				<EntityModelPagedModel<AccountName>>() {
+			},
+			uriVariables);
+
+		return pagedModel.getResults();
 	}
 
 	@Override
@@ -3522,19 +3569,12 @@ public class ContactsEngineClientImpl
 
 	@Override
 	public AccountLifecycle updateAccountLifecycle(
-		FaroProject faroProject, String description, String id, String name,
-		String segmentId) {
-
-		AccountLifecycle accountLifecycle = new AccountLifecycle();
-
-		accountLifecycle.setDescription(description);
-		accountLifecycle.setId(id);
-		accountLifecycle.setName(name);
-		accountLifecycle.setSegmentId(segmentId);
+		FaroProject faroProject, AccountLifecycle accountLifecycle) {
 
 		return put(
 			faroProject, Rels.ACCOUNT_LIFECYCLE, accountLifecycle,
-			AccountLifecycle.class, getUriVariables(faroProject, id));
+			AccountLifecycle.class,
+			getUriVariables(faroProject, accountLifecycle.getId()));
 	}
 
 	@Override
