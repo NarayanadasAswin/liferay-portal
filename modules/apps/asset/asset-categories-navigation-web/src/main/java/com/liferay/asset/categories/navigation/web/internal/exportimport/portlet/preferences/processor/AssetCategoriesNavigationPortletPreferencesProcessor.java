@@ -214,6 +214,11 @@ public class AssetCategoriesNavigationPortletPreferencesProcessor
 			PortletPreferences portletPreferences)
 		throws Exception {
 
+		updateExportPortletPreferencesExternalReferenceCodes(
+			portletDataContext, portlet, portletPreferences,
+			"assetVocabularyOrderedGroupExternalReferenceCodes",
+			Group.class.getName());
+
 		String[] assetVocabularyGroupExternalReferenceCodes =
 			portletPreferences.getValues(
 				"assetVocabularyGroupExternalReferenceCodes", null);
