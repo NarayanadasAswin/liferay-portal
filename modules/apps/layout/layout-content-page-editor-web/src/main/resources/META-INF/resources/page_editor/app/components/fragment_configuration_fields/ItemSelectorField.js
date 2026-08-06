@@ -34,6 +34,7 @@ export function ItemSelectorField({field, onValueSelect, value = {}}) {
 			<ItemSelector
 				helpText={field.description}
 				itemSelectorURL={typeOptions.infoItemSelectorURL}
+				itemType={typeOptions.itemType}
 				label={field.label}
 				modalProps={{height: '60vh', size: typeOptions.modalSize}}
 				onItemSelect={(item) => {

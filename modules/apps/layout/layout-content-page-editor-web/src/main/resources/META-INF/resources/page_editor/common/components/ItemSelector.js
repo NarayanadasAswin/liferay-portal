@@ -31,6 +31,7 @@ export default function ItemSelector({
 	eventName,
 	helpText,
 	itemSelectorURL,
+	itemType,
 	label,
 	modalProps,
 	onBeforeItemSelect = DEFAULT_BEFORE_ITEM_SELECT,
@@ -100,7 +101,9 @@ export default function ItemSelector({
 			transformedMappedItems = pageContents
 				.filter(
 					(pageContent) =>
-						pageContent.type !== Liferay.Language.get('collection')
+						pageContent.type !==
+							Liferay.Language.get('collection') &&
+						(!itemType || pageContent.className === itemType)
 				)
 				.map(transformMappedItem);
 		}
@@ -127,6 +130,7 @@ export default function ItemSelector({
 
 		return transformedMappedItems;
 	}, [
+		itemType,
 		label,
 		onItemSelect,
 		openModal,
@@ -298,6 +302,7 @@ ItemSelector.propTypes = {
 	eventName: PropTypes.string,
 	helpText: PropTypes.string,
 	itemSelectorURL: PropTypes.string,
+	itemType: PropTypes.string,
 	label: PropTypes.string.isRequired,
 	modalProps: PropTypes.object,
 	onBeforeItemSelect: PropTypes.func,
