@@ -1,5 +1,5 @@
 /**
- * SPDX-FileCopyrightText: (c) 2025 Liferay, Inc. https://liferay.com
+ * SPDX-FileCopyrightText: (c) 2026 Liferay, Inc. https://liferay.com
  * SPDX-License-Identifier: LGPL-2.1-or-later OR LicenseRef-Liferay-DXP-EULA-2.0.0-2023-06
  */
 
@@ -8,9 +8,9 @@ package com.liferay.source.formatter.check;
 import java.util.regex.Pattern;
 
 /**
- * @author Alan Huang
+ * @author Alejandro Tardín
  */
-public class YMLRESTConfigFileBreakingChangeCommitMessageCheck
+public class PackageinfoBreakingChangeCommitMessageCheck
 	extends BaseBreakingChangesCheck {
 
 	@Override
@@ -18,13 +18,12 @@ public class YMLRESTConfigFileBreakingChangeCommitMessageCheck
 			String fileName, String absolutePath, String content)
 		throws Exception {
 
-		if (!fileName.endsWith("/rest-config.yaml")) {
+		if (absolutePath.contains("-test/")) {
 			return content;
 		}
 
 		checkMajorVersionBump(
-			fileName, absolutePath, content,
-			"the compatibilityVersion bumps up");
+			fileName, absolutePath, content, "the major version bumps up");
 
 		return content;
 	}
@@ -35,6 +34,6 @@ public class YMLRESTConfigFileBreakingChangeCommitMessageCheck
 	}
 
 	private static final Pattern _versionPattern = Pattern.compile(
-		"^compatibilityVersion: *(.*)$", Pattern.MULTILINE);
+		"^version *(.*)$", Pattern.MULTILINE);
 
 }
