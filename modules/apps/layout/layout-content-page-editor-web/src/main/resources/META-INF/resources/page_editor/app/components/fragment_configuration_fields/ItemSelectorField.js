@@ -76,6 +76,7 @@ ItemSelectorField.propTypes = {
 		...ConfigurationFieldPropTypes,
 		typeOptions: PropTypes.shape({
 			enableSelectTemplate: PropTypes.bool,
+			itemType: PropTypes.string,
 		}),
 	}),
 	onValueSelect: PropTypes.func.isRequired,

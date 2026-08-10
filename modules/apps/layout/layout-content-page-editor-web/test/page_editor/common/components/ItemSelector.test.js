@@ -6,6 +6,7 @@
 import '@testing-library/jest-dom';
 import {State} from '@liferay/frontend-js-state-web';
 import {fireEvent, render, screen} from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import React from 'react';
 
 import {pageContentsAtom} from '../../../../src/main/resources/META-INF/resources/page_editor/app/utils/usePageContents';
@@ -30,6 +31,7 @@ jest.mock(
 );
 
 function renderItemSelector({
+	itemType = null,
 	pageContents = [],
 	selectedItemClassPK = '',
 	selectedItemTitle = '',
@@ -41,6 +43,7 @@ function renderItemSelector({
 
 	return render(
 		<ItemSelector
+			itemType={itemType}
 			label="itemSelectorLabel"
 			onItemSelect={() => {}}
 			selectedItem={
@@ -55,6 +58,19 @@ function renderItemSelector({
 		/>
 	);
 }
+
+const MIXED_TYPE_PAGE_CONTENTS = [
+	{
+		className: 'com.liferay.journal.model.JournalArticle',
+		classPK: '001',
+		title: 'Web Content Item',
+	},
+	{
+		className: 'com.liferay.document.library.kernel.model.DLFileEntry',
+		classPK: '002',
+		title: 'Document Item',
+	},
+];
 
 describe('ItemSelector', () => {
 	beforeEach(() => {
@@ -287,5 +303,53 @@ describe('ItemSelector', () => {
 
 		expect(viewUsagesButton).toBeInTheDocument();
 		expect(viewUsagesButton.tagName).toBe('BUTTON');
+	});
+
+	it('filters recent items by itemType when itemType is configured', async () => {
+		renderItemSelector({
+			itemType: 'com.liferay.journal.model.JournalArticle',
+			pageContents: MIXED_TYPE_PAGE_CONTENTS,
+		});
+
+		await userEvent.click(
+			screen.getByLabelText('select-itemSelectorLabel')
+		);
+
+		expect(screen.getByText('Web Content Item')).toBeInTheDocument();
+		expect(screen.queryByText('Document Item')).not.toBeInTheDocument();
+	});
+
+	it('shows all recent items when itemType is not configured', async () => {
+		renderItemSelector({pageContents: MIXED_TYPE_PAGE_CONTENTS});
+
+		await userEvent.click(
+			screen.getByLabelText('select-itemSelectorLabel')
+		);
+
+		expect(screen.getByText('Web Content Item')).toBeInTheDocument();
+		expect(screen.getByText('Document Item')).toBeInTheDocument();
+	});
+
+	it('opens modal directly when itemType is configured and no matching recent items exist', async () => {
+		const pageContents = [
+			{
+				className:
+					'com.liferay.document.library.kernel.model.DLFileEntry',
+				classPK: '001',
+				title: 'Document Item',
+			},
+		];
+
+		renderItemSelector({
+			itemType: 'com.liferay.journal.model.JournalArticle',
+			pageContents,
+		});
+
+		await userEvent.click(
+			screen.getByLabelText('select-itemSelectorLabel')
+		);
+
+		expect(screen.queryByText('Document Item')).not.toBeInTheDocument();
+		expect(openItemSelector).toBeCalled();
 	});
 });
