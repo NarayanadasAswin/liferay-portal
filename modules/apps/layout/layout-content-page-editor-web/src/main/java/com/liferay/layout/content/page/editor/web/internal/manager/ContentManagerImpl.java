@@ -1546,6 +1546,22 @@ public class ContentManagerImpl implements ContentManager {
 		).put(
 			"isRestricted", false
 		).put(
+			"mimeType",
+			() -> {
+				if (!Objects.equals(
+						layoutClassedModelUsage.getClassName(),
+						FileEntry.class.getName())) {
+
+					return null;
+				}
+
+				FileEntry fileEntry =
+					(FileEntry)
+						layoutDisplayPageObjectProvider.getDisplayObject();
+
+				return fileEntry.getMimeType();
+			}
+		).put(
 			"status", _getStatusJSONObject(layoutClassedModelUsage)
 		).put(
 			"subtype",

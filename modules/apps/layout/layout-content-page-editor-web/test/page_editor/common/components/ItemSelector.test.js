@@ -31,7 +31,9 @@ jest.mock(
 );
 
 function renderItemSelector({
+	itemSubtype = null,
 	itemType = null,
+	mimeTypes = null,
 	pageContents = [],
 	selectedItemClassPK = '',
 	selectedItemTitle = '',
@@ -43,8 +45,10 @@ function renderItemSelector({
 
 	return render(
 		<ItemSelector
+			itemSubtype={itemSubtype}
 			itemType={itemType}
 			label="itemSelectorLabel"
+			mimeTypes={mimeTypes}
 			onItemSelect={() => {}}
 			selectedItem={
 				selectedItemTitle
@@ -69,6 +73,36 @@ const MIXED_TYPE_PAGE_CONTENTS = [
 		className: 'com.liferay.document.library.kernel.model.DLFileEntry',
 		classPK: '002',
 		title: 'Document Item',
+	},
+];
+
+const MIXED_SUBTYPE_PAGE_CONTENTS = [
+	{
+		className: 'com.liferay.journal.model.JournalArticle',
+		classPK: '001',
+		classTypeId: 1001,
+		title: 'Basic Web Content',
+	},
+	{
+		className: 'com.liferay.journal.model.JournalArticle',
+		classPK: '002',
+		classTypeId: 1002,
+		title: 'Custom Structure Web Content',
+	},
+];
+
+const MIXED_MIME_PAGE_CONTENTS = [
+	{
+		className: 'com.liferay.document.library.kernel.model.DLFileEntry',
+		classPK: '001',
+		mimeType: 'image/jpeg',
+		title: 'JPEG Image',
+	},
+	{
+		className: 'com.liferay.document.library.kernel.model.DLFileEntry',
+		classPK: '002',
+		mimeType: 'application/pdf',
+		title: 'PDF Document',
 	},
 ];
 
@@ -350,6 +384,96 @@ describe('ItemSelector', () => {
 		);
 
 		expect(screen.queryByText('Document Item')).not.toBeInTheDocument();
+		expect(openItemSelector).toBeCalled();
+	});
+
+	it('filters recent items by itemSubtype when itemSubtype is configured', async () => {
+		renderItemSelector({
+			itemSubtype: '1001',
+			pageContents: MIXED_SUBTYPE_PAGE_CONTENTS,
+		});
+
+		await userEvent.click(
+			screen.getByLabelText('select-itemSelectorLabel')
+		);
+
+		expect(screen.getByText('Basic Web Content')).toBeInTheDocument();
+		expect(
+			screen.queryByText('Custom Structure Web Content')
+		).not.toBeInTheDocument();
+	});
+
+	it('shows all recent items when itemSubtype is not configured', async () => {
+		renderItemSelector({pageContents: MIXED_SUBTYPE_PAGE_CONTENTS});
+
+		await userEvent.click(
+			screen.getByLabelText('select-itemSelectorLabel')
+		);
+
+		expect(screen.getByText('Basic Web Content')).toBeInTheDocument();
+		expect(
+			screen.getByText('Custom Structure Web Content')
+		).toBeInTheDocument();
+	});
+
+	it('opens modal directly when itemSubtype is configured and no matching recent items exist', async () => {
+		renderItemSelector({
+			itemSubtype: '9999',
+			pageContents: MIXED_SUBTYPE_PAGE_CONTENTS,
+		});
+
+		await userEvent.click(
+			screen.getByLabelText('select-itemSelectorLabel')
+		);
+
+		expect(screen.queryByText('Basic Web Content')).not.toBeInTheDocument();
+		expect(openItemSelector).toBeCalled();
+	});
+
+	it('filters recent items by mimeType when mimeTypes is configured', async () => {
+		renderItemSelector({
+			mimeTypes: ['image/jpeg'],
+			pageContents: MIXED_MIME_PAGE_CONTENTS,
+		});
+
+		await userEvent.click(
+			screen.getByLabelText('select-itemSelectorLabel')
+		);
+
+		expect(screen.getByText('JPEG Image')).toBeInTheDocument();
+		expect(screen.queryByText('PDF Document')).not.toBeInTheDocument();
+	});
+
+	it('shows all recent items when mimeTypes is not configured', async () => {
+		renderItemSelector({pageContents: MIXED_MIME_PAGE_CONTENTS});
+
+		await userEvent.click(
+			screen.getByLabelText('select-itemSelectorLabel')
+		);
+
+		expect(screen.getByText('JPEG Image')).toBeInTheDocument();
+		expect(screen.getByText('PDF Document')).toBeInTheDocument();
+	});
+
+	it('opens modal directly when mimeTypes is configured and no matching recent items exist', async () => {
+		renderItemSelector({
+			mimeTypes: ['image/jpeg'],
+			pageContents: [
+				{
+					className:
+						'com.liferay.document.library.kernel.model.DLFileEntry',
+					classPK: '001',
+					mimeType: 'application/pdf',
+					title: 'PDF Document',
+				},
+			],
+		});
+
+		await userEvent.click(
+			screen.getByLabelText('select-itemSelectorLabel')
+		);
+
+		expect(screen.queryByText('PDF Document')).not.toBeInTheDocument();
 		expect(openItemSelector).toBeCalled();
 	});
 });
