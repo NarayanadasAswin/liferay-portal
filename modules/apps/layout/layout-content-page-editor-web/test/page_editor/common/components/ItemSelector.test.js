@@ -476,4 +476,33 @@ describe('ItemSelector', () => {
 		expect(screen.queryByText('PDF Document')).not.toBeInTheDocument();
 		expect(openItemSelector).toBeCalled();
 	});
+
+	it('excludes recent items with null mimeType when mimeTypes is configured', async () => {
+		renderItemSelector({
+			mimeTypes: ['image/jpeg'],
+			pageContents: [
+				{
+					className:
+						'com.liferay.document.library.kernel.model.DLFileEntry',
+					classPK: '001',
+					mimeType: null,
+					title: 'Deleted File',
+				},
+				{
+					className:
+						'com.liferay.document.library.kernel.model.DLFileEntry',
+					classPK: '002',
+					mimeType: 'image/jpeg',
+					title: 'JPEG Image',
+				},
+			],
+		});
+
+		await userEvent.click(
+			screen.getByLabelText('select-itemSelectorLabel')
+		);
+
+		expect(screen.queryByText('Deleted File')).not.toBeInTheDocument();
+		expect(screen.getByText('JPEG Image')).toBeInTheDocument();
+	});
 });

@@ -1559,6 +1559,10 @@ public class ContentManagerImpl implements ContentManager {
 					(FileEntry)
 						layoutDisplayPageObjectProvider.getDisplayObject();
 
+				if (fileEntry == null) {
+					return null;
+				}
+
 				return fileEntry.getMimeType();
 			}
 		).put(
