@@ -107,6 +107,7 @@ export default function ItemSelector({
 							Liferay.Language.get('collection') &&
 						(!itemType || pageContent.className === itemType) &&
 						(!itemSubtype ||
+							!/^\d+$/.test(itemSubtype) ||
 							String(pageContent.classTypeId) === itemSubtype) &&
 						(!mimeTypes?.length ||
 							mimeTypes.includes(pageContent.mimeType))

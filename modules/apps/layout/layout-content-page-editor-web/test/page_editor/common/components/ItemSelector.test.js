@@ -430,6 +430,22 @@ describe('ItemSelector', () => {
 		expect(openItemSelector).toBeCalled();
 	});
 
+	it('shows all recent items when itemSubtype is a non-numeric key', async () => {
+		renderItemSelector({
+			itemSubtype: 'basic-web-content',
+			pageContents: MIXED_SUBTYPE_PAGE_CONTENTS,
+		});
+
+		await userEvent.click(
+			screen.getByLabelText('select-itemSelectorLabel')
+		);
+
+		expect(screen.getByText('Basic Web Content')).toBeInTheDocument();
+		expect(
+			screen.getByText('Custom Structure Web Content')
+		).toBeInTheDocument();
+	});
+
 	it('filters recent items by mimeType when mimeTypes is configured', async () => {
 		renderItemSelector({
 			mimeTypes: ['image/jpeg'],
