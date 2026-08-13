@@ -70,7 +70,7 @@ const MIXED_TYPE_PAGE_CONTENTS = [
 		title: 'Web Content Item',
 	},
 	{
-		className: 'com.liferay.document.library.kernel.model.DLFileEntry',
+		className: 'com.liferay.portal.kernel.repository.model.FileEntry',
 		classPK: '002',
 		title: 'Document Item',
 	},
@@ -93,13 +93,13 @@ const MIXED_SUBTYPE_PAGE_CONTENTS = [
 
 const MIXED_MIME_PAGE_CONTENTS = [
 	{
-		className: 'com.liferay.document.library.kernel.model.DLFileEntry',
+		className: 'com.liferay.portal.kernel.repository.model.FileEntry',
 		classPK: '001',
 		mimeType: 'image/jpeg',
 		title: 'JPEG Image',
 	},
 	{
-		className: 'com.liferay.document.library.kernel.model.DLFileEntry',
+		className: 'com.liferay.portal.kernel.repository.model.FileEntry',
 		classPK: '002',
 		mimeType: 'application/pdf',
 		title: 'PDF Document',
@@ -368,7 +368,7 @@ describe('ItemSelector', () => {
 		const pageContents = [
 			{
 				className:
-					'com.liferay.document.library.kernel.model.DLFileEntry',
+					'com.liferay.portal.kernel.repository.model.FileEntry',
 				classPK: '001',
 				title: 'Document Item',
 			},
@@ -477,7 +477,7 @@ describe('ItemSelector', () => {
 			pageContents: [
 				{
 					className:
-						'com.liferay.document.library.kernel.model.DLFileEntry',
+						'com.liferay.portal.kernel.repository.model.FileEntry',
 					classPK: '001',
 					mimeType: 'application/pdf',
 					title: 'PDF Document',
@@ -499,14 +499,14 @@ describe('ItemSelector', () => {
 			pageContents: [
 				{
 					className:
-						'com.liferay.document.library.kernel.model.DLFileEntry',
+						'com.liferay.portal.kernel.repository.model.FileEntry',
 					classPK: '001',
 					mimeType: null,
 					title: 'Deleted File',
 				},
 				{
 					className:
-						'com.liferay.document.library.kernel.model.DLFileEntry',
+						'com.liferay.portal.kernel.repository.model.FileEntry',
 					classPK: '002',
 					mimeType: 'image/jpeg',
 					title: 'JPEG Image',
