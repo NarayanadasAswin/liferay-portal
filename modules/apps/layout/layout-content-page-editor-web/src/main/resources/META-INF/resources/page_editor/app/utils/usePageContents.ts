@@ -29,6 +29,7 @@ export type PageContent = {
 	externalReferenceCode: string;
 	icon: string;
 	isRestricted: boolean;
+	mimeType?: string;
 	status: {
 		hasApprovedVersion: boolean;
 		label: string;
