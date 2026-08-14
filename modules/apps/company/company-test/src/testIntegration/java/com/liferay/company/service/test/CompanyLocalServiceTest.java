@@ -1572,7 +1572,7 @@ public class CompanyLocalServiceTest {
 					"COMPANY_MX_UPDATE", mailMxUpdate);
 			SafeCloseable safeCloseable2 =
 				CompanyThreadLocal.setCompanyIdWithSafeCloseable(
-					_company.getCompanyId())) {
+					PortalInstancePool.getDefaultCompanyId())) {
 
 			_company = _companyLocalService.updateCompany(
 				_company.getCompanyId(), _company.getVirtualHostname(), mx,
@@ -1594,20 +1594,27 @@ public class CompanyLocalServiceTest {
 			Assert.assertTrue(mailMxUpdate);
 		}
 		finally {
-			_company = _companyLocalService.updateCompany(
-				_company.getCompanyId(), _company.getVirtualHostname(),
-				originalMx, _company.getMaxUsers(), _company.isActive());
+			try (SafeCloseable safeCloseable =
+					CompanyThreadLocal.setCompanyIdWithSafeCloseable(
+						PortalInstancePool.getDefaultCompanyId())) {
+
+				_company = _companyLocalService.updateCompany(
+					_company.getCompanyId(), _company.getVirtualHostname(),
+					originalMx, _company.getMaxUsers(), _company.isActive());
+			}
 		}
 	}
 
 	private void _testUpdateCompanyNames(boolean expectFailure)
 		throws Exception {
 
-		String name = _company.getName();
-
 		try (SafeCloseable safeCloseable =
 				CompanyThreadLocal.setCompanyIdWithSafeCloseable(
 					_company.getCompanyId())) {
+
+			_company = _companyLocalService.getCompany(_company.getCompanyId());
+
+			String name = _company.getName();
 
 			Group group = null;
 
