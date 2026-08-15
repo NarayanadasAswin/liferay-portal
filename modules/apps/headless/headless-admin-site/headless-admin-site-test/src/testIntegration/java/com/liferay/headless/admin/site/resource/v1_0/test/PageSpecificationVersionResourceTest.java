@@ -6,6 +6,11 @@
 package com.liferay.headless.admin.site.resource.v1_0.test;
 
 import com.liferay.arquillian.extension.junit.bridge.junit.Arquillian;
+import com.liferay.fragment.model.FragmentEntryLink;
+import com.liferay.fragment.service.FragmentEntryLinkLocalService;
+import com.liferay.headless.admin.site.client.dto.v1_0.ContentPageSpecification;
+import com.liferay.headless.admin.site.client.dto.v1_0.PageElement;
+import com.liferay.headless.admin.site.client.dto.v1_0.PageExperience;
 import com.liferay.headless.admin.site.client.dto.v1_0.PageSpecification;
 import com.liferay.headless.admin.site.client.dto.v1_0.PageSpecificationVersion;
 import com.liferay.headless.admin.site.client.problem.Problem;
@@ -13,6 +18,7 @@ import com.liferay.headless.admin.site.client.resource.v1_0.PageSpecificationVer
 import com.liferay.layout.content.model.LayoutContentVersion;
 import com.liferay.layout.content.provider.LayoutContentVersionDataProvider;
 import com.liferay.layout.content.service.LayoutContentVersionLocalService;
+import com.liferay.layout.test.util.ContentLayoutTestUtil;
 import com.liferay.layout.test.util.LayoutTestUtil;
 import com.liferay.petra.string.StringBundler;
 import com.liferay.portal.kernel.model.Group;
@@ -36,7 +42,11 @@ import com.liferay.portal.test.rule.FeatureFlag;
 import com.liferay.portal.test.rule.Inject;
 import com.liferay.portal.test.rule.LiferayIntegrationTestRule;
 import com.liferay.portal.test.rule.PermissionCheckerMethodTestRule;
+import com.liferay.segments.service.SegmentsExperienceLocalService;
 
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.Assert;
@@ -106,6 +116,17 @@ public class PageSpecificationVersionResourceTest
 		throws Exception {
 
 		super.testGetSiteSitePagePageSpecificationVersionsPage();
+	}
+
+	@Override
+	@Test
+	@TestInfo("LPD-90200")
+	public void testPostSiteSitePagePageSpecificationVersionRestore()
+		throws Exception {
+
+		super.testPostSiteSitePagePageSpecificationVersionRestore();
+
+		_testPostSiteSitePagePageSpecificationVersionRestore();
 	}
 
 	@Override
@@ -253,7 +274,7 @@ public class PageSpecificationVersionResourceTest
 		Map<String, Map<String, String>> actions =
 			pageSpecificationVersion.getActions();
 
-		String content = StringBundler.concat(
+		String prefix = StringBundler.concat(
 			"/sites/", testGroup.getExternalReferenceCode(), "/site-pages/",
 			_testGroupLayout.getExternalReferenceCode(),
 			"/page-specification-versions/",
@@ -264,8 +285,48 @@ public class PageSpecificationVersionResourceTest
 
 			String href = action.get("href");
 
+			String content = prefix;
+
+			if (key.equals("restore")) {
+				content = prefix + "/restore";
+			}
+
 			Assert.assertTrue(key, href.contains(content));
 		}
+	}
+
+	private void _assertFragmentEntryLinks(
+		int count, long plid, long defaultSegmentsExperienceId) {
+
+		List<FragmentEntryLink> fragmentEntryLinks =
+			_fragmentEntryLinkLocalService.
+				getFragmentEntryLinksBySegmentsExperienceId(
+					_testGroupLayout.getGroupId(), defaultSegmentsExperienceId,
+					plid, false);
+
+		Assert.assertEquals(
+			fragmentEntryLinks.toString(), count, fragmentEntryLinks.size());
+	}
+
+	private void _assertPageExperiencePageElements(
+		int count, ContentPageSpecification contentPageSpecification) {
+
+		PageElement[] pageElements = _getDefaultPageExperiencePageElements(
+			contentPageSpecification);
+
+		Assert.assertEquals(
+			Arrays.toString(pageElements), count, pageElements.length);
+	}
+
+	private PageElement[] _getDefaultPageExperiencePageElements(
+		ContentPageSpecification contentPageSpecification) {
+
+		PageExperience[] pageExperiences =
+			contentPageSpecification.getPageExperiences();
+
+		PageExperience pageExperience = pageExperiences[0];
+
+		return pageExperience.getPageElements();
 	}
 
 	private PageSpecificationVersionResource
@@ -328,7 +389,7 @@ public class PageSpecificationVersionResourceTest
 
 		Assert.assertNull(firstActions.get("delete"));
 
-		_assertActionHref(firstPageSpecificationVersion, "get");
+		_assertActionHref(firstPageSpecificationVersion, "get", "restore");
 
 		PageSpecificationVersion secondPageSpecificationVersion =
 			_addPageSpecificationVersion();
@@ -340,7 +401,8 @@ public class PageSpecificationVersionResourceTest
 					_testGroupLayout.getExternalReferenceCode(),
 					firstPageSpecificationVersion.getExternalReferenceCode());
 
-		_assertActionHref(firstPageSpecificationVersion, "delete", "get");
+		_assertActionHref(
+			firstPageSpecificationVersion, "delete", "get", "restore");
 
 		secondPageSpecificationVersion =
 			pageSpecificationVersionResource.
@@ -354,7 +416,7 @@ public class PageSpecificationVersionResourceTest
 
 		Assert.assertNull(secondActions.get("delete"));
 
-		_assertActionHref(secondPageSpecificationVersion, "get");
+		_assertActionHref(secondPageSpecificationVersion, "get", "restore");
 	}
 
 	private void _testGetSiteSitePagePageSpecificationVersionMismatchedSitePage()
@@ -420,6 +482,97 @@ public class PageSpecificationVersionResourceTest
 			getPageSpecificationVersion.getPageSpecification());
 	}
 
+	private void _testPostSiteSitePagePageSpecificationVersionRestore()
+		throws Exception {
+
+		Layout draftLayout = _testGroupLayout.fetchDraftLayout();
+
+		long draftLayoutSegmentsExperienceId =
+			_segmentsExperienceLocalService.fetchDefaultSegmentsExperienceId(
+				draftLayout.getPlid());
+
+		long segmentsExperienceId =
+			_segmentsExperienceLocalService.fetchDefaultSegmentsExperienceId(
+				_testGroupLayout.getPlid());
+
+		PageSpecificationVersionResource pageSpecificationVersionResource =
+			_getPageSpecificationVersionResource();
+
+		Map<String, PageSpecification> expectedPageSpecifications =
+			new HashMap<>();
+
+		int count = 3;
+
+		for (int i = 1; i <= count; i++) {
+			ContentLayoutTestUtil.addFragmentEntryLinkToLayout(
+				"{}", draftLayout, draftLayoutSegmentsExperienceId);
+
+			_assertFragmentEntryLinks(
+				i, draftLayout.getPlid(), draftLayoutSegmentsExperienceId);
+
+			ContentLayoutTestUtil.publishLayout(draftLayout, _testGroupLayout);
+
+			_assertFragmentEntryLinks(
+				i, _testGroupLayout.getPlid(), segmentsExperienceId);
+
+			LayoutContentVersion layoutContentVersion =
+				_layoutContentVersionLocalService.getLayoutContentVersion(
+					_layoutContentVersionLocalService.
+						getLatestApprovedLayoutContentVersionId(
+							draftLayout.getPlid()));
+
+			PageSpecificationVersion pageSpecificationVersion =
+				pageSpecificationVersionResource.
+					getSiteSitePagePageSpecificationVersion(
+						testGroup.getExternalReferenceCode(),
+						_testGroupLayout.getExternalReferenceCode(),
+						layoutContentVersion.getExternalReferenceCode());
+
+			PageSpecification pageSpecification =
+				pageSpecificationVersion.getPageSpecification();
+
+			pageSpecification.setStatus(PageSpecification.Status.DRAFT);
+
+			_assertPageExperiencePageElements(
+				i, (ContentPageSpecification)pageSpecification);
+
+			expectedPageSpecifications.put(
+				pageSpecificationVersion.getExternalReferenceCode(),
+				pageSpecification);
+		}
+
+		_assertFragmentEntryLinks(
+			count, _testGroupLayout.getPlid(), segmentsExperienceId);
+
+		for (Map.Entry<String, PageSpecification> entry :
+				expectedPageSpecifications.entrySet()) {
+
+			PageSpecification restoredPageSpecification =
+				pageSpecificationVersionResource.
+					postSiteSitePagePageSpecificationVersionRestore(
+						testGroup.getExternalReferenceCode(),
+						_testGroupLayout.getExternalReferenceCode(),
+						entry.getKey());
+
+			PageSpecification pageSpecification = entry.getValue();
+
+			Assert.assertEquals(pageSpecification, restoredPageSpecification);
+
+			_assertFragmentEntryLinks(
+				count, _testGroupLayout.getPlid(), segmentsExperienceId);
+
+			PageElement[] pageElements = _getDefaultPageExperiencePageElements(
+				(ContentPageSpecification)pageSpecification);
+
+			_assertFragmentEntryLinks(
+				pageElements.length, draftLayout.getPlid(),
+				draftLayoutSegmentsExperienceId);
+		}
+	}
+
+	@Inject
+	private FragmentEntryLinkLocalService _fragmentEntryLinkLocalService;
+
 	@Inject
 	private GroupLocalService _groupLocalService;
 
@@ -433,6 +586,9 @@ public class PageSpecificationVersionResourceTest
 
 	@Inject
 	private LayoutLocalService _layoutLocalService;
+
+	@Inject
+	private SegmentsExperienceLocalService _segmentsExperienceLocalService;
 
 	private Layout _testGroupLayout;
 
