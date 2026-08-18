@@ -20,6 +20,7 @@ import com.liferay.layout.content.provider.LayoutContentVersionDataProvider;
 import com.liferay.layout.content.service.LayoutContentVersionLocalService;
 import com.liferay.layout.test.util.ContentLayoutTestUtil;
 import com.liferay.layout.test.util.LayoutTestUtil;
+import com.liferay.petra.function.UnsafeBiConsumer;
 import com.liferay.petra.string.StringBundler;
 import com.liferay.portal.kernel.model.Group;
 import com.liferay.portal.kernel.model.Layout;
@@ -120,13 +121,14 @@ public class PageSpecificationVersionResourceTest
 
 	@Override
 	@Test
-	@TestInfo("LPD-90200")
+	@TestInfo({"LPD-90200", "LPD-102622"})
 	public void testPostSiteSitePagePageSpecificationVersionRestore()
 		throws Exception {
 
 		super.testPostSiteSitePagePageSpecificationVersionRestore();
 
 		_testPostSiteSitePagePageSpecificationVersionRestore();
+		_testPostSiteSitePagePageSpecificationVersionRestoreMismatchedSitePage();
 	}
 
 	@Override
@@ -318,6 +320,28 @@ public class PageSpecificationVersionResourceTest
 			Arrays.toString(pageElements), count, pageElements.length);
 	}
 
+	private void
+			_assertPageSpecificationVersionMismatchedSitePageProblemException(
+				PageSpecificationVersion pageSpecificationVersion,
+				UnsafeBiConsumer<String, String, Exception> unsafeBiConsumer)
+		throws Exception {
+
+		Layout layout = LayoutTestUtil.addTypeContentLayout(testGroup);
+
+		Problem.ProblemException problemException = Assert.assertThrows(
+			Problem.ProblemException.class,
+			() -> unsafeBiConsumer.accept(
+				layout.getExternalReferenceCode(),
+				pageSpecificationVersion.getExternalReferenceCode()));
+
+		Problem problem = problemException.getProblem();
+
+		Assert.assertEquals("BAD_REQUEST", problem.getStatus());
+		Assert.assertEquals(
+			"The page specification version must belong to the site page",
+			problem.getTitle());
+	}
+
 	private PageElement[] _getDefaultPageExperiencePageElements(
 		ContentPageSpecification contentPageSpecification) {
 
@@ -422,28 +446,15 @@ public class PageSpecificationVersionResourceTest
 	private void _testGetSiteSitePagePageSpecificationVersionMismatchedSitePage()
 		throws Exception {
 
-		Layout layout = LayoutTestUtil.addTypeContentLayout(testGroup);
-
-		PageSpecificationVersion pageSpecificationVersion =
-			testGetSiteSitePagePageSpecificationVersion_addPageSpecificationVersion();
-
-		try {
-			pageSpecificationVersionResource.
-				getSiteSitePagePageSpecificationVersion(
-					testGroup.getExternalReferenceCode(),
-					layout.getExternalReferenceCode(),
-					pageSpecificationVersion.getExternalReferenceCode());
-
-			Assert.fail();
-		}
-		catch (Problem.ProblemException problemException) {
-			Problem problem = problemException.getProblem();
-
-			Assert.assertEquals("BAD_REQUEST", problem.getStatus());
-			Assert.assertEquals(
-				"The page specification version must belong to the site page",
-				problem.getTitle());
-		}
+		_assertPageSpecificationVersionMismatchedSitePageProblemException(
+			testGetSiteSitePagePageSpecificationVersion_addPageSpecificationVersion(),
+			(sitePageExternalReferenceCode,
+			 pageSpecificationVersionExternalReferenceCode) ->
+				pageSpecificationVersionResource.
+					getSiteSitePagePageSpecificationVersion(
+						testGroup.getExternalReferenceCode(),
+						sitePageExternalReferenceCode,
+						pageSpecificationVersionExternalReferenceCode));
 	}
 
 	private void _testGetSiteSitePagePageSpecificationVersionPageSpecificationNestedField()
@@ -568,6 +579,20 @@ public class PageSpecificationVersionResourceTest
 				pageElements.length, draftLayout.getPlid(),
 				draftLayoutSegmentsExperienceId);
 		}
+	}
+
+	private void _testPostSiteSitePagePageSpecificationVersionRestoreMismatchedSitePage()
+		throws Exception {
+
+		_assertPageSpecificationVersionMismatchedSitePageProblemException(
+			_addPageSpecificationVersion(),
+			(sitePageExternalReferenceCode,
+			 pageSpecificationVersionExternalReferenceCode) ->
+				pageSpecificationVersionResource.
+					postSiteSitePagePageSpecificationVersionRestore(
+						testGroup.getExternalReferenceCode(),
+						sitePageExternalReferenceCode,
+						pageSpecificationVersionExternalReferenceCode));
 	}
 
 	@Inject
