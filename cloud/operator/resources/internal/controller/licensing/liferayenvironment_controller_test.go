@@ -10,6 +10,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -439,7 +441,7 @@ func TestReconcileDownloadsAddOns(t *testing.T) {
 		t.Errorf("RequeueAfter = %s, want the download poll interval", result.RequeueAfter)
 	}
 
-	result = reconcileAgain(liferayEnvironmentReconciler, t)
+	result = reconcile(liferayEnvironmentReconciler, t)
 
 	appStatus := getEnvironment(liferayEnvironmentReconciler, t).Status.Apps[0]
 
@@ -492,7 +494,7 @@ func TestReconcileIsNotBlockedByAddOns(t *testing.T) {
 	}
 }
 
-func TestReconcileOfflineAwaitsActivationBundle(t *testing.T) {
+func TestReconcileOfflineAwaitsOfflineActivationBundle(t *testing.T) {
 	environment := pendingEnvironment()
 	environment.Spec.Offline = true
 
@@ -550,6 +552,262 @@ func TestReconcileOfflineAwaitsActivationBundle(t *testing.T) {
 
 	if condition.Status != metav1.ConditionFalse {
 		t.Errorf("Activated condition status = %v, want False", condition.Status)
+	}
+}
+
+func TestReconcileOfflineAwaitsMissingBundleFile(t *testing.T) {
+	environment := pendingEnvironment()
+	environment.Spec.Offline = true
+	environment.Spec.OfflineActivationBundle = "bundle.zip"
+
+	liferayEnvironmentReconciler, result := reconcileOfflineActivationBundle(
+		t.TempDir(), t,
+		&corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "liferay-dev",
+				UID:  "dev-namespace-uid",
+			},
+		},
+		environment,
+	)
+
+	if result.RequeueAfter != 15*time.Second {
+		t.Errorf("RequeueAfter = %s, want 15s", result.RequeueAfter)
+	}
+
+	liferayEnvironment := getEnvironment(liferayEnvironmentReconciler, t)
+
+	if liferayEnvironment.Status.Phase != "Pending" {
+		t.Errorf("Phase = %q, want Pending", liferayEnvironment.Status.Phase)
+	}
+
+	condition := meta.FindStatusCondition(
+		liferayEnvironment.Status.Conditions, conditionActivated,
+	)
+
+	if condition == nil || condition.Reason != "AwaitingOfflineActivationBundle" {
+		t.Errorf(
+			"Activated condition = %v, want AwaitingOfflineActivationBundle", condition,
+		)
+	}
+}
+
+func TestReconcileOfflineExtractsAddOnsFromBundle(t *testing.T) {
+	marketplaceMountPath := t.TempDir()
+
+	lpkgContent := "PK-fake-lpkg-content"
+
+	checksum := sha256.Sum256([]byte(lpkgContent))
+
+	licenseXML := virtualClusterLicenseXML("Friday, March 2, 2029 12:00:00 AM GMT", 3)
+
+	writeOfflineActivationBundle(
+		map[string]string{
+			"add-ons/app-1.lpkg": lpkgContent,
+			"manifest.json": fmt.Sprintf(
+				`{
+					"add-ons": [
+						{
+							"productId": "app-1",
+							"productName": "App One",
+							"virtualEntryId": 42,
+							"sha256Checksum": %q
+						}
+					],
+					"licenseXML": %q,
+					"maxClusterNodes": 3
+				}`,
+				hex.EncodeToString(checksum[:]),
+				base64.StdEncoding.EncodeToString([]byte(licenseXML)),
+			),
+		},
+		filepath.Join(marketplaceMountPath, "liferay-dev", "bundle.zip"),
+		t,
+	)
+
+	environment := pendingEnvironment()
+	environment.Spec.Offline = true
+	environment.Spec.OfflineActivationBundle = "bundle.zip"
+
+	liferayEnvironmentReconciler, result := reconcileOfflineActivationBundle(
+		marketplaceMountPath, t,
+		&corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "liferay-dev",
+				UID:  "dev-namespace-uid",
+			},
+		},
+		&appsv1.StatefulSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "dev-liferay",
+				Namespace: "liferay-dev",
+			},
+			Spec: appsv1.StatefulSetSpec{
+				Replicas: pointerInt32(3),
+			},
+		},
+		environment,
+	)
+
+	if result.RequeueAfter != 10*time.Minute {
+		t.Errorf(
+			"RequeueAfter = %s, want the heartbeat 10m (offline extraction is synchronous)",
+			result.RequeueAfter,
+		)
+	}
+
+	liferayEnvironment := getEnvironment(liferayEnvironmentReconciler, t)
+
+	if liferayEnvironment.Status.Phase != "Ready" {
+		t.Errorf("Phase = %q, want Ready", liferayEnvironment.Status.Phase)
+	}
+
+	if length := len(liferayEnvironment.Status.Apps); length != 1 {
+		t.Fatalf("Apps length = %d, want 1", length)
+	}
+
+	if state := liferayEnvironment.Status.Apps[0].State; state != "Downloaded" {
+		t.Errorf("App state = %q, want Downloaded", state)
+	}
+
+	extracted := filepath.Join(marketplaceMountPath, "liferay-dev", "42.lpkg")
+
+	if _, error := os.Stat(extracted); error != nil {
+		t.Errorf("Expected the extracted lpkg at %s: %v", extracted, error)
+	}
+}
+
+func TestReconcileOfflineLicensesFromBundle(t *testing.T) {
+	marketplaceMountPath := t.TempDir()
+
+	licenseXML := virtualClusterLicenseXML("Friday, March 2, 2029 12:00:00 AM GMT", 3)
+
+	writeOfflineActivationBundle(
+		map[string]string{
+			"add-ons/app.lpkg": "PK-fake-lpkg",
+			"manifest.json": fmt.Sprintf(
+				`{
+					"add-ons": [],
+					"licenseXML": %q,
+					"maxClusterNodes": 3
+				}`,
+				base64.StdEncoding.EncodeToString([]byte(licenseXML)),
+			),
+		},
+		filepath.Join(
+			marketplaceMountPath, "liferay-dev", "bundle.zip",
+		),
+		t,
+	)
+
+	environment := pendingEnvironment()
+	environment.Spec.Offline = true
+	environment.Spec.OfflineActivationBundle = "bundle.zip"
+
+	liferayEnvironmentReconciler, result := reconcileOfflineActivationBundle(
+		marketplaceMountPath, t,
+		&corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "liferay-dev",
+				UID:  "dev-namespace-uid",
+			},
+		},
+		&appsv1.StatefulSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "dev-liferay",
+				Namespace: "liferay-dev",
+			},
+			Spec: appsv1.StatefulSetSpec{
+				Replicas: pointerInt32(3),
+			},
+		},
+		environment,
+	)
+
+	if result.RequeueAfter != 10*time.Minute {
+		t.Errorf("RequeueAfter = %s, want the heartbeat 10m", result.RequeueAfter)
+	}
+
+	liferayEnvironment := getEnvironment(liferayEnvironmentReconciler, t)
+
+	if liferayEnvironment.Status.Phase != "Ready" {
+		t.Errorf("Phase = %q, want Ready", liferayEnvironment.Status.Phase)
+	}
+
+	if liferayEnvironment.Status.ActivatedAt == nil {
+		t.Error("ActivatedAt = nil, want it set after licensing from the bundle")
+	}
+
+	if liferayEnvironment.Status.License.MaxClusterNodes != 3 {
+		t.Errorf(
+			"License.MaxClusterNodes = %d, want 3",
+			liferayEnvironment.Status.License.MaxClusterNodes,
+		)
+	}
+
+	if activated := meta.FindStatusCondition(
+		liferayEnvironment.Status.Conditions, conditionActivated,
+	); activated == nil || activated.Status != metav1.ConditionTrue {
+		t.Errorf("Activated condition = %v, want True", activated)
+	}
+
+	if licenseValid := meta.FindStatusCondition(
+		liferayEnvironment.Status.Conditions, conditionLicenseValid,
+	); licenseValid == nil || licenseValid.Status != metav1.ConditionTrue {
+		t.Errorf("LicenseValid condition = %v, want True", licenseValid)
+	}
+
+	if written := getLicenseXML(liferayEnvironmentReconciler, t); written != licenseXML {
+		t.Errorf("entitlements license.xml = %q, want the bundle license", written)
+	}
+}
+
+func TestReconcileOfflineRejectsInvalidBundle(t *testing.T) {
+	marketplaceMountPath := t.TempDir()
+
+	writeOfflineActivationBundle(
+		map[string]string{
+			"add-ons/app.lpkg": "PK-fake-lpkg",
+		},
+		filepath.Join(
+			marketplaceMountPath, "liferay-dev", "bundle.zip",
+		),
+		t,
+	)
+
+	environment := pendingEnvironment()
+	environment.Spec.Offline = true
+	environment.Spec.OfflineActivationBundle = "bundle.zip"
+
+	liferayEnvironmentReconciler, result := reconcileOfflineActivationBundle(
+		marketplaceMountPath, t,
+		&corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "liferay-dev",
+				UID:  "dev-namespace-uid",
+			},
+		},
+		environment,
+	)
+
+	if result.RequeueAfter != 15*time.Second {
+		t.Errorf("RequeueAfter = %s, want 15s", result.RequeueAfter)
+	}
+
+	liferayEnvironment := getEnvironment(liferayEnvironmentReconciler, t)
+
+	if liferayEnvironment.Status.Phase != "Degraded" {
+		t.Errorf("Phase = %q, want Degraded", liferayEnvironment.Status.Phase)
+	}
+
+	condition := meta.FindStatusCondition(
+		liferayEnvironment.Status.Conditions, conditionActivated,
+	)
+
+	if condition == nil || condition.Status != metav1.ConditionFalse ||
+		condition.Reason != "OfflineActivationBundleInvalid" {
+
+		t.Errorf("Activated condition = %v, want False/OfflineActivationBundleInvalid", condition)
 	}
 }
 
@@ -1008,8 +1266,9 @@ func pointerInt32(value int32) *int32 {
 	return &value
 }
 
-func reconcileAgain(
-	liferayEnvironmentReconciler *LiferayEnvironmentReconciler, t *testing.T,
+func reconcile(
+	liferayEnvironmentReconciler *LiferayEnvironmentReconciler,
+	t *testing.T,
 ) controllerruntime.Result {
 	t.Helper()
 
@@ -1037,15 +1296,15 @@ func reconcileEnvironment(
 	t.Helper()
 
 	liferayEnvironmentReconciler := &LiferayEnvironmentReconciler{
-		Client:            newFakeClient(t, objects...),
-		GracePeriod:       7 * 24 * time.Hour,
-		HeartbeatInterval: 10 * time.Minute,
-		MarketplaceDir:    t.TempDir(),
-		Provisioning:      provisioningClient,
-		Recorder:          record.NewFakeRecorder(10),
-		RetryInitialDelay: 30 * time.Second,
-		RetryMaxDelay:     30 * time.Minute,
-		Syncer:            addon.NewSyncer(provisioningClient, inlineRunner{}),
+		Client:               newFakeClient(t, objects...),
+		GracePeriod:          7 * 24 * time.Hour,
+		HeartbeatInterval:    10 * time.Minute,
+		MarketplaceMountPath: t.TempDir(),
+		Provisioning:         provisioningClient,
+		Recorder:             record.NewFakeRecorder(10),
+		RetryInitialDelay:    30 * time.Second,
+		RetryMaxDelay:        30 * time.Minute,
+		Syncer:               addon.NewSyncer(provisioningClient, inlineRunner{}),
 	}
 
 	result, error := liferayEnvironmentReconciler.Reconcile(
@@ -1062,6 +1321,24 @@ func reconcileEnvironment(
 	}
 
 	return liferayEnvironmentReconciler, result
+}
+
+func reconcileOfflineActivationBundle(
+	marketplaceMountPath string,
+	t *testing.T,
+	objects ...client.Object,
+) (*LiferayEnvironmentReconciler, controllerruntime.Result) {
+	t.Helper()
+
+	liferayEnvironmentReconciler := &LiferayEnvironmentReconciler{
+		Client:               newFakeClient(t, objects...),
+		HeartbeatInterval:    10 * time.Minute,
+		MarketplaceMountPath: marketplaceMountPath,
+		Provisioning:         &stubProvisioning{},
+		Recorder:             record.NewFakeRecorder(10),
+	}
+
+	return liferayEnvironmentReconciler, reconcile(liferayEnvironmentReconciler, t)
 }
 
 func virtualClusterLicenseXML(expirationDate string, maxClusterNodes int32) string {
