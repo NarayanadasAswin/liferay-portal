@@ -17,6 +17,7 @@ import java.util.Set;
 import org.json.JSONObject;
 
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Test;
 
 import org.mockito.InOrder;
@@ -47,12 +48,25 @@ public class BaseWorkspaceGitRepositoryTest
 	}
 
 	@Test
+	public void testFetchCommitFileSHA() throws Exception {
+		_testFetchCommitFileSHA(false);
+		_testFetchCommitFileSHA(true);
+	}
+
+	@Test
 	public void testGetGitWorkingDirectory() throws Exception {
 		_testGetGitWorkingDirectory(false, false, false, false);
 		_testGetGitWorkingDirectory(false, false, false, true);
 		_testGetGitWorkingDirectory(false, false, true, false);
 		_testGetGitWorkingDirectory(false, true, true, true);
 		_testGetGitWorkingDirectory(true, false, true, true);
+	}
+
+	@Test
+	public void testGetProperties() throws Exception {
+		_testGetProperties("7.4.x", "7.4.x");
+		_testGetProperties("base", RandomTestUtil.randomString());
+		_testGetProperties("master", "master");
 	}
 
 	@Test
@@ -68,10 +82,12 @@ public class BaseWorkspaceGitRepositoryTest
 
 	@Test
 	public void testPrepareGitWorkingDirectory() throws Exception {
+		_testPrepareGitWorkingDirectory(false, "merge-portal-subrepository");
 		_testPrepareGitWorkingDirectory(false, false, false);
 		_testPrepareGitWorkingDirectory(false, false, true);
 		_testPrepareGitWorkingDirectory(false, true, false);
 		_testPrepareGitWorkingDirectory(false, true, true);
+		_testPrepareGitWorkingDirectory(true, "test-portal-upstream");
 		_testPrepareGitWorkingDirectory(true, false, false);
 		_testPrepareGitWorkingDirectory(true, false, true);
 		_testPrepareGitWorkingDirectory(true, true, false);
@@ -144,93 +160,53 @@ public class BaseWorkspaceGitRepositoryTest
 		String jobName = "downstream-job";
 
 		Assert.assertFalse(
-			_isSnapshotAfterUploadGitArchives(jobName, false, false));
+			_isSnapshotAfterUploadGitArchives(false, jobName, false));
 		Assert.assertTrue(
-			_isSnapshotAfterUploadGitArchives(jobName, false, true));
+			_isSnapshotAfterUploadGitArchives(false, jobName, true));
 		Assert.assertTrue(
-			_isSnapshotAfterUploadGitArchives(jobName, true, false));
+			_isSnapshotAfterUploadGitArchives(true, jobName, false));
 		Assert.assertTrue(
-			_isSnapshotAfterUploadGitArchives(jobName, true, true));
+			_isSnapshotAfterUploadGitArchives(true, jobName, true));
 
 		jobName = "root-cause-analysis-tool";
 
 		Assert.assertFalse(
-			_isSnapshotAfterUploadGitArchives(jobName, false, false));
+			_isSnapshotAfterUploadGitArchives(false, jobName, false));
+		Assert.assertTrue(
+			_isSnapshotAfterUploadGitArchives(false, jobName, true));
 		Assert.assertFalse(
-			_isSnapshotAfterUploadGitArchives(jobName, true, false));
+			_isSnapshotAfterUploadGitArchives(true, jobName, false));
 		Assert.assertTrue(
-			_isSnapshotAfterUploadGitArchives(jobName, false, true));
-		Assert.assertTrue(
-			_isSnapshotAfterUploadGitArchives(jobName, true, true));
+			_isSnapshotAfterUploadGitArchives(true, jobName, true));
 
 		jobName = "root-cause-analysis-tool-batch";
 
 		Assert.assertFalse(
-			_isSnapshotAfterUploadGitArchives(jobName, false, false));
+			_isSnapshotAfterUploadGitArchives(false, jobName, false));
+		Assert.assertTrue(
+			_isSnapshotAfterUploadGitArchives(false, jobName, true));
 		Assert.assertFalse(
-			_isSnapshotAfterUploadGitArchives(jobName, true, false));
+			_isSnapshotAfterUploadGitArchives(true, jobName, false));
 		Assert.assertTrue(
-			_isSnapshotAfterUploadGitArchives(jobName, false, true));
-		Assert.assertTrue(
-			_isSnapshotAfterUploadGitArchives(jobName, true, true));
+			_isSnapshotAfterUploadGitArchives(true, jobName, true));
 
 		jobName = "top-level-job";
 
 		Assert.assertFalse(
-			_isSnapshotAfterUploadGitArchives(jobName, false, false));
+			_isSnapshotAfterUploadGitArchives(false, jobName, false));
 		Assert.assertTrue(
-			_isSnapshotAfterUploadGitArchives(jobName, false, true));
+			_isSnapshotAfterUploadGitArchives(false, jobName, true));
 		Assert.assertTrue(
-			_isSnapshotAfterUploadGitArchives(jobName, true, false));
+			_isSnapshotAfterUploadGitArchives(true, jobName, false));
 		Assert.assertTrue(
-			_isSnapshotAfterUploadGitArchives(jobName, true, true));
+			_isSnapshotAfterUploadGitArchives(true, jobName, true));
 	}
 
 	@Test
 	public void testValidateSHAInRemoteGitRef() throws Exception {
-		GitWorkingDirectory gitWorkingDirectory = Mockito.mock(
-			GitWorkingDirectory.class);
-
-		LocalGitBranch localGitBranch = Mockito.mock(LocalGitBranch.class);
-		RemoteGitRef remoteGitRef = Mockito.mock(RemoteGitRef.class);
-
-		Mockito.when(
-			gitWorkingDirectory.fetch(remoteGitRef)
-		).thenReturn(
-			localGitBranch
-		);
-
-		Mockito.when(
-			gitWorkingDirectory.refContainsSHA(localGitBranch, null)
-		).thenReturn(
-			true
-		);
-
-		DefaultWorkspaceGitRepository defaultWorkspaceGitRepository =
-			_newDefaultWorkspaceGitRepository();
-
-		Mockito.doReturn(
-			gitWorkingDirectory
-		).when(
-			defaultWorkspaceGitRepository
-		).getGitWorkingDirectory();
-
-		defaultWorkspaceGitRepository.validateSHAInRemoteGitRef(
-			"master", remoteGitRef, null);
-
-		InOrder inOrder = Mockito.inOrder(gitWorkingDirectory);
-
-		inOrder.verify(
-			gitWorkingDirectory
-		).fetch(
-			remoteGitRef
-		);
-
-		inOrder.verify(
-			gitWorkingDirectory
-		).refContainsSHA(
-			localGitBranch, null
-		);
+		_testValidateSHAInRemoteGitRef(false, true, true);
+		_testValidateSHAInRemoteGitRef(true, false, true);
+		_testValidateSHAInRemoteGitRef(true, true, false);
 	}
 
 	private VerificationMode _getVerificationMode(boolean invoked) {
@@ -296,7 +272,7 @@ public class BaseWorkspaceGitRepositoryTest
 	}
 
 	private boolean _isSnapshotAfterUploadGitArchives(
-			String jobName, boolean gitArchiveEnabled, boolean snapshot)
+			boolean gitArchiveEnabled, String jobName, boolean snapshot)
 		throws Exception {
 
 		Map<String, String> environmentMap = new HashMap<>();
@@ -369,12 +345,12 @@ public class BaseWorkspaceGitRepositoryTest
 
 		workingDirectory.mkdir();
 
+		JSONObject jsonObject = new JSONObject();
+
 		String baseBranchSHA = RandomTestUtil.randomSHA();
 		String baseBranchUsername = RandomTestUtil.randomString();
 		String repositoryName = RandomTestUtil.randomString();
 		String senderBranchSHA = RandomTestUtil.randomSHA();
-
-		JSONObject jsonObject = new JSONObject();
 
 		jsonObject.put(
 			"base_branch_head_sha", baseBranchSHA
@@ -461,6 +437,36 @@ public class BaseWorkspaceGitRepositoryTest
 		).downloadGitArchive();
 	}
 
+	private void _testFetchCommitFileSHA(boolean commitFileIsSHA)
+		throws Exception {
+
+		DefaultWorkspaceGitRepository defaultWorkspaceGitRepository =
+			_newDefaultWorkspaceGitRepository();
+
+		defaultWorkspaceGitRepository.setCommitFileIsSHA(commitFileIsSHA);
+
+		String senderBranchSHA =
+			defaultWorkspaceGitRepository.getSenderBranchSHA();
+
+		String fetchCommand = "git fetch -f --depth=1 upstream";
+
+		Shell shell = mockShell();
+
+		setShellCommandOutput(fetchCommand, shell, "");
+
+		ReflectionTestUtil.invoke(
+			defaultWorkspaceGitRepository, "_fetchCommitFileSHA",
+			new Class<?>[0]);
+
+		Mockito.verify(
+			shell, _getVerificationMode(commitFileIsSHA)
+		).doExecute(
+			Mockito.argThat(
+				executionRequest -> hasCommand(
+					executionRequest, fetchCommand, senderBranchSHA))
+		);
+	}
+
 	private void _testGetGitWorkingDirectory(
 			boolean dotGitDirArchiveRequired, boolean exceptionThrown,
 			boolean gitArchiveEnabled, boolean snapshot)
@@ -511,19 +517,39 @@ public class BaseWorkspaceGitRepositoryTest
 			defaultWorkspaceGitRepository.getGitWorkingDirectory());
 	}
 
-	private void _testPrepareGitWorkingDirectory(
-			boolean buildCachingEnabled, boolean gitArchiveEnabled,
-			boolean snapshot)
+	private void _testGetProperties(
+			String expectedPropertyValue, String upstreamBranchName)
 		throws Exception {
+
+		mockEnvironment(Collections.<String, String>emptyMap());
 
 		Properties buildProperties = new Properties();
 
-		buildProperties.setProperty(
-			"build.caching.enabled", String.valueOf(buildCachingEnabled));
-		buildProperties.setProperty(
-			"git.archive.enabled", String.valueOf(gitArchiveEnabled));
+		String propertyName = RandomTestUtil.randomString();
+		String propertyType = RandomTestUtil.randomString();
+
+		String basePropertyName = propertyType + "[" + propertyName + "]";
+
+		buildProperties.setProperty(basePropertyName + "[7.4.x]", "7.4.x");
+		buildProperties.setProperty(basePropertyName + "[master]", "master");
+		buildProperties.setProperty(basePropertyName, "base");
 
 		JenkinsResultsParserUtil.setBuildProperties(buildProperties);
+
+		DefaultWorkspaceGitRepository defaultWorkspaceGitRepository =
+			_newDefaultWorkspaceGitRepository();
+
+		defaultWorkspaceGitRepository.addPropertyOption(upstreamBranchName);
+
+		Properties properties = defaultWorkspaceGitRepository.getProperties(
+			propertyType);
+
+		testEquals(expectedPropertyValue, properties.getProperty(propertyName));
+	}
+
+	private void _testPrepareGitWorkingDirectory(
+			boolean gitArchiveEnabled, boolean snapshot)
+		throws Exception {
 
 		DefaultWorkspaceGitRepository defaultWorkspaceGitRepository =
 			_newDefaultWorkspaceGitRepository();
@@ -565,6 +591,127 @@ public class BaseWorkspaceGitRepositoryTest
 			defaultWorkspaceGitRepository,
 			_getVerificationMode(gitArchiveEnabled)
 		).promoteGitArchive();
+	}
+
+	private void _testPrepareGitWorkingDirectory(
+			boolean buildCachingEnabled, boolean gitArchiveEnabled,
+			boolean snapshot)
+		throws Exception {
+
+		Properties buildProperties = new Properties();
+
+		buildProperties.setProperty(
+			"build.caching.enabled", String.valueOf(buildCachingEnabled));
+		buildProperties.setProperty(
+			"git.archive.enabled", String.valueOf(gitArchiveEnabled));
+
+		JenkinsResultsParserUtil.setBuildProperties(buildProperties);
+
+		_testPrepareGitWorkingDirectory(gitArchiveEnabled, snapshot);
+	}
+
+	private void _testPrepareGitWorkingDirectory(
+			boolean gitArchiveEnabled, String jobName)
+		throws Exception {
+
+		File commandsDir = new File(
+			JenkinsResultsParserUtil.getJenkinsRepositoryDir(), "commands");
+
+		Assume.assumeTrue(
+			JenkinsResultsParserUtil.getCanonicalPath(commandsDir) +
+				" does not exist",
+			commandsDir.isDirectory());
+
+		JenkinsResultsParserUtil.setBuildProperties(
+			JenkinsResultsParserUtil.getProperties(
+				new File(commandsDir, "build.properties"),
+				new File(commandsDir, "build-aws.properties")));
+
+		_setUpEnvironment(jobName, null);
+
+		_testPrepareGitWorkingDirectory(gitArchiveEnabled, true);
+	}
+
+	private void _testValidateSHAInRemoteGitRef(
+			boolean exceptionThrown, boolean localGitBranchFetched,
+			boolean refContainsSHA)
+		throws Exception {
+
+		GitWorkingDirectory gitWorkingDirectory = Mockito.mock(
+			GitWorkingDirectory.class);
+
+		RemoteGitRef remoteGitRef = Mockito.mock(RemoteGitRef.class);
+
+		LocalGitBranch localGitBranch = null;
+
+		if (localGitBranchFetched) {
+			localGitBranch = Mockito.mock(LocalGitBranch.class);
+		}
+
+		Mockito.when(
+			gitWorkingDirectory.fetch(remoteGitRef)
+		).thenReturn(
+			localGitBranch
+		);
+
+		String sha = RandomTestUtil.randomSHA();
+
+		Mockito.when(
+			gitWorkingDirectory.refContainsSHA(localGitBranch, sha)
+		).thenReturn(
+			refContainsSHA
+		);
+
+		String remoteURL = RandomTestUtil.randomString();
+
+		Mockito.when(
+			remoteGitRef.getRemoteURL()
+		).thenReturn(
+			remoteURL
+		);
+
+		DefaultWorkspaceGitRepository defaultWorkspaceGitRepository =
+			_newDefaultWorkspaceGitRepository();
+
+		Mockito.doReturn(
+			gitWorkingDirectory
+		).when(
+			defaultWorkspaceGitRepository
+		).getGitWorkingDirectory();
+
+		String branchName = RandomTestUtil.randomString();
+
+		try {
+			defaultWorkspaceGitRepository.validateSHAInRemoteGitRef(
+				branchName, remoteGitRef, sha);
+
+			Assert.assertFalse(exceptionThrown);
+		}
+		catch (RuntimeException runtimeException) {
+			Assert.assertTrue(exceptionThrown);
+
+			String message = runtimeException.getMessage();
+
+			Assert.assertTrue(message.contains(branchName));
+			Assert.assertTrue(message.contains(remoteURL));
+			Assert.assertTrue(message.contains(sha));
+		}
+
+		InOrder inOrder = Mockito.inOrder(gitWorkingDirectory);
+
+		inOrder.verify(
+			gitWorkingDirectory
+		).fetch(
+			remoteGitRef
+		);
+
+		if (localGitBranchFetched) {
+			inOrder.verify(
+				gitWorkingDirectory
+			).refContainsSHA(
+				localGitBranch, sha
+			);
+		}
 	}
 
 }
