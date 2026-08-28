@@ -98,11 +98,49 @@ export function request(endpoint, method = 'GET') {
 	});
 }
 
-export function getItem(endpoint) {
+export function getItem(endpoint, {signal} = {}) {
 	return fetch(getURL(endpoint), {
 		headers: HEADERS,
 		method: 'GET',
+		signal,
 	}).then((response) => response.json());
+}
+
+export async function getItems(
+	baseURL,
+	keywords = '',
+	{pageSize = 250, signal} = {}
+) {
+
+	// baseURL must not contain a query string
+
+	const encodedKeywords = encodeURIComponent(keywords);
+
+	const items = [];
+
+	let lastPage = 1;
+	let page = 1;
+
+	do {
+		const data = await fetchItem(
+			getURL(
+				`${baseURL}?page=${page}&pageSize=${pageSize}&keywords=${encodedKeywords}`
+			),
+			{
+				headers: HEADERS,
+				method: 'GET',
+				signal,
+			}
+		);
+
+		items.push(...(data.items ?? []));
+
+		lastPage = data.lastPage ?? 1;
+
+		page += 1;
+	} while (page <= lastPage);
+
+	return items;
 }
 
 export function updateItem(endpoint, item, params) {
