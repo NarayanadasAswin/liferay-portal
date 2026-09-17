@@ -131,13 +131,16 @@ public class CPAssetCategoriesNavigationDisplayContext {
 		long scopeGroupId = _themeDisplay.getScopeGroupId();
 		long companyGroupId = _themeDisplay.getCompanyGroupId();
 
-		long[] groupIds =
-			(scopeGroupId == companyGroupId) ? new long[] {companyGroupId} :
-				new long[] {scopeGroupId, companyGroupId};
+		_assetVocabularies = new ArrayList<>(
+			_assetVocabularyService.getGroupVocabularies(
+				scopeGroupId, AssetVocabularyConstants.VISIBILITY_TYPE_PUBLIC));
 
-		_assetVocabularies = _assetVocabularyService.getGroupVocabularies(
-			groupIds,
-			new int[] {AssetVocabularyConstants.VISIBILITY_TYPE_PUBLIC});
+		if (scopeGroupId != companyGroupId) {
+			_assetVocabularies.addAll(
+				_assetVocabularyService.getGroupVocabularies(
+					companyGroupId,
+					AssetVocabularyConstants.VISIBILITY_TYPE_PUBLIC));
+		}
 
 		return _assetVocabularies;
 	}
