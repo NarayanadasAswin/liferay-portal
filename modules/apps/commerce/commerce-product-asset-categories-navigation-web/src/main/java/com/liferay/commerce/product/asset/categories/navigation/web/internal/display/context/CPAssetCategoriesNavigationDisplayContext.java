@@ -440,9 +440,7 @@ public class CPAssetCategoriesNavigationDisplayContext {
 		List<AssetCategory> parentCategories = new ArrayList<>();
 
 		for (String externalReferenceCode :
-				rootAssetCategoryExternalReferenceCode.split(",")) {
-
-			externalReferenceCode = externalReferenceCode.trim();
+				StringUtil.split(rootAssetCategoryExternalReferenceCode)) {
 
 			if (Validator.isNull(externalReferenceCode)) {
 				continue;
@@ -473,11 +471,11 @@ public class CPAssetCategoriesNavigationDisplayContext {
 	private AssetCategory _getParentCategory() throws Exception {
 		List<AssetCategory> parentCategories = _getParentCategories();
 
-		if (ListUtil.isNotEmpty(parentCategories)) {
-			return parentCategories.get(0);
+		if (ListUtil.isEmpty(parentCategories)) {
+			return null;
 		}
 
-		return null;
+		return parentCategories.get(0);
 	}
 
 	private static final Log _log = LogFactoryUtil.getLog(
