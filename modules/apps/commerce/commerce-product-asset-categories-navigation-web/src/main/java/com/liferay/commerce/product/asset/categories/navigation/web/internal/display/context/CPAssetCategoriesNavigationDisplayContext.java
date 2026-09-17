@@ -128,8 +128,9 @@ public class CPAssetCategoriesNavigationDisplayContext {
 			return _assetVocabularies;
 		}
 
-		long scopeGroupId = _themeDisplay.getScopeGroupId();
 		long companyGroupId = _themeDisplay.getCompanyGroupId();
+
+		long scopeGroupId = _themeDisplay.getScopeGroupId();
 
 		_assetVocabularies = new ArrayList<>(
 			_assetVocabularyService.getGroupVocabularies(
@@ -438,16 +439,18 @@ public class CPAssetCategoriesNavigationDisplayContext {
 
 		List<AssetCategory> parentCategories = new ArrayList<>();
 
-		for (String erc : rootAssetCategoryExternalReferenceCode.split(",")) {
-			erc = erc.trim();
+		for (String externalReferenceCode :
+				rootAssetCategoryExternalReferenceCode.split(",")) {
 
-			if (Validator.isNull(erc)) {
+			externalReferenceCode = externalReferenceCode.trim();
+
+			if (Validator.isNull(externalReferenceCode)) {
 				continue;
 			}
 
 			AssetCategory assetCategory =
 				_assetCategoryService.fetchCategoryByExternalReferenceCode(
-					erc, _themeDisplay.getScopeGroupId());
+					externalReferenceCode, _themeDisplay.getScopeGroupId());
 
 			if ((assetCategory == null) &&
 				(_themeDisplay.getScopeGroupId() !=
@@ -455,7 +458,8 @@ public class CPAssetCategoriesNavigationDisplayContext {
 
 				assetCategory =
 					_assetCategoryService.fetchCategoryByExternalReferenceCode(
-						erc, _themeDisplay.getCompanyGroupId());
+						externalReferenceCode,
+						_themeDisplay.getCompanyGroupId());
 			}
 
 			if (assetCategory != null) {

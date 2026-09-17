@@ -62,7 +62,7 @@ export default function ({namespace}) {
 			preferencesUseRootCategory.checked &&
 			!preferencesUseCategoryFromRequest.checked
 		) {
-			const ercs = [];
+			const externalReferenceCodes = [];
 
 			const categoryDataContainers =
 				rootAssetCategoryContainer.querySelectorAll(
@@ -73,18 +73,19 @@ export default function ({namespace}) {
 				const categories = JSON.parse(container.dataset.categories);
 
 				if (categories.length) {
-					const erc = await getTaxonomyCategoryExternalReferenceCode(
-						Number(categories[0].value)
-					);
+					const externalReferenceCode =
+						await getTaxonomyCategoryExternalReferenceCode(
+							Number(categories[0].value)
+						);
 
-					if (erc) {
-						ercs.push(erc);
+					if (externalReferenceCode) {
+						externalReferenceCodes.push(externalReferenceCode);
 					}
 				}
 			}
 
 			preferencesRootAssetCategoryExternalReferenceCode.value =
-				ercs.join(',');
+				externalReferenceCodes.join(',');
 		}
 		submitForm(form);
 	});
