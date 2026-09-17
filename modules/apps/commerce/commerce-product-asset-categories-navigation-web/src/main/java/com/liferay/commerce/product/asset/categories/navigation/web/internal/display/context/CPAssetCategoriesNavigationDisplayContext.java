@@ -91,7 +91,7 @@ public class CPAssetCategoriesNavigationDisplayContext {
 
 		List<AssetCategory> parentCategories = _getParentCategories();
 
-		if (!parentCategories.isEmpty()) {
+		if (ListUtil.isNotEmpty(parentCategories)) {
 			_assetCategories = new ArrayList<>();
 
 			for (AssetCategory parentCategory : parentCategories) {
@@ -309,7 +309,7 @@ public class CPAssetCategoriesNavigationDisplayContext {
 	public String getRootAssetCategoryId() throws PortalException {
 		List<AssetCategory> parentCategories = _getParentCategories();
 
-		if (parentCategories.isEmpty()) {
+		if (ListUtil.isEmpty(parentCategories)) {
 			return StringPool.BLANK;
 		}
 
@@ -466,7 +466,7 @@ public class CPAssetCategoriesNavigationDisplayContext {
 	private AssetCategory _getParentCategory() throws Exception {
 		List<AssetCategory> parentCategories = _getParentCategories();
 
-		if (!parentCategories.isEmpty()) {
+		if (ListUtil.isNotEmpty(parentCategories)) {
 			return parentCategories.get(0);
 		}
 
