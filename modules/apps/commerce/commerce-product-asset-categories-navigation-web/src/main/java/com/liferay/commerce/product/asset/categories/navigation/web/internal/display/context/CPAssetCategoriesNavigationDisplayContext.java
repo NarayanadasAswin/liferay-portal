@@ -91,17 +91,23 @@ public class CPAssetCategoriesNavigationDisplayContext {
 
 		List<AssetCategory> parentCategories = _getParentCategories();
 
-		_assetCategories = new ArrayList<>();
+		if (ListUtil.isNotEmpty(parentCategories)) {
+			List<AssetCategory> assetCategories = new ArrayList<>();
 
-		for (AssetCategory parentCategory : parentCategories) {
-			_assetCategories.addAll(
-				_assetCategoryService.getVocabularyCategories(
-					parentCategory.getCategoryId(),
-					parentCategory.getVocabularyId(), QueryUtil.ALL_POS,
-					QueryUtil.ALL_POS, null));
+			for (AssetCategory parentCategory : parentCategories) {
+				assetCategories.addAll(
+					_assetCategoryService.getVocabularyCategories(
+						parentCategory.getCategoryId(),
+						parentCategory.getVocabularyId(), QueryUtil.ALL_POS,
+						QueryUtil.ALL_POS, null));
+			}
+
+			_assetCategories = assetCategories;
+
+			return _assetCategories;
 		}
 
-		return _assetCategories;
+		return Collections.emptyList();
 	}
 
 	public List<AssetVocabulary> getAssetVocabularies() throws PortalException {
