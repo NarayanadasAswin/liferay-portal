@@ -91,33 +91,14 @@ public class CPAssetCategoriesNavigationDisplayContext {
 
 		List<AssetCategory> parentCategories = _getParentCategories();
 
-		if (ListUtil.isNotEmpty(parentCategories)) {
-			_assetCategories = new ArrayList<>();
+		_assetCategories = new ArrayList<>();
 
-			for (AssetCategory parentCategory : parentCategories) {
-				_assetCategories.addAll(
-					_assetCategoryService.getVocabularyCategories(
-						parentCategory.getCategoryId(),
-						parentCategory.getVocabularyId(), QueryUtil.ALL_POS,
-						QueryUtil.ALL_POS, null));
-			}
-		}
-		else {
-			if (useRootCategory()) {
-				return Collections.emptyList();
-			}
-
-			AssetVocabulary assetVocabulary = getAssetVocabulary();
-
-			if (assetVocabulary == null) {
-				return Collections.emptyList();
-			}
-
-			_assetCategories =
-				_assetCategoryService.getVocabularyRootCategories(
-					assetVocabulary.getGroupId(),
-					assetVocabulary.getVocabularyId(), QueryUtil.ALL_POS,
-					QueryUtil.ALL_POS, null);
+		for (AssetCategory parentCategory : parentCategories) {
+			_assetCategories.addAll(
+				_assetCategoryService.getVocabularyCategories(
+					parentCategory.getCategoryId(),
+					parentCategory.getVocabularyId(), QueryUtil.ALL_POS,
+					QueryUtil.ALL_POS, null));
 		}
 
 		return _assetCategories;
