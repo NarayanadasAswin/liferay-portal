@@ -494,17 +494,16 @@ public class StagedGroupStagedModelDataHandler
 			}
 		}
 
-		// LayoutStagedModelDataHandler.exportLayoutPortlets() was deleted in
-		// LPD-80547. This loop restores the missing per-page display portlet
-		// export that it used to perform for PORTLET_INSTANCE portlets (e.g.
-		// Web Content Display) whose article references are stored in portlet
-		// preferences and not tracked by the site-level portlet export above.
+		if (!ExportImportThreadLocal.isLayoutStagingInProcess()) {
+			return;
+		}
 
 		long companyId = portletDataContext.getCompanyId();
-		long scopeGroupId = portletDataContext.getScopeGroupId();
 
 		for (Layout layout : layouts) {
-			if (!ArrayUtil.contains(layoutIds, layout.getLayoutId())) {
+			if (layout.isDraftLayout() ||
+				!ArrayUtil.contains(layoutIds, layout.getLayoutId())) {
+
 				continue;
 			}
 
@@ -537,7 +536,7 @@ public class StagedGroupStagedModelDataHandler
 				}
 
 				_exportPortlet(
-					portletDataContext, portletId, plid, scopeGroupId,
+					portletDataContext, portletId, plid, layout.getGroupId(),
 					StringPool.BLANK, StringPool.BLANK, type, portletsElement,
 					servicesElement, permissions);
 			}
