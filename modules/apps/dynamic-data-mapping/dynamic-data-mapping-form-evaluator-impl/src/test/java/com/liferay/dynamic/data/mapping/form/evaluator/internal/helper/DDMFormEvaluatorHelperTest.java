@@ -287,6 +287,157 @@ public class DDMFormEvaluatorHelperTest {
 	}
 
 	@Test
+	@TestInfo("LPD-110314")
+	public void testEvaluateShowHideRulesAfterCalculatedFieldChanges()
+		throws Exception {
+
+		DDMForm ddmForm = new DDMForm();
+
+		ddmForm.addDDMFormField(
+			_createDDMFormField("bottomText", "text", FieldConstants.STRING));
+		ddmForm.addDDMFormField(
+			_createDDMFormField("score", "numeric", FieldConstants.DOUBLE));
+		ddmForm.addDDMFormField(
+			_createDDMFormField("topText", "text", FieldConstants.STRING));
+		ddmForm.addDDMFormField(
+			_createDDMFormField("total1", "numeric", FieldConstants.DOUBLE));
+		ddmForm.addDDMFormField(
+			_createDDMFormField("total2", "numeric", FieldConstants.DOUBLE));
+
+		ddmForm.addDDMFormRule(
+			new DDMFormRule(
+				Arrays.asList(
+					"calculate(\"score\", getValue(\"total1\") + " +
+						"getValue(\"total2\"))"),
+				"TRUE"));
+		ddmForm.addDDMFormRule(
+			new DDMFormRule(
+				Arrays.asList("setVisible('bottomText', true)"),
+				"getValue(\"score\") < 58"));
+		ddmForm.addDDMFormRule(
+			new DDMFormRule(
+				Arrays.asList("setVisible('topText', true)"),
+				"getValue(\"score\") >= 58"));
+
+		DDMFormValues ddmFormValues = DDMFormValuesTestUtil.createDDMFormValues(
+			ddmForm);
+
+		ddmFormValues.addDDMFormFieldValue(
+			DDMFormValuesTestUtil.createDDMFormFieldValue(
+				RandomTestUtil.randomString(), "total1",
+				new UnlocalizedValue("50")));
+		ddmFormValues.addDDMFormFieldValue(
+			DDMFormValuesTestUtil.createDDMFormFieldValue(
+				RandomTestUtil.randomString(), "total2",
+				new UnlocalizedValue("20")));
+
+		String scoreInstanceId = RandomTestUtil.randomString();
+
+		ddmFormValues.addDDMFormFieldValue(
+			DDMFormValuesTestUtil.createDDMFormFieldValue(
+				scoreInstanceId, "score",
+				new UnlocalizedValue(
+					String.valueOf(RandomTestUtil.randomInt()))));
+
+		String bottomTextInstanceId = RandomTestUtil.randomString();
+
+		ddmFormValues.addDDMFormFieldValue(
+			DDMFormValuesTestUtil.createDDMFormFieldValue(
+				bottomTextInstanceId, "bottomText",
+				new UnlocalizedValue(RandomTestUtil.randomString())));
+
+		String topTextInstanceId = RandomTestUtil.randomString();
+
+		ddmFormValues.addDDMFormFieldValue(
+			DDMFormValuesTestUtil.createDDMFormFieldValue(
+				topTextInstanceId, "topText",
+				new UnlocalizedValue(RandomTestUtil.randomString())));
+
+		DDMFormEvaluatorEvaluateResponse ddmFormEvaluatorEvaluateResponse =
+			evaluate(ddmForm, ddmFormValues);
+
+		Map<String, Object> bottomTextPropertyChanges =
+			_getDDMFormFieldPropertyChangesByKey(
+				ddmFormEvaluatorEvaluateResponse,
+				new DDMFormEvaluatorFieldContextKey(
+					"bottomText", bottomTextInstanceId));
+
+		Assert.assertFalse((boolean)bottomTextPropertyChanges.get("visible"));
+
+		Map<String, Object> scorePropertyChanges =
+			_getDDMFormFieldPropertyChangesByKey(
+				ddmFormEvaluatorEvaluateResponse,
+				new DDMFormEvaluatorFieldContextKey("score", scoreInstanceId));
+
+		Assert.assertEquals(
+			BigDecimal.valueOf(70), scorePropertyChanges.get("value"));
+
+		Map<String, Object> topTextPropertyChanges =
+			_getDDMFormFieldPropertyChangesByKey(
+				ddmFormEvaluatorEvaluateResponse,
+				new DDMFormEvaluatorFieldContextKey(
+					"topText", topTextInstanceId));
+
+		Assert.assertTrue((boolean)topTextPropertyChanges.get("visible"));
+	}
+
+	@Test
+	@TestInfo("LPD-110314")
+	public void testEvaluateShowRuleWhenLaterRuleOnSameFieldIsFalse()
+		throws Exception {
+
+		DDMForm ddmForm = new DDMForm();
+
+		ddmForm.addDDMFormField(
+			_createDDMFormField("field0", "numeric", FieldConstants.DOUBLE));
+		ddmForm.addDDMFormField(
+			_createDDMFormField("field1", "text", FieldConstants.STRING));
+		ddmForm.addDDMFormField(
+			_createDDMFormField("field2", "text", FieldConstants.STRING));
+
+		ddmForm.addDDMFormRule(
+			new DDMFormRule(
+				Arrays.asList("setVisible('field1', true)"),
+				"getValue(\"field0\") > 0"));
+		ddmForm.addDDMFormRule(
+			new DDMFormRule(
+				Arrays.asList("setVisible('field2', true)"),
+				"getValue(\"field0\") > 0"));
+		ddmForm.addDDMFormRule(
+			new DDMFormRule(
+				Arrays.asList("setVisible('field1', true)"),
+				"getValue(\"field0\") > 100"));
+
+		DDMFormValues ddmFormValues = DDMFormValuesTestUtil.createDDMFormValues(
+			ddmForm);
+
+		ddmFormValues.addDDMFormFieldValue(
+			DDMFormValuesTestUtil.createDDMFormFieldValue(
+				RandomTestUtil.randomString(), "field0",
+				new UnlocalizedValue("1")));
+
+		String field1InstanceId = RandomTestUtil.randomString();
+
+		ddmFormValues.addDDMFormFieldValue(
+			DDMFormValuesTestUtil.createDDMFormFieldValue(
+				field1InstanceId, "field1",
+				new UnlocalizedValue(RandomTestUtil.randomString())));
+
+		ddmFormValues.addDDMFormFieldValue(
+			DDMFormValuesTestUtil.createDDMFormFieldValue(
+				RandomTestUtil.randomString(), "field2",
+				new UnlocalizedValue(RandomTestUtil.randomString())));
+
+		Map<String, Object> field1PropertyChanges =
+			_getDDMFormFieldPropertyChangesByKey(
+				evaluate(ddmForm, ddmFormValues),
+				new DDMFormEvaluatorFieldContextKey(
+					"field1", field1InstanceId));
+
+		Assert.assertTrue((boolean)field1PropertyChanges.get("visible"));
+	}
+
+	@Test
 	public void testGetSameResponseAfterCalculateDDMFormRuleEvaluations()
 		throws Exception {
 
